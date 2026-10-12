@@ -15,7 +15,7 @@ delete). The content table is a Room entity; the FTS table is created outside Ro
 `EpubPassageIndexCallback`), since Room can't declare an FTS table over a content table it also writes to. Chapters have no foreign key to
 `books`, so a permanent delete can't cascade away the text needed to unindex them; `discardUnavailable` removes them.
 Migration 34→35 drops the old passages and index rather than converting them; the app re-indexes local EPUBs in the
-background, and weekly maintenance VACUUMs the freed space. The index stays disposable and outside backups and sync.
+background; SQLite's auto_vacuum returns the freed pages (138 MB → 77 MB on that phone). The index stays disposable and outside backups and sync.
 
 ## Version 34
 
