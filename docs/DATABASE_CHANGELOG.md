@@ -2,6 +2,21 @@
 
 Every bump to `DATABASE_VERSION` (`core/database/.../VayanaDatabase.kt`) gets an entry here and a real Room `Migration`.
 
+## Version 35
+
+Shrinks the EPUB content index, which held each passage's plain text in `epub_passages` (overlapping chunks) plus
+an FTS4 index built from it: most of a 138 MB database on one phone. New `epub_chapters` stores each spine
+document's text once, Deflate-compressed (`compressedText` BLOB), with `bookId`, `fileHash`, `href`, `title`;
+`epub_passages` is now only `chapterId` (cascading foreign key) and `[startOffset, endOffset)`. The index
+`epub_passages_fts` is external-content FTS4 over `epub_passages_fts_content` (`id`, `text`), a table that is empty
+between operations: indexing stages a chapter's passages there and copies them into the index with one
+`INSERT … SELECT`; deleting stages them so FTS4 can read the words to remove (it reads the content table only to
+delete). The content table is a Room entity; the FTS table is created outside Room (`EpubPassageIndex`,
+`EpubPassageIndexCallback`), since Room can't declare an FTS table over a content table it also writes to. Chapters have no foreign key to
+`books`, so a permanent delete can't cascade away the text needed to unindex them; `discardUnavailable` removes them.
+Migration 34→35 drops the old passages and index rather than converting them; the app re-indexes local EPUBs in the
+background, and weekly maintenance VACUUMs the freed space. The index stays disposable and outside backups and sync.
+
 ## Version 34
 
 Migration 33→34 adds nullable `activeIntervals` to reading sessions. Existing rows, timestamps,

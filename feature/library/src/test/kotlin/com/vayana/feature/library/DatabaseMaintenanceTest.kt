@@ -3,8 +3,10 @@ package com.vayana.feature.library
 import androidx.room.Room
 import com.vayana.core.database.DatabaseMaintenance
 import com.vayana.core.database.VayanaDatabase
+import com.vayana.core.database.dao.EpubChapterText
 import com.vayana.core.database.entity.BookEntity
-import com.vayana.core.database.entity.EpubPassageEntity
+import com.vayana.core.database.search.EpubPassageIndexCallback
+import kotlin.random.Random
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.runner.RunWith
@@ -19,7 +21,7 @@ class DatabaseMaintenanceTest {
     private lateinit var db: VayanaDatabase
     @BeforeTest fun setup() {
         db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), VayanaDatabase::class.java)
-            .allowMainThreadQueries().build()
+            .addCallback(EpubPassageIndexCallback).allowMainThreadQueries().build()
     }
     @AfterTest fun close() = db.close()
 
@@ -34,20 +36,23 @@ class DatabaseMaintenanceTest {
     @Test fun optimizeGivesBackSpaceOfARemovedBooksPassagesAndKeepsSearchWorking() = runBlocking {
         val removed = epub("Removed")
         val kept = epub("Kept")
-        val filler = "lorem ipsum dolor sit amet ".repeat(66)
-        db.epubPassageDao().insert(List(6_000) { index ->
-            EpubPassageEntity(bookId = removed, fileHash = "hash-Removed", chapterHref = "c$index.xhtml",
-                chapterTitle = "Chapter", text = "$filler word$index")
-        })
-        db.epubPassageDao().insert(listOf(EpubPassageEntity(bookId = kept, fileHash = "hash-Kept",
-            chapterHref = "one.xhtml", chapterTitle = "One", text = "a quokka smiles")))
-        db.epubPassageDao().deleteForBook(removed)
+        // Varied words, so neither the compressed text nor the index stays small.
+        val random = Random(7)
+        val chapters = List(60) { index ->
+            val text = List(12_000) { (1..random.nextInt(4, 9)).map { 'a' + random.nextInt(26) }.joinToString("") }
+                .joinToString(" ")
+            EpubChapterText("c$index.xhtml", "Chapter", text, text.indices.chunked(1800) { it.first()..it.last() })
+        }
+        val dao = db.epubPassageDao()
+        dao.replace(removed, "hash-Removed", chapters.asSequence())
+        dao.replace(kept, "hash-Kept", sequenceOf(EpubChapterText("one.xhtml", "One", "a quokka smiles", listOf(0..14))))
+        dao.deleteForBook(removed)
         assertTrue(pragma("freelist_count") * pragma("page_size") >= 8L * 1024 * 1024)
 
         DatabaseMaintenance(db).optimize()
 
         assertEquals(0L, pragma("freelist_count"))
-        assertEquals(listOf("a quokka smiles"), db.epubPassageDao().search("quokka", 10).first().map { it.text })
-        assertTrue(db.epubPassageDao().search("lorem", 10).first().isEmpty())
+        val hit = dao.search("quokka", 10).first().single()
+        assertEquals("a quokka smiles", dao.chapterTexts(listOf(hit.chapterId)).getValue(hit.chapterId).substring(hit.startOffset, hit.endOffset))
     }
 }

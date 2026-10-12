@@ -34,6 +34,7 @@ object DatabaseModule {
         Room.databaseBuilder(context, VayanaDatabase::class.java, "vayana.db")
             .addMigrations(*ALL_MIGRATIONS)
             .addCallback(BookSearchIndexCallback)
+            .addCallback(com.vayana.core.database.search.EpubPassageIndexCallback)
             .addCallback(FullSyncChangeTrackerCallback)
             .build()
 

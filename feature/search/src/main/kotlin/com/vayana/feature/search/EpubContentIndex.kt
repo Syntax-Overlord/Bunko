@@ -4,7 +4,7 @@ import com.vayana.core.common.ApplicationScope
 import com.vayana.core.common.runCatchingCancellable
 import com.vayana.core.database.dao.EpubPassageDao
 import com.vayana.core.database.dao.IndexedEpubFile
-import com.vayana.core.database.entity.EpubPassageEntity
+import com.vayana.core.database.dao.EpubChapterText
 import com.vayana.core.filesystem.StorageRoots
 import com.vayana.format.epub.EpubTextExtractor
 import java.io.File
@@ -56,10 +56,9 @@ class EpubContentIndex @Inject constructor(
                             val result = runCatchingCancellable {
                                 val context = currentCoroutineContext()
                                 val chapters = EpubTextExtractor.extract(File(path)) { context.ensureActive() }
-                                val passages = chapters.asSequence().flatMap { chapter -> passageChunks(chapter.text).map { text ->
-                                    EpubPassageEntity(bookId = id, fileHash = hash, chapterHref = chapter.href, chapterTitle = chapter.title, text = text)
-                                } }
-                                dao.replaceStreaming(id, passages)
+                                dao.replace(id, hash, chapters.asSequence().map { chapter ->
+                                    EpubChapterText(chapter.href, chapter.title, chapter.text, passageRanges(chapter.text).toList())
+                                })
                             }
                             if (result.isFailure) failures++
                             _progress.value = IndexProgress(index + 1, pending.size, failures)
@@ -76,13 +75,21 @@ class EpubContentIndex @Inject constructor(
 internal fun chunkPassage(text: String, size: Int = 1800, overlap: Int = 240): List<String> =
     passageChunks(text, size, overlap).toList()
 
-internal fun passageChunks(text: String, size: Int = 1800, overlap: Int = 240): Sequence<String> {
+internal fun passageChunks(text: String, size: Int = 1800, overlap: Int = 240): Sequence<String> =
+    passageRanges(text, size, overlap).map { text.substring(it) }
+
+/** [passageChunks] as ranges of [text], whitespace trimmed; blank stretches are skipped. */
+internal fun passageRanges(text: String, size: Int = 1800, overlap: Int = 240): Sequence<IntRange> {
     require(size > overlap && overlap >= 0)
     return sequence {
         var start = 0
         while (start < text.length) {
             val end = minOf(start + size, text.length)
-            yield(text.substring(start, end).trim())
+            var first = start
+            var last = end - 1
+            while (first <= last && text[first].isWhitespace()) first++
+            while (last >= first && text[last].isWhitespace()) last--
+            if (first <= last) yield(first..last)
             if (end == text.length) break
             val candidate = end - overlap
             start = text.indexOf(' ', candidate).takeIf { it in candidate until end }?.plus(1) ?: candidate

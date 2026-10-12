@@ -6,6 +6,7 @@ import androidx.sqlite.execSQL
 import com.vayana.core.database.model.hasNullBookTag
 import com.vayana.core.database.model.normalizedBookTagsCsv
 import com.vayana.core.database.search.BookSearchIndex
+import com.vayana.core.database.search.EpubPassageIndex
 import com.vayana.core.database.sync.FullSyncChangeTracker
 
 val MIGRATION_1_2 = object : Migration(1, 2) {
@@ -549,10 +550,29 @@ val MIGRATION_33_34 = object : Migration(33, 34) {
     }
 }
 
+/**
+ * The EPUB content index stored each passage's plain text twice over (the passages and the FTS index built from them,
+ * with overlapping chunks): most of a 138 MB database. Chapters now hold their text once, compressed; passages are
+ * offsets; the index keeps only words. The old index is dropped rather than converted, since compressing a library's
+ * worth of text would hold up the first database open; `EpubContentIndex` re-reads the EPUBs in the background.
+ */
+val MIGRATION_34_35 = object : Migration(34, 35) {
+    override fun migrate(connection: SQLiteConnection) {
+        connection.execSQL("DROP TABLE IF EXISTS `epub_passages_fts`")
+        connection.execSQL("DROP TABLE IF EXISTS `epub_passages`")
+        connection.execSQL("CREATE TABLE IF NOT EXISTS `epub_chapters` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `bookId` INTEGER NOT NULL, `fileHash` TEXT NOT NULL, `href` TEXT NOT NULL, `title` TEXT NOT NULL, `compressedText` BLOB NOT NULL)")
+        connection.execSQL("CREATE INDEX IF NOT EXISTS `index_epub_chapters_bookId` ON `epub_chapters` (`bookId`)")
+        connection.execSQL("CREATE TABLE IF NOT EXISTS `epub_passages` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `chapterId` INTEGER NOT NULL, `startOffset` INTEGER NOT NULL, `endOffset` INTEGER NOT NULL, FOREIGN KEY(`chapterId`) REFERENCES `epub_chapters`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )")
+        connection.execSQL("CREATE INDEX IF NOT EXISTS `index_epub_passages_chapterId` ON `epub_passages` (`chapterId`)")
+        connection.execSQL("CREATE TABLE IF NOT EXISTS `epub_passages_fts_content` (`id` INTEGER NOT NULL, `text` TEXT NOT NULL, PRIMARY KEY(`id`))")
+        EpubPassageIndex.create(connection)
+    }
+}
+
 val ALL_MIGRATIONS = arrayOf(
     MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5, MIGRATION_5_6, MIGRATION_6_7, MIGRATION_7_8,
     MIGRATION_8_9, MIGRATION_9_10, MIGRATION_10_11, MIGRATION_11_12, MIGRATION_12_13, MIGRATION_13_14,
     MIGRATION_14_15, MIGRATION_15_16, MIGRATION_16_17, MIGRATION_17_18, MIGRATION_18_19, MIGRATION_19_20, MIGRATION_20_21,
     MIGRATION_21_22, MIGRATION_22_23, MIGRATION_23_24, MIGRATION_24_25, MIGRATION_25_26, MIGRATION_26_27, MIGRATION_27_28,
-    MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34,
+    MIGRATION_28_29, MIGRATION_29_30, MIGRATION_30_31, MIGRATION_31_32, MIGRATION_32_33, MIGRATION_33_34, MIGRATION_34_35,
 )

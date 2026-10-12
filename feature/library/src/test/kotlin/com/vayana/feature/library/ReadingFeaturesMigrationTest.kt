@@ -55,14 +55,14 @@ class ReadingFeaturesMigrationTest {
             val sql = db.openHelper.writableDatabase
             sql.query("SELECT readNextPinned, readingDisposition, dispositionReason, dispositionUpdatedAt FROM books LIMIT 0").close()
             sql.query("SELECT reviewQuestion FROM annotations LIMIT 0").close()
-            sql.query("SELECT * FROM epub_passages_fts LIMIT 0").close()
+            sql.query("SELECT docid FROM epub_passages_fts LIMIT 0").close()
             sql.execSQL("INSERT INTO books (syncId,title,filePath,format,fileHash,lastLocator,readingPercent,rating,groupId,isDeleted,wordCount,pageEstimate,createdAt,updatedAt,lastReadAt,author,series,seriesNumber,description,coverPath,fileAvailability,totalReadingSeconds) VALUES ('test','Book','book.epub','EPUB','hash',NULL,0,0,NULL,0,NULL,NULL,100,100,NULL,NULL,NULL,NULL,NULL,NULL,'LOCAL',0)")
             val id = db.bookDao().findBySyncId("test")!!.id
             sql.execSQL("UPDATE full_sync_state SET required=0 WHERE id=0")
             sql.execSQL("UPDATE books SET readingDisposition='PAUSED', dispositionUpdatedAt=200 WHERE id=$id")
             sql.query("SELECT required FROM full_sync_state WHERE id=0").use { it.moveToFirst(); assertEquals(1, it.getInt(0)) }
             val dao = db.epubPassageDao()
-            dao.replace(id, listOf(com.vayana.core.database.entity.EpubPassageEntity(bookId=id, fileHash="hash", chapterHref="a", chapterTitle="A", text="migration moonlight")))
+            dao.replace(id, "hash", sequenceOf(com.vayana.core.database.dao.EpubChapterText("a", "A", "migration moonlight", listOf(0..18))))
             assertEquals(1, dao.search("moon*",10).first().size)
         } finally {
             db.close()

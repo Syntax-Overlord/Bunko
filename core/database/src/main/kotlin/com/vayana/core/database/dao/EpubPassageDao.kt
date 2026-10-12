@@ -3,8 +3,15 @@ package com.vayana.core.database.dao
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.Query
+import androidx.room.RawQuery
+import androidx.room.RoomRawQuery
+import androidx.room.SkipQueryVerification
 import androidx.room.Transaction
+import com.vayana.core.database.entity.BookEntity
+import com.vayana.core.database.entity.EpubChapterEntity
 import com.vayana.core.database.entity.EpubPassageEntity
+import com.vayana.core.database.entity.EpubPassageTextEntity
+import com.vayana.core.database.search.EpubPassageIndex
 import kotlinx.coroutines.flow.Flow
 
 data class IndexedEpubFile(val bookId: Long, val fileHash: String)
@@ -12,37 +19,138 @@ data class IndexedEpubFile(val bookId: Long, val fileHash: String)
 /** [filePath] is root-relative, as stored. */
 data class LocalEpubFile(val bookId: Long, val fileHash: String, val filePath: String)
 
+/** A chapter to index, with the `[start, end]` stretches of [text] that become searchable passages. */
+class EpubChapterText(val href: String, val title: String, val text: String, val passages: List<IntRange>)
+
+/** A matching passage; its text is `[startOffset, endOffset)` of chapter [chapterId]'s text ([EpubPassageDao.chapterTexts]). */
+data class EpubPassageHit(
+    val id: Long,
+    val bookId: Long,
+    val chapterId: Long,
+    val chapterHref: String,
+    val chapterTitle: String,
+    val startOffset: Int,
+    val endOffset: Int,
+)
+
+class EpubChapterBlob(val id: Long, val compressedText: ByteArray)
+
+class ChapterPassage(val id: Long, val startOffset: Int, val endOffset: Int)
+
+/**
+ * Writes go a chapter at a time in batches: its passages in one insert, their text staged in another, and one
+ * `INSERT … SELECT` to index them, rather than two statements per passage.
+ */
 @Dao
-interface EpubPassageDao {
-    @Query("SELECT b.id AS bookId, b.fileHash FROM books b WHERE b.isDeleted = 0 AND b.format = 'EPUB' AND b.fileAvailability = 'LOCAL' AND EXISTS (SELECT 1 FROM epub_passages p WHERE p.bookId = b.id AND p.fileHash = b.fileHash)")
-    suspend fun indexedFiles(): List<IndexedEpubFile>
+abstract class EpubPassageDao {
+    @Query("SELECT b.id AS bookId, b.fileHash FROM books b WHERE b.isDeleted = 0 AND b.format = 'EPUB' AND b.fileAvailability = 'LOCAL' AND EXISTS (SELECT 1 FROM epub_chapters c WHERE c.bookId = b.id AND c.fileHash = b.fileHash)")
+    abstract suspend fun indexedFiles(): List<IndexedEpubFile>
 
     // Only the three columns the index needs: this is watched for the app's lifetime and books change on every
     // reading-progress write.
     @Query("SELECT id AS bookId, fileHash, filePath FROM books WHERE isDeleted = 0 AND format = 'EPUB' AND fileAvailability = 'LOCAL' AND filePath != '' ORDER BY createdAt DESC")
-    fun observeLocalEpubFiles(): Flow<List<LocalEpubFile>>
+    abstract fun observeLocalEpubFiles(): Flow<List<LocalEpubFile>>
 
-    @Query("SELECT EXISTS(SELECT 1 FROM epub_passages WHERE bookId = :bookId AND fileHash = :hash)")
-    suspend fun isIndexed(bookId: Long, hash: String): Boolean
+    @Query("SELECT EXISTS(SELECT 1 FROM epub_chapters WHERE bookId = :bookId AND fileHash = :hash)")
+    abstract suspend fun isIndexed(bookId: Long, hash: String): Boolean
 
-    @Query("DELETE FROM epub_passages WHERE bookId = :bookId")
-    suspend fun deleteForBook(bookId: Long)
-
-    @Query("DELETE FROM epub_passages WHERE bookId NOT IN (SELECT id FROM books WHERE isDeleted = 0 AND format = 'EPUB' AND fileAvailability = 'LOCAL') OR fileHash != (SELECT fileHash FROM books WHERE books.id = epub_passages.bookId)")
-    suspend fun discardUnavailable()
-
-    @Insert
-    suspend fun insert(passages: List<EpubPassageEntity>)
-
-    suspend fun replace(bookId: Long, passages: List<EpubPassageEntity>) = replaceStreaming(bookId, passages.asSequence())
-
-    /** Materialize at most one insertion batch; a failure rolls back the whole book's replacement. */
+    /** Replaces the book's index; a failure while [chapters] is still being produced rolls the whole book back. */
     @Transaction
-    suspend fun replaceStreaming(bookId: Long, passages: Sequence<EpubPassageEntity>) {
+    open suspend fun replace(bookId: Long, fileHash: String, chapters: Sequence<EpubChapterText>) {
         deleteForBook(bookId)
-        passages.chunked(100).forEach { insert(it) }
+        chapters.forEach { chapter ->
+            val chapterId = insertChapter(EpubChapterEntity(bookId = bookId, fileHash = fileHash, href = chapter.href,
+                title = chapter.title, compressedText = EpubPassageIndex.compress(chapter.text)))
+            if (chapter.passages.isEmpty()) return@forEach
+            val ids = insertPassages(chapter.passages.map { range ->
+                EpubPassageEntity(chapterId = chapterId, startOffset = range.first, endOffset = range.last + 1)
+            })
+            stage(chapter.passages.mapIndexed { index, range -> EpubPassageTextEntity(ids[index], chapter.text.substring(range)) })
+            indexStaged()
+            clearStaging()
+        }
     }
 
-    @Query("SELECT p.* FROM epub_passages p JOIN epub_passages_fts f ON f.rowid = p.id JOIN books b ON b.id = p.bookId WHERE epub_passages_fts MATCH :match AND b.isDeleted = 0 AND b.fileAvailability = 'LOCAL' AND b.format = 'EPUB' AND b.fileHash = p.fileHash ORDER BY b.lastReadAt DESC, p.id LIMIT :limit")
-    fun search(match: String, limit: Int): Flow<List<EpubPassageEntity>>
+    /**
+     * Removes the book's chapters, passages and their words in the index. FTS4 reads the words to remove from the
+     * content table, so each chapter's passages are staged there (one chapter's text in memory at a time) first.
+     */
+    @Transaction
+    open suspend fun deleteForBook(bookId: Long) {
+        val chapterIds = chapterIds(bookId)
+        if (chapterIds.isEmpty()) return
+        chapterIds.forEach { chapterId ->
+            val passages = chapterPassages(chapterId)
+            if (passages.isEmpty()) return@forEach
+            val text = EpubPassageIndex.decompress(chapterBlobs(listOf(chapterId)).single().compressedText)
+            stage(passages.map { EpubPassageTextEntity(it.id, text.substring(it.startOffset, it.endOffset)) })
+        }
+        unindexStaged()
+        clearStaging()
+        deleteChapters(bookId)
+    }
+
+    /** Drops the index of books that are gone, no longer local EPUBs, or whose file changed since indexing. */
+    @Transaction
+    open suspend fun discardUnavailable() {
+        staleBookIds().forEach { deleteForBook(it) }
+    }
+
+    fun search(match: String, limit: Int): Flow<List<EpubPassageHit>> = searchRaw(RoomRawQuery(SearchSql) {
+        it.bindText(1, match)
+        it.bindLong(2, limit.toLong())
+    })
+
+    /** Full texts of the given chapters, by id; slice them with a hit's offsets. */
+    suspend fun chapterTexts(ids: Collection<Long>): Map<Long, String> =
+        ids.distinct().chunked(MaxBoundIds).flatMap { chapterBlobs(it) }
+            .associate { it.id to EpubPassageIndex.decompress(it.compressedText) }
+
+    @Query("SELECT DISTINCT c.bookId FROM epub_chapters c LEFT JOIN books b ON b.id = c.bookId WHERE b.id IS NULL OR b.isDeleted != 0 OR b.format != 'EPUB' OR b.fileAvailability != 'LOCAL' OR b.fileHash != c.fileHash")
+    protected abstract suspend fun staleBookIds(): List<Long>
+
+    @Insert
+    protected abstract suspend fun insertChapter(chapter: EpubChapterEntity): Long
+
+    @Insert
+    protected abstract suspend fun insertPassages(passages: List<EpubPassageEntity>): List<Long>
+
+    @Insert
+    protected abstract suspend fun stage(texts: List<EpubPassageTextEntity>)
+
+    @Query("SELECT id, compressedText FROM epub_chapters WHERE id IN (:ids)")
+    protected abstract suspend fun chapterBlobs(ids: List<Long>): List<EpubChapterBlob>
+
+    @Query("SELECT id FROM epub_chapters WHERE bookId = :bookId")
+    protected abstract suspend fun chapterIds(bookId: Long): List<Long>
+
+    @Query("SELECT id, startOffset, endOffset FROM epub_passages WHERE chapterId = :chapterId")
+    protected abstract suspend fun chapterPassages(chapterId: Long): List<ChapterPassage>
+
+    @Query("DELETE FROM epub_chapters WHERE bookId = :bookId")
+    protected abstract suspend fun deleteChapters(bookId: Long)
+
+    @Query("DELETE FROM epub_passages_fts_content")
+    protected abstract suspend fun clearStaging()
+
+    @SkipQueryVerification
+    @Query("INSERT INTO epub_passages_fts(docid, text) SELECT id, text FROM epub_passages_fts_content")
+    protected abstract suspend fun indexStaged()
+
+    @SkipQueryVerification
+    @Query("DELETE FROM epub_passages_fts WHERE docid IN (SELECT id FROM epub_passages_fts_content)")
+    protected abstract suspend fun unindexStaged()
+
+    // Raw so Room watches the tables it knows; it can't observe the index table it didn't declare.
+    @RawQuery(observedEntities = [EpubPassageEntity::class, EpubChapterEntity::class, BookEntity::class])
+    protected abstract fun searchRaw(query: RoomRawQuery): Flow<List<EpubPassageHit>>
+
+    private companion object {
+        const val MaxBoundIds = 500
+        const val SearchSql = "SELECT p.id, c.bookId, p.chapterId, c.href AS chapterHref, c.title AS chapterTitle, " +
+            "p.startOffset, p.endOffset FROM epub_passages_fts f JOIN epub_passages p ON p.id = f.docid " +
+            "JOIN epub_chapters c ON c.id = p.chapterId JOIN books b ON b.id = c.bookId " +
+            "WHERE epub_passages_fts MATCH ? AND b.isDeleted = 0 AND b.fileAvailability = 'LOCAL' AND b.format = 'EPUB' " +
+            "AND b.fileHash = c.fileHash ORDER BY b.lastReadAt DESC, p.id LIMIT ?"
+    }
 }

@@ -117,9 +117,11 @@ class SearchViewModel @Inject constructor(
                     passages.search(requireNotNull(com.vayana.core.database.search.ftsPrefixMatch(searchTokens(text))), 60),
                 ) { bookIds, annotations, books, content ->
                     val byId = books.associateBy { it.id }
+                    val chapters = chapterTexts(content.map { it.chapterId })
                     searchResults(text, bookIds, annotations, books).copy(passages = content.mapNotNull { passage ->
                         val book = byId[passage.bookId] ?: return@mapNotNull null
-                        val excerpt = passageExcerpt(passage.text, searchTokens(text))
+                        val chapter = chapters[passage.chapterId] ?: return@mapNotNull null
+                        val excerpt = passageExcerpt(chapter.substring(passage.startOffset, passage.endOffset), searchTokens(text))
                         BookContentResult(passage.id, book, passage.chapterTitle, excerpt,
                             "text:search:${android.net.Uri.encode(passage.chapterHref)}:${android.net.Uri.encode(excerpt)}")
                     })
@@ -127,6 +129,19 @@ class SearchViewModel @Inject constructor(
             }
         }
         .flowOn(dispatchers.default)
+
+    // Passages are offsets into their chapter's stored, compressed text. Typing a word longer mostly matches the same
+    // chapters again, so recently read chapters are kept (bounded by characters) instead of decompressed per keystroke.
+    private val chapterCache = object : android.util.LruCache<Long, String>(ChapterCacheChars) {
+        override fun sizeOf(key: Long, value: String) = value.length
+    }
+
+    private suspend fun chapterTexts(ids: List<Long>): Map<Long, String> {
+        val cached = ids.distinct().mapNotNull { id -> chapterCache.get(id)?.let { id to it } }.toMap()
+        val loaded = passages.chapterTexts(ids.filterNot { it in cached })
+        loaded.forEach { (id, text) -> chapterCache.put(id, text) }
+        return cached + loaded
+    }
 
     val uiState: StateFlow<GlobalSearchUiState> = combine(
         query,
@@ -220,6 +235,7 @@ private const val SearchDebounceMillis = 150L
 private const val MaxRecentSearches = 8
 private const val MaxBookResults = 30
 private const val MaxAnnotationResults = 80
+private const val ChapterCacheChars = 2_000_000
 
 internal fun passageExcerpt(text: String, tokens: List<String>): String {
     val firstMatch = com.vayana.core.database.search.wordPrefixMatchRanges(text, tokens).firstOrNull()?.first ?: 0

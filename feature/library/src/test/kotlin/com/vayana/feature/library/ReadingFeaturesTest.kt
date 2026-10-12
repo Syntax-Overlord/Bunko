@@ -2,7 +2,8 @@ package com.vayana.feature.library
 
 import androidx.room.Room
 import com.vayana.core.database.VayanaDatabase
-import com.vayana.core.database.entity.EpubPassageEntity
+import com.vayana.core.database.dao.EpubChapterText
+import com.vayana.core.database.search.EpubPassageIndexCallback
 import com.vayana.core.database.model.BookFormat
 import com.vayana.core.database.repository.BookRepositoryImpl
 import com.vayana.core.database.repository.ReadNextQueueFullException
@@ -24,7 +25,7 @@ class ReadingFeaturesTest {
     private lateinit var db: VayanaDatabase
     private lateinit var books: BookRepositoryImpl
     @BeforeTest fun setup() {
-        db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), VayanaDatabase::class.java).allowMainThreadQueries().build()
+        db = Room.inMemoryDatabaseBuilder(RuntimeEnvironment.getApplication(), VayanaDatabase::class.java).addCallback(EpubPassageIndexCallback).allowMainThreadQueries().build()
         books = BookRepositoryImpl(db, db.bookDao(), db.bookAliasDao(), db.tombstoneDao(), db.readingSessionDao(), db.vocabularyCardDao(), db.pendingCloudDeletionDao())
     }
     @AfterTest fun close() { db.close() }
@@ -149,12 +150,14 @@ class ReadingFeaturesTest {
         assertNull(after.dispositionReason)
     }
 
+    private fun chapter(href: String, text: String) = EpubChapterText(href, "Chapter", text, listOf(text.indices))
+
     @Test fun contentFtsOnlyReturnsCurrentLocalEpubAndDeletesWithBook() = runBlocking {
         val book = books.insertOfflineBook("Book", null, BookFormat.PHYSICAL, null, null)
         val entity = db.bookDao().getById(book.id)!!
         db.bookDao().update(entity.copy(format = "EPUB", filePath = "book.epub", fileAvailability = "LOCAL"))
         val dao = db.epubPassageDao()
-        dao.replace(book.id, listOf(EpubPassageEntity(bookId = book.id, fileHash = book.fileHash, chapterHref = "OEBPS/a.xhtml", chapterTitle = "Chapter", text = "Café moonlight on the river")))
+        dao.replace(book.id, book.fileHash, sequenceOf(chapter("OEBPS/a.xhtml", "Café moonlight on the river")))
         assertEquals(1, dao.search("cafe*", 10).first().size)
         assertEquals(listOf(com.vayana.core.database.dao.IndexedEpubFile(book.id, book.fileHash)), dao.indexedFiles())
         db.bookDao().update(db.bookDao().getById(book.id)!!.copy(fileAvailability = "CLOUD_ONLY"))
@@ -162,7 +165,7 @@ class ReadingFeaturesTest {
         assertTrue(dao.indexedFiles().isEmpty())
         dao.discardUnavailable()
         assertFalse(dao.isIndexed(book.id, book.fileHash))
-        dao.replace(book.id, listOf(EpubPassageEntity(bookId = book.id, fileHash = "old-hash", chapterHref = "a", chapterTitle = "A", text = "moonlight")))
+        dao.replace(book.id, "old-hash", sequenceOf(chapter("a", "moonlight")))
         assertTrue(dao.search("moon*", 10).first().isEmpty())
     }
 
@@ -170,14 +173,13 @@ class ReadingFeaturesTest {
         val book = books.insertOfflineBook("Book", null, BookFormat.PHYSICAL, null, null)
         db.bookDao().update(db.bookDao().getById(book.id)!!.copy(format="EPUB", filePath="book.epub", fileAvailability="LOCAL"))
         val dao = db.epubPassageDao()
-        fun passage(text: String) = EpubPassageEntity(bookId=book.id, fileHash=book.fileHash, chapterHref="chapter.xhtml", chapterTitle="Chapter", text=text)
-        dao.replaceStreaming(book.id, (1..251).asSequence().map { passage("moonlight $it") })
+        dao.replace(book.id, book.fileHash, (1..251).asSequence().map { chapter("chapter$it.xhtml", "moonlight $it") })
         assertEquals(251, dao.search("moonlight*", 300).first().size)
         val broken = sequence {
-            repeat(180) { yield(passage("broken $it")) }
+            repeat(180) { yield(chapter("broken$it.xhtml", "broken $it")) }
             throw IllegalStateException("Interrupted generation")
         }
-        assertFailsWith<IllegalStateException> { dao.replaceStreaming(book.id, broken) }
+        assertFailsWith<IllegalStateException> { dao.replace(book.id, book.fileHash, broken) }
         assertEquals(251, dao.search("moonlight*", 300).first().size)
         assertTrue(dao.search("broken*", 300).first().isEmpty())
     }
