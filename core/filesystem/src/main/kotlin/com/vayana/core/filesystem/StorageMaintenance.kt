@@ -106,7 +106,8 @@ class StorageMaintenance @Inject constructor(
     private companion object {
         const val PreferencesName = "storage_maintenance"
         const val LastRunKey = "last_run"
-        const val LastDatabaseOptimizeKey = "last_database_optimize"
+        // v2: the first run after the EPUB passage index joined the weekly merge happens right away, not up to a week later.
+        const val LastDatabaseOptimizeKey = "last_database_optimize_v2"
         const val BrowserCacheClearedKey = "browser_cache_cleared_v1"
         const val CheckedCoversKey = "checked_large_covers"
         const val CoversDirectoryName = "covers"
