@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import androidx.work.*
 import com.vayana.core.common.ApplicationScope
+import com.vayana.core.database.dao.BookNotebookFields
 import com.vayana.core.database.repository.AnnotationRepository
 import com.vayana.core.database.repository.BookRepository
 import com.vayana.core.datastore.settings.SettingsRegistry
@@ -54,7 +55,7 @@ class AutomaticNotebookExport @Inject constructor(
                         PeriodicWorkRequestBuilder<NotebookExportWorker>(15, TimeUnit.MINUTES).build())
                     // Only observe expensive notebook data while export is enabled. Reader progress, queue and
                     // status changes do not affect the Markdown and must not trigger folder scans.
-                    combine(books.observeAll().map { library -> library.map(::notebookMetadata) }.distinctUntilChanged(),
+                    combine(books.observeNotebookFields().distinctUntilChanged(),
                         annotations.observeAll()) { library, notes -> library to notes }
                         .distinctUntilChanged().debounce(2000).collect { export() }
                 }
@@ -122,8 +123,7 @@ internal fun notebookIdentity(syncId: String): String = MessageDigest.getInstanc
 internal fun automaticNotebookFileName(syncId: String): String = "book-${notebookIdentity(syncId)}.md"
 
 /** Only fields that appear in the generated notebook, including its stable identity. */
-internal data class NotebookMetadata(val id: Long, val syncId: String, val title: String, val author: String?, val tags: String?)
-internal fun notebookMetadata(book: Book) = NotebookMetadata(book.id, book.syncId, book.title, book.author, book.tagsCsv)
+internal fun notebookMetadata(book: Book) = BookNotebookFields(book.id, book.syncId, book.title, book.author, book.tagsCsv)
 
 /** Check ownership first, then compare in fixed-size buffers rather than loading another notebook-sized string. */
 internal fun notebookIsUnchanged(reader: Reader, content: String, marker: String): Boolean {

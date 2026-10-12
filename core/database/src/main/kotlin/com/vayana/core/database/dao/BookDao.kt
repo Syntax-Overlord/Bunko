@@ -8,6 +8,9 @@ import androidx.room.Update
 import com.vayana.core.database.entity.BookEntity
 import kotlinx.coroutines.flow.Flow
 
+/** What an exported notebook shows about its book. */
+data class BookNotebookFields(val id: Long, val syncId: String, val title: String, val author: String?, val tagsCsv: String?)
+
 @Dao
 interface BookDao {
     @Query("UPDATE books SET tagsCsv = :tags, updatedAt = :now WHERE id = :id AND isDeleted = 0 AND source IS NOT 'home_library'")
@@ -15,6 +18,14 @@ interface BookDao {
 
     @Query("SELECT * FROM books WHERE isDeleted = 0 ORDER BY createdAt DESC")
     fun observeAll(): Flow<List<BookEntity>>
+
+    // App-lifetime observers re-run on every books write (reading progress lands every few seconds while reading),
+    // so they watch only the rows and columns they use instead of the whole library.
+    @Query("SELECT * FROM books WHERE isDeleted = 0 AND format = 'PHYSICAL' ORDER BY createdAt DESC")
+    fun observePhysical(): Flow<List<BookEntity>>
+
+    @Query("SELECT id, syncId, title, author, tagsCsv FROM books WHERE isDeleted = 0 ORDER BY createdAt DESC")
+    fun observeNotebookFields(): Flow<List<BookNotebookFields>>
 
     /** Every cover file a book points to, deleted books (still restorable) and alternates included. */
     @Query(

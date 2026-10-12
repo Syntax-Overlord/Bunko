@@ -35,6 +35,10 @@ interface ReadingSessionDao {
     @Query("SELECT * FROM reading_sessions ORDER BY startedAt DESC")
     fun observeAll(): Flow<List<ReadingSessionEntity>>
 
+    /** Sessions of physical books: digital reading rewrites its session rows every few seconds. */
+    @Query("SELECT s.* FROM reading_sessions s JOIN books b ON b.id = s.bookId WHERE b.isDeleted = 0 AND b.format = 'PHYSICAL' ORDER BY s.startedAt DESC")
+    fun observePhysical(): Flow<List<ReadingSessionEntity>>
+
     /** Sessions started at or after [since]: a few days' worth, where watching them all would reread years. */
     @Query("SELECT * FROM reading_sessions WHERE startedAt >= :since ORDER BY startedAt ASC")
     fun observeSince(since: Long): Flow<List<ReadingSessionEntity>>

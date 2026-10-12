@@ -9,10 +9,18 @@ import kotlinx.coroutines.flow.Flow
 
 data class IndexedEpubFile(val bookId: Long, val fileHash: String)
 
+/** [filePath] is root-relative, as stored. */
+data class LocalEpubFile(val bookId: Long, val fileHash: String, val filePath: String)
+
 @Dao
 interface EpubPassageDao {
     @Query("SELECT b.id AS bookId, b.fileHash FROM books b WHERE b.isDeleted = 0 AND b.format = 'EPUB' AND b.fileAvailability = 'LOCAL' AND EXISTS (SELECT 1 FROM epub_passages p WHERE p.bookId = b.id AND p.fileHash = b.fileHash)")
     suspend fun indexedFiles(): List<IndexedEpubFile>
+
+    // Only the three columns the index needs: this is watched for the app's lifetime and books change on every
+    // reading-progress write.
+    @Query("SELECT id AS bookId, fileHash, filePath FROM books WHERE isDeleted = 0 AND format = 'EPUB' AND fileAvailability = 'LOCAL' AND filePath != '' ORDER BY createdAt DESC")
+    fun observeLocalEpubFiles(): Flow<List<LocalEpubFile>>
 
     @Query("SELECT EXISTS(SELECT 1 FROM epub_passages WHERE bookId = :bookId AND fileHash = :hash)")
     suspend fun isIndexed(bookId: Long, hash: String): Boolean

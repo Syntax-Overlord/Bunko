@@ -1,5 +1,6 @@
 package com.vayana.core.database.repository
 
+import com.vayana.core.database.dao.BookNotebookFields
 import com.vayana.core.database.model.Book
 import com.vayana.core.database.model.BookFormat
 import com.vayana.core.database.model.PhysicalBookOwnership
@@ -102,6 +103,11 @@ enum class CloudBookMergeResult {
 
 interface BookRepository {
     fun observeAll(): Flow<List<Book>>
+
+    /** Physical books only; for observers that outlive any screen. */
+    fun observePhysical(): Flow<List<Book>>
+
+    fun observeNotebookFields(): Flow<List<BookNotebookFields>>
 
     /** The most recently read book whose file is on this device, for the widget and the launcher shortcut. */
     fun observeContinueReading(): Flow<Book?>

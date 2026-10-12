@@ -5,9 +5,7 @@ import com.vayana.core.common.runCatchingCancellable
 import com.vayana.core.database.dao.EpubPassageDao
 import com.vayana.core.database.dao.IndexedEpubFile
 import com.vayana.core.database.entity.EpubPassageEntity
-import com.vayana.core.database.model.BookFileAvailability
-import com.vayana.core.database.model.BookFormat
-import com.vayana.core.filesystem.ResolvedBooks
+import com.vayana.core.filesystem.StorageRoots
 import com.vayana.format.epub.EpubTextExtractor
 import java.io.File
 import javax.inject.Inject
@@ -32,7 +30,7 @@ data class IndexProgress(val done: Int = 0, val total: Int = 0, val failures: In
 
 @Singleton
 class EpubContentIndex @Inject constructor(
-    private val books: ResolvedBooks,
+    private val storageRoots: StorageRoots,
     private val dao: EpubPassageDao,
     @param:ApplicationScope private val scope: CoroutineScope,
 ) {
@@ -44,9 +42,8 @@ class EpubContentIndex @Inject constructor(
     fun start() {
         if (job?.isActive == true) return
         job = scope.launch(Dispatchers.IO) {
-            books.all.map { library -> library.filter { it.format == BookFormat.EPUB &&
-                it.fileAvailability == BookFileAvailability.LOCAL && it.filePath.isNotBlank() }
-                .map { Triple(it.id, it.fileHash, it.filePath) } }
+            dao.observeLocalEpubFiles()
+                .map { files -> files.map { Triple(it.bookId, it.fileHash, storageRoots.resolve(it.filePath).absolutePath) } }
                 .distinctUntilChanged().collectLatest { local ->
                     lock.withLock {
                         dao.discardUnavailable()

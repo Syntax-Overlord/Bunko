@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.vayana.core.database.VayanaDatabase
 import com.vayana.core.database.dao.BookAliasDao
 import com.vayana.core.database.dao.BookDao
+import com.vayana.core.database.dao.BookNotebookFields
 import com.vayana.core.database.dao.ReadingSessionDao
 import com.vayana.core.database.dao.TombstoneDao
 import com.vayana.core.database.entity.BookAliasEntity
@@ -50,6 +51,11 @@ class BookRepositoryImpl @Inject constructor(
 
     override fun observeAll(): Flow<List<Book>> =
         bookDao.observeAll().map { entities -> entities.map { it.toDomain() } }
+
+    override fun observePhysical(): Flow<List<Book>> =
+        bookDao.observePhysical().map { entities -> entities.map { it.toDomain() } }
+
+    override fun observeNotebookFields(): Flow<List<BookNotebookFields>> = bookDao.observeNotebookFields()
 
     override fun observeContinueReading(): Flow<Book?> = bookDao.observeContinueReading().map { it?.toDomain() }
 

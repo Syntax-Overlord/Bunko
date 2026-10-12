@@ -24,6 +24,7 @@ enum class ReadingSessionMergeResult {
 
 interface ReadingSessionRepository {
     fun observeAll(): Flow<List<ReadingSession>>
+    fun observePhysical(): Flow<List<ReadingSession>>
     fun observeForBook(bookId: Long): Flow<List<ReadingSession>>
     fun observePhysicalSummary(bookId: Long): Flow<PhysicalReadingSessionSummary>
     fun observeRecentPhysicalSessions(bookId: Long, limit: Int, forwardOnly: Boolean = false): Flow<List<ReadingSession>>
