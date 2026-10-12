@@ -115,14 +115,6 @@ class SettingsViewModel @Inject constructor(
     val backupFolderFiles: StateFlow<BackupFolderFilesState> = _backupFolderFiles
     private var backupFolderListingJob: Job? = null
 
-    init {
-        viewModelScope.launch {
-            automaticBackup.map { it.folderUri to it.lastSuccessAt }.distinctUntilChanged().collectLatest {
-                refreshBackupFolderFiles()
-            }
-        }
-    }
-
     fun refreshBackupFolderFiles() {
         backupFolderListingJob?.cancel()
         if (automaticBackup.value.folderUri == null) {
@@ -310,6 +302,16 @@ class SettingsViewModel @Inject constructor(
         restoreInspectionJob?.cancel()
         restoreInspectionJob = null
         _restorePreview.value = RestorePreviewState.Idle
+    }
+
+    // Init blocks stay last: Kotlin runs initializers top to bottom, and viewModelScope (Main.immediate) runs a
+    // launch synchronously until it first suspends, so everything an init reaches must be declared above it.
+    init {
+        viewModelScope.launch {
+            automaticBackup.map { it.folderUri to it.lastSuccessAt }.distinctUntilChanged().collectLatest {
+                refreshBackupFolderFiles()
+            }
+        }
     }
 }
 

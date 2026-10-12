@@ -522,23 +522,6 @@ class LibraryViewModel @Inject constructor(
 
     private val controls = MutableStateFlow(LibraryControls())
 
-    init {
-        viewModelScope.launch {
-            settingsRepository.observe(SettingsRegistry.LibraryViewMode).collect { storedMode ->
-                val viewMode = runCatching { LibraryViewMode.valueOf(storedMode) }
-                    .getOrDefault(LibraryViewMode.THUMBNAILS)
-                controls.update { it.copy(viewMode = viewMode) }
-            }
-        }
-        // Books other apps opened or shared into Vayana are imported like any picked file, as soon as the library exists.
-        viewModelScope.launch {
-            incomingBookFiles.pending.filter { it.isNotEmpty() }.collect {
-                val uris = incomingBookFiles.drain()
-                if (uris.isNotEmpty()) importFiles(appContext.contentResolver, uris)
-            }
-        }
-    }
-
     /** Active books with absolute paths, shared app-wide through [ResolvedBooks]. */
     val libraryBooks: StateFlow<List<Book>> =
         resolvedBooks.all.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
@@ -648,19 +631,6 @@ class LibraryViewModel @Inject constructor(
             )
         },
     )
-
-    init {
-        // One launch check for the most recently read book: wait for sync to be set up, then a single query. Watching
-        // the whole books table for this kept a full-library query live (re-run on every page turn's position write)
-        // whenever sync was off or nothing had been read yet.
-        viewModelScope.launch {
-            githubSyncReady.first { it }
-            val bookId = bookRepository.lastReadBookId() ?: return@launch
-            launchReadingProgressCoordinator.checkOnce(bookId) {
-                syncReadingProgressForBook(bookId = bookId, silent = true)
-            }
-        }
-    }
 
     /**
      * The search box's text. Compose state rather than a flow value, so the field updates in the same frame as the
@@ -2823,6 +2793,38 @@ class LibraryViewModel @Inject constructor(
         unsupported = count { it is ImportResult.Unsupported },
         failed = count { it is ImportResult.Failed },
     )
+
+    // Init blocks stay last: Kotlin runs initializers top to bottom, and viewModelScope (Main.immediate) runs a
+    // launch synchronously until it first suspends, so everything an init reaches must be declared above it.
+    init {
+        viewModelScope.launch {
+            settingsRepository.observe(SettingsRegistry.LibraryViewMode).collect { storedMode ->
+                val viewMode = runCatching { LibraryViewMode.valueOf(storedMode) }
+                    .getOrDefault(LibraryViewMode.THUMBNAILS)
+                controls.update { it.copy(viewMode = viewMode) }
+            }
+        }
+        // Books other apps opened or shared into Vayana are imported like any picked file, as soon as the library exists.
+        viewModelScope.launch {
+            incomingBookFiles.pending.filter { it.isNotEmpty() }.collect {
+                val uris = incomingBookFiles.drain()
+                if (uris.isNotEmpty()) importFiles(appContext.contentResolver, uris)
+            }
+        }
+    }
+
+    init {
+        // One launch check for the most recently read book: wait for sync to be set up, then a single query. Watching
+        // the whole books table for this kept a full-library query live (re-run on every page turn's position write)
+        // whenever sync was off or nothing had been read yet.
+        viewModelScope.launch {
+            githubSyncReady.first { it }
+            val bookId = bookRepository.lastReadBookId() ?: return@launch
+            launchReadingProgressCoordinator.checkOnce(bookId) {
+                syncReadingProgressForBook(bookId = bookId, silent = true)
+            }
+        }
+    }
 }
 
 private fun Book.fileAssetReference(): CloudAssetReference? {

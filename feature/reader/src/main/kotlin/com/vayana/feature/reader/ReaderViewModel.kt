@@ -1445,6 +1445,9 @@ class ReaderViewModel @Inject constructor(
     private var readerResumed = false
     private var trackingJob: Job? = null
 
+    /** The last non-transient verdict, so a throttled or skipped run can restore it instead of showing Syncing forever. */
+    private var lastSettledSyncStatus: ReaderSyncStatus = ReaderSyncStatus.Idle
+
     init {
         viewModelScope.launch {
             // Start from what earlier reading measured, then save a few seconds after it last changed: every page
@@ -1693,9 +1696,6 @@ class ReaderViewModel @Inject constructor(
             } while (autoProgressSyncRequested)
         }
     }
-
-    /** The last non-transient verdict, so a throttled or skipped run can restore it instead of showing Syncing forever. */
-    private var lastSettledSyncStatus: ReaderSyncStatus = ReaderSyncStatus.Idle
 
     private fun updateSyncStatus(result: ReadingProgressSyncResult) {
         val status: ReaderSyncStatus = when (result.status) {
