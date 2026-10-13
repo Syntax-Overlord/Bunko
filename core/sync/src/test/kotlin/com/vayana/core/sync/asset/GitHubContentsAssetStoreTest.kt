@@ -255,9 +255,10 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
-    fun getSyncDocumentWithShaUsesContentEmbeddedInTheMetadataResponse() = runBlocking {
+    fun getSyncDocumentWithShaReadsTheBlobIdFromTheFolderListing() = runBlocking {
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(200, embeddedObjectResponse("""{"books":[]}""")),
+            GitHubHttpResponse(200, folderListing("vayana/snapshot-latest.json" to ExistingSha)),
+            GitHubHttpResponse(200, """{"books":[]}""".toByteArray()),
         )
         val store = testStore(client)
 
@@ -265,40 +266,39 @@ class GitHubContentsAssetStoreTest {
 
         assertContentEquals("""{"books":[]}""".toByteArray(), document.bytes)
         assertEquals(ExistingSha, document.sha)
-        assertEquals(listOf("application/vnd.github.object+json"), client.requests.map { it.headers["Accept"] })
-        assertEquals(MaxSyncDocumentJsonBytesForTest, client.requests.single().maxResponseBytes)
-    }
-
-    @Test
-    fun getSyncDocumentWithShaDownloadsTheExactBlobWhenContentIsNotEmbedded() = runBlocking {
-        val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(
-                200,
-                """
-                {
-                  "sha": "$ExistingSha",
-                  "encoding": "none",
-                  "content": ""
-                }
-                """.trimIndent().toByteArray(),
-            ),
-            GitHubHttpResponse(200, """{"books":[{"title":"Large"}]}""".toByteArray()),
-        )
-        val store = testStore(client)
-
-        val document = store.getSyncDocumentWithSha("vayana/snapshot-latest.json")
-
-        assertContentEquals("""{"books":[{"title":"Large"}]}""".toByteArray(), document.bytes)
-        assertEquals(ExistingSha, document.sha)
+        assertEquals("https://api.github.test/repos/owner/repo/contents/vayana?ref=main", client.requests[0].url)
         assertEquals("https://api.github.test/repos/owner/repo/git/blobs/$ExistingSha", client.requests[1].url)
         assertEquals("application/vnd.github.raw+json", client.requests[1].headers["Accept"])
         assertEquals(MaxSyncDocumentBytesForTest, client.requests[1].maxResponseBytes)
     }
 
     @Test
+    fun ownWriteSeedsTheBlobCacheSoTheNextPullDownloadsNothing() = runBlocking {
+        val manifest = """{"books":[{"title":"Mine"}]}""".toByteArray()
+        assertEquals("ce013625030ba8dba906f756967f9e9ca394464a", gitBlobSha("hello\n".toByteArray()))
+        val client = RecordingGitHubHttpClient(
+            *singleCommitResponses(),
+            GitHubHttpResponse(200, folderListing("vayana/snapshot-latest.json" to gitBlobSha(manifest))),
+        )
+        val store = testStore(client)
+        store.commitSyncDocuments(
+            listOf(SyncDocumentChange("vayana/snapshot-latest.json", manifest)),
+            "Sync",
+            "vayana/snapshot-latest.json",
+            ExistingSha,
+        )
+
+        val document = store.getSyncDocumentWithSha("vayana/snapshot-latest.json")
+
+        assertContentEquals(manifest, document.bytes)
+        assertTrue(client.requests.none { it.url.contains("/git/blobs/") })
+    }
+
+    @Test
     fun unchangedSyncDocumentIsRevalidatedWithEtagAndServedFromCache() = runBlocking {
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(200, embeddedObjectResponse("""{"books":[]}"""), mapOf("etag" to "\"v1\"")),
+            GitHubHttpResponse(200, folderListing("vayana/snapshot-latest.json" to ExistingSha), mapOf("etag" to "\"v1\"")),
+            GitHubHttpResponse(200, """{"books":[]}""".toByteArray()),
             GitHubHttpResponse(304, ByteArray(0)),
         )
         val store = testStore(client)
@@ -308,9 +308,9 @@ class GitHubContentsAssetStoreTest {
 
         assertContentEquals("""{"books":[]}""".toByteArray(), again.bytes)
         assertEquals(ExistingSha, again.sha)
-        assertEquals(2, client.requests.size)
+        assertEquals(3, client.requests.size)
         assertEquals(null, client.requests[0].headers["If-None-Match"])
-        assertEquals("\"v1\"", client.requests[1].headers["If-None-Match"])
+        assertEquals("\"v1\"", client.requests[2].headers["If-None-Match"])
     }
 
     @Test
@@ -715,21 +715,22 @@ class GitHubContentsAssetStoreTest {
         val manifest = latestManifestReferencing(1000).toString(Charsets.UTF_8)
         val annotations = """{"annotations":[{"syncId":"note-a"}]}"""
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(200, embeddedObjectResponse(manifest)),
+            GitHubHttpResponse(200, folderListing("vayana/snapshot-latest.json" to ExistingSha)),
+            GitHubHttpResponse(200, manifest.toByteArray()),
             GitHubHttpResponse(200, annotations.toByteArray()),
-            GitHubHttpResponse(200, embeddedObjectResponse(manifest)),
+            GitHubHttpResponse(200, folderListing("vayana/snapshot-latest.json" to ExistingSha)),
         )
         val store = testStore(client)
 
         val first = store.getLatestPortableSnapshotDocument()
-        assertEquals(1, client.requests.size) // manifest only; no slice downloaded yet
+        assertEquals(2, client.requests.size) // listing + manifest; no slice downloaded yet
         assertEquals(annotations, first.jsonFor(RemotePortableSnapshotSlice.Annotations))
         assertEquals(annotations, first.jsonFor(RemotePortableSnapshotSlice.Annotations))
-        assertEquals(2, client.requests.size)
+        assertEquals(3, client.requests.size)
 
         val second = store.getLatestPortableSnapshotDocument()
         assertEquals(annotations, second.jsonFor(RemotePortableSnapshotSlice.Annotations))
-        assertEquals(3, client.requests.size) // slice came from the path cache
+        assertEquals(4, client.requests.size) // manifest from the blob cache, slice from the path cache
     }
 
     @Test
@@ -743,19 +744,20 @@ class GitHubContentsAssetStoreTest {
         )
         val client = RecordingGitHubHttpClient(
             GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
-            *singleCommitResponses(blobs = 1), // the zipped community quotes
+            *singleCommitResponses(blobs = 2), // the zipped community quotes, the manifest shared by two paths
         )
 
         testStore(client).putPortableSnapshotDocuments(emptySnapshot(2000), "vayana/snapshots/phone.json", ExistingSha, previous = previous)
 
-        assertEquals(listOf("GET", "GET", "GET", "POST", "POST", "POST", "PATCH"), client.requests.map { it.method })
+        assertEquals(listOf("GET", "GET", "GET", "POST", "POST", "POST", "POST", "PATCH"), client.requests.map { it.method })
         assertTrue(client.requests.none { it.method == "PUT" || it.method == "DELETE" })
         val tree = client.requests.single { it.url.endsWith("/git/trees") }.bodyText()
         assertTrue(!tree.contains(""""path":"vayana/snapshot-slices/2000/annotations.json""""))
         assertTrue(tree.contains(""""path":"vayana/snapshot-slices/2000/shelves.json""""))
         assertTrue(tree.contains(""""path":"vayana/snapshots/phone.json""""))
         assertTrue(tree.contains(""""path":"vayana/snapshot-latest.json""""))
-        assertTrue(tree.contains("vayana/snapshot-slices/1000/annotations.json")) // the manifest keeps pointing there
+        assertTrue(blobTexts(client).any { it.contains("vayana/snapshot-slices/1000/annotations.json") }) // the manifest keeps pointing there
+        assertEquals(2, Regex(""""sha":"$BlobSha"""").findAll(tree).count { true } - 1) // manifest blob at two paths, zip at one
         assertTrue(tree.contains(""""base_tree":"$TreeSha""""))
         val commit = client.requests.single { it.url.endsWith("/git/commits") }.bodyText()
         assertTrue(commit.contains(""""parents":["$HeadSha"]"""))
@@ -785,7 +787,7 @@ class GitHubContentsAssetStoreTest {
         assertEquals(previous.jsonText, previous.jsonFor(RemotePortableSnapshotSlice.Annotations))
         val client = RecordingGitHubHttpClient(
             GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
-            *singleCommitResponses(blobs = 1),
+            *singleCommitResponses(blobs = 2),
         )
 
         val published = testStore(client)
@@ -852,15 +854,14 @@ class GitHubContentsAssetStoreTest {
         testStore(sameBuild).putPortableSnapshotDocuments(earlier.copy(exportedAt = 3000), "vayana/snapshots/phone.json", ExistingSha, previous = previous())
         assertTrue(sameBuild.requests.isEmpty())
 
-        val newerBuild = RecordingGitHubHttpClient(*singleCommitResponses())
+        val newerBuild = RecordingGitHubHttpClient(*singleCommitResponses(blobs = 1))
         testStore(newerBuild).putPortableSnapshotDocuments(
             earlier.copy(exportedAt = 3000, appBuild = newer),
             "vayana/snapshots/phone.json",
             ExistingSha,
             previous = previous(),
         )
-        val tree = newerBuild.requests.single { it.url.endsWith("/git/trees") }.bodyText()
-        assertTrue(tree.contains("3.20261013.2300"))
+        assertTrue(blobTexts(newerBuild).any { it.contains("3.20261013.2300") })
     }
 
     @Test
@@ -873,7 +874,7 @@ class GitHubContentsAssetStoreTest {
         val quote = note.copy(syncId = "quote-1", type = "UNDERLINE", colorKey = "popular", locator = "goodreads-quote:1", selectedText = "Quoted")
         val client = RecordingGitHubHttpClient(
             GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
-            *singleCommitResponses(blobs = 1),
+            *singleCommitResponses(blobs = 2),
         )
 
         testStore(client).putPortableSnapshotDocuments(
@@ -882,8 +883,7 @@ class GitHubContentsAssetStoreTest {
             ExistingSha,
         )
 
-        val blob = client.requests.single { it.url.endsWith("/git/blobs") }.bodyText()
-        assertTrue(blob.contains(""""encoding":"base64""""))
+        assertTrue(client.requests.filter { it.url.endsWith("/git/blobs") }.all { it.bodyText().contains(""""encoding":"base64"""") })
         val tree = client.requests.single { it.url.endsWith("/git/trees") }.bodyText()
         assertTrue(tree.contains(""""path":"vayana/snapshot-slices/2000/community-quotes.zip","mode":"100644","type":"blob","sha":"$BlobSha""""))
         assertTrue(!tree.contains("community-quotes.json"))
@@ -925,7 +925,7 @@ class GitHubContentsAssetStoreTest {
 
         val guardChanged = RecordingGitHubHttpClient(
             singleCommitResponses()[0],
-            GitHubHttpResponse(200, """{"sha":"${"f".repeat(40)}"}""".toByteArray()),
+            GitHubHttpResponse(200, folderListing("vayana/snapshot-latest.json" to "f".repeat(40))),
         )
         val changed = assertFailsWith<GitHubAssetStoreException> {
             testStore(guardChanged).commitSyncDocuments(change, "Sync", "vayana/snapshot-latest.json", ExistingSha)
@@ -1065,19 +1065,23 @@ private class RecordingGitHubHttpClient(
     }
 }
 
-private fun embeddedObjectResponse(content: String): ByteArray =
-    """
-        {
-          "sha": "$ExistingSha",
-          "encoding": "base64",
-          "content": "${Base64.getMimeEncoder().encodeToString(content.toByteArray()).replace("\r\n", "\\n")}"
-        }
-    """.trimIndent().toByteArray()
+/** The decoded contents of every blob a client uploaded. */
+private fun blobTexts(client: RecordingGitHubHttpClient): List<String> =
+    client.requests.filter { it.url.endsWith("/git/blobs") }.map { request ->
+        val content = Regex(""""content":"([^"]+)"""").find(request.bodyText())!!.groupValues[1]
+        Base64.getDecoder().decode(content).toString(Charsets.UTF_8)
+    }
 
-/** Branch head, unchanged guard, [blobs] blob uploads, then tree, commit and fast-forward. */
+private fun folderListing(vararg files: Pair<String, String>): ByteArray =
+    files.joinToString(",", "[", "]") { (path, sha) ->
+        """{"name":"${path.substringAfterLast('/')}","path":"$path","type":"file","sha":"$sha"}"""
+    }.toByteArray()
+
+
+/** Branch head, unchanged guard (folder listing), [blobs] blob uploads, then tree, commit and fast-forward. */
 private fun singleCommitResponses(blobs: Int = 0): Array<GitHubHttpResponse> = arrayOf(
     GitHubHttpResponse(200, """{"name":"main","commit":{"sha":"$HeadSha","commit":{"tree":{"sha":"$TreeSha"}}}}""".toByteArray()),
-    GitHubHttpResponse(200, """{"sha":"$ExistingSha"}""".toByteArray()),
+    GitHubHttpResponse(200, folderListing("vayana/snapshot-latest.json" to ExistingSha)),
     *Array(blobs) { GitHubHttpResponse(201, """{"sha":"$BlobSha"}""".toByteArray()) },
     GitHubHttpResponse(201, """{"sha":"${"a".repeat(40)}"}""".toByteArray()),
     GitHubHttpResponse(201, """{"sha":"${"b".repeat(40)}"}""".toByteArray()),

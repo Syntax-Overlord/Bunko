@@ -193,7 +193,12 @@ class ReadingProgressOnlySyncer @Inject constructor(
                         RemotePortableSnapshotSlice.ReadingSessions,
                         RemotePortableSnapshotSlice.WordLookupCounters,
                     ),
-                )
+                )?.let { failure ->
+                    return@withContext ReadingProgressSyncResult(
+                        status = ReadingProgressSyncStatus.FAILED,
+                        failureMessage = failure.syncFailureMessage(),
+                    )
+                }
                 val parseAttempt = runCatchingCancellable { parsePortableReadingProgressSnapshot(booksJson) }
                 parseAttempt.onFailure { throwable ->
                     return@withContext ReadingProgressSyncResult(

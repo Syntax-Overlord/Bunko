@@ -704,6 +704,23 @@ class OfflineBookRepositoryTest {
     )
 
     @Test
+    fun unchangedCloudOnlyBookIsNotRewrittenOnEverySync() = runBlocking {
+        val record = offlineRecord(updatedAt = 10, finishedAt = null, format = BookFormat.EPUB).copy(
+            syncId = "cloud-a",
+            fileHash = "hash-e",
+            assetId = "asset-e",
+            assetSha256 = "hash-e",
+            assetSizeBytes = 10,
+            assetUploadedAt = 5,
+        )
+
+        assertEquals(CloudBookMergeResult.CREATED, repository.mergeCloudBook(record))
+        assertEquals(BookFileAvailability.CLOUD_ONLY.name, database.bookDao().findBySyncId("cloud-a")?.fileAvailability)
+        assertEquals(CloudBookMergeResult.SKIPPED, repository.mergeCloudBook(record))
+        assertEquals(CloudBookMergeResult.UPDATED, repository.mergeCloudBook(record.copy(title = "Renamed", updatedAt = 11)))
+    }
+
+    @Test
     fun sharedPhoneOwnerCommandsSaveExactlyOnceAndRejectStaleActions() = runBlocking {
         val context = RuntimeEnvironment.getApplication()
         context.getSharedPreferences("physical_reading_timer", 0).edit().clear().commit()

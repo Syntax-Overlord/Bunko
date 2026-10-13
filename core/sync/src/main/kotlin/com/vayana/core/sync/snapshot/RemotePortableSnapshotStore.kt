@@ -70,27 +70,29 @@ class RemotePortableSnapshotDocument internal constructor(
         if (alreadySyncedHashes.containsKey(slice.key)) jsonText else sliceJsonOrNull(slice.key) ?: jsonText
 
     /**
-     * Downloads the given slices concurrently, for callers about to read most of them. Only a speed-up: a failed
-     * download is left for the read that needs it, which retries and reports it where it is handled. (Thrown from
-     * here, a dropped connection escaped the sync and crashed the app.)
+     * Downloads the given slices concurrently, for callers about to read most of them, and returns the first
+     * failure (null when every slice loaded or is gone). Callers stop on a failure rather than read on: a later
+     * [jsonFor] would retry the download outside their error handling, and merging only some slices before
+     * publishing would push a snapshot missing what failed to arrive.
      */
-    suspend fun prefetch(slices: Collection<RemotePortableSnapshotSlice> = RemotePortableSnapshotSlice.entries) {
+    suspend fun prefetch(slices: Collection<RemotePortableSnapshotSlice> = RemotePortableSnapshotSlice.entries): Exception? =
         coroutineScope {
             slices.filter { it.key in slicePaths && !alreadySyncedHashes.containsKey(it.key) && !loadedSlices.containsKey(it.key) }
                 .map { slice ->
                     async {
                         try {
                             sliceJsonOrNull(slice.key)
+                            null
                         } catch (cancellation: CancellationException) {
                             throw cancellation
-                        } catch (_: Exception) {
-                            null
+                        } catch (failure: Exception) {
+                            failure
                         }
                     }
                 }
                 .awaitAll()
+                .firstOrNull { it != null }
         }
-    }
 
     /** The slice's own document, or null when this snapshot has no such slice or it is gone (404). */
     internal suspend fun sliceJsonOrNull(key: String): String? {
@@ -341,7 +343,7 @@ suspend fun GitHubContentsAssetStore.pushPortableReadingProgress(
         if (wordLookupCounters.isNotEmpty()) add(RemotePortableSnapshotSlice.WordLookupCounters)
         if (tombstones.isNotEmpty()) add(RemotePortableSnapshotSlice.Tombstones)
     }
-    remote.prefetch(neededSlices)
+    remote.prefetch(neededSlices)?.let { throw it }
     val sliceJsonByKey = neededSlices
         .mapNotNull { slice -> remote.sliceJsonOrNull(slice.key)?.let { slice.key to it } }
         .toMap()

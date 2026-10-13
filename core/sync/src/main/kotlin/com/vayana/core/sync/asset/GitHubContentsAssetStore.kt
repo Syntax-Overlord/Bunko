@@ -170,16 +170,27 @@ class GitHubContentsAssetStore(
         if (headSha == null || baseTreeSha == null) {
             throw GitHubAssetStoreException("GitHub branch response was missing its commit", branch.statusCode, branch.safeBodyText())
         }
-        if (findExistingSha(guardPath) != guardSha) {
+        // The folder listing names the guard's blob without downloading it (the file's own metadata embeds it).
+        val currentGuardSha = try {
+            getSyncDocumentSha(guardPath)
+        } catch (missing: GitHubAssetStoreException) {
+            if (missing.statusCode != HttpURLConnection.HTTP_NOT_FOUND) throw missing
+            null
+        }
+        if (currentGuardSha != guardSha) {
             throw GitHubAssetStoreException("Sync document changed since it was read", HttpURLConnection.HTTP_CONFLICT, guardPath)
         }
+        // JSON goes inline in the tree request. Binary content, and content written to more than one path (the
+        // device snapshot is a copy of the latest pointer), is uploaded once as a blob and referenced by id.
+        val contents = changes.mapNotNull { it.bytes }
+        val sharedBlobShas = HashMap<String, String>()
         val entries = changes.map { change ->
             val bytes = change.bytes
+            val inline = change.path.endsWith(".json") && contents.count { it.contentEquals(bytes) } == 1
             val target = when {
                 bytes == null -> "\"sha\":null"
-                // JSON goes inline in the tree request; only binary content needs its own blob upload.
-                change.path.endsWith(".json") -> "\"content\":\"${bytes.toString(Charsets.UTF_8).escapeJson()}\""
-                else -> "\"sha\":\"${postForSha("git/blobs", "{\"content\":\"${Base64.getEncoder().encodeToString(bytes)}\",\"encoding\":\"base64\"}")}\""
+                inline -> "\"content\":\"${bytes.toString(Charsets.UTF_8).escapeJson()}\""
+                else -> "\"sha\":\"${sharedBlobShas.getOrPut(gitBlobSha(bytes)) { postBlob(bytes) }}\""
             }
             "{\"path\":\"${change.path.escapeJson()}\",\"mode\":\"100644\",\"type\":\"blob\",$target}"
         }
@@ -198,13 +209,19 @@ class GitHubContentsAssetStore(
             ),
         )
         when (update.statusCode) {
-            HttpURLConnection.HTTP_OK -> true
+            HttpURLConnection.HTTP_OK -> {
+                changes.firstOrNull { it.path == guardPath }?.bytes?.let { GitHubBlobCache.put(gitBlobSha(it), it) }
+                true
+            }
             // Not a fast-forward: another device committed since the branch was read.
             HttpURLConnection.HTTP_CONFLICT, 422 ->
                 throw GitHubAssetStoreException("Branch moved during sync commit", HttpURLConnection.HTTP_CONFLICT, update.safeBodyText())
             else -> throw GitHubAssetStoreException("GitHub branch update failed", update.statusCode, update.safeBodyText())
         }
     }
+
+    private fun postBlob(bytes: ByteArray): String =
+        postForSha("git/blobs", "{\"content\":\"${Base64.getEncoder().encodeToString(bytes)}\",\"encoding\":\"base64\"}")
 
     private fun postForSha(endpoint: String, body: String): String {
         val response = execute(
@@ -318,38 +335,34 @@ class GitHubContentsAssetStore(
     }
 
     /**
-     * The file's current blob SHA. Sent as a conditional request against the last ETag seen for this path, so
-     * an unchanged file answers 304 (no body, and not counted against GitHub's rate limit). For files small
-     * enough that GitHub embeds their content, that content is cached under the SHA to save the blob download.
+     * The file's current blob SHA, from its folder's listing: a few hundred bytes, where the file's own metadata
+     * response embeds up to 1 MB of base64 content. The bytes then come from [GitHubBlobCache] (which this device's
+     * own writes seed) or one raw blob download. Sent as a conditional request against the folder's last ETag, so
+     * an unchanged folder answers 304 (no body, and not counted against GitHub's rate limit).
      */
     private suspend fun getSyncDocumentSha(path: String): String {
-        val metadataKey = "$cacheScope|$path"
+        val folder = path.substringBeforeLast('/')
+        val metadataKey = "$cacheScope|$folder/"
         val cached = GitHubMetadataCache.get(metadataKey)
         val response = executeRead(
             GitHubHttpRequest(
                 method = "GET",
-                url = contentsUrl(path, includeRef = true),
-                headers = objectHeaders() + cached?.etag?.let { mapOf("If-None-Match" to it) }.orEmpty(),
+                url = contentsUrl(folder, includeRef = true),
+                headers = jsonHeaders() + cached?.etag?.let { mapOf("If-None-Match" to it) }.orEmpty(),
                 maxResponseBytes = MaxSyncDocumentJsonBytes,
             ),
         )
-        if (response.statusCode == HttpURLConnection.HTTP_NOT_MODIFIED && cached != null) {
-            return cached.sha
+        val shaByPath = when {
+            response.statusCode == HttpURLConnection.HTTP_NOT_MODIFIED && cached != null -> cached.shaByPath
+            response.statusCode == HttpURLConnection.HTTP_OK -> parseContentEntries(response.bodyText())
+                .filter { it.type == "file" }
+                .mapNotNull { entry -> entry.sha?.let { entry.path to it } }
+                .toMap()
+                .also { listing -> response.header("ETag")?.let { GitHubMetadataCache.put(metadataKey, CachedSyncDocumentMetadata(it, listing)) } }
+            else -> throw GitHubAssetStoreException("GitHub metadata download failed", response.statusCode, response.safeBodyText())
         }
-        if (response.statusCode != HttpURLConnection.HTTP_OK) {
-            throw GitHubAssetStoreException("GitHub metadata download failed", response.statusCode, response.safeBodyText())
-        }
-        val bodyText = response.bodyText()
-        val sha = bodyText.extractJsonString("sha")
-            ?.takeIf { it.matches(GitHubObjectShaRegex) }
-            ?: throw GitHubAssetStoreException(
-                message = "GitHub metadata response was missing a valid SHA",
-                statusCode = response.statusCode,
-                responseBody = response.safeBodyText(),
-            )
-        bodyText.embeddedBase64ContentOrNull()?.let { bytes -> GitHubBlobCache.put(sha, bytes) }
-        response.header("ETag")?.let { etag -> GitHubMetadataCache.put(metadataKey, CachedSyncDocumentMetadata(etag, sha)) }
-        return sha
+        return shaByPath[path]
+            ?: throw GitHubAssetStoreException("GitHub metadata download failed", HttpURLConnection.HTTP_NOT_FOUND, path)
     }
 
     suspend fun testConnection(): GitHubConnectionTestResult = withContext(dispatcher) {
@@ -415,6 +428,8 @@ class GitHubContentsAssetStore(
             ),
         )
         if (response.statusCode in setOf(HttpURLConnection.HTTP_OK, HttpURLConnection.HTTP_CREATED)) {
+            // The next pull of this document finds its blob id in the folder listing and reads these bytes back.
+            GitHubBlobCache.put(gitBlobSha(bytes), bytes)
             return
         }
         throw GitHubAssetStoreException("GitHub asset upload failed", response.statusCode, response.safeBodyText())
@@ -780,15 +795,6 @@ private fun java.io.InputStream.readBytesLimited(maxBytes: Int): ByteArray {
     return output.toByteArray()
 }
 
-/** Content GitHub inlined in an object-metadata response (files up to ~1 MB), or null when it left it out. */
-private fun String.embeddedBase64ContentOrNull(): ByteArray? {
-    if (extractJsonString("encoding") != "base64") return null
-    val content = rawJsonStringValue("content")?.takeIf { it.isNotBlank() } ?: return null
-    return runCatching { Base64.getMimeDecoder().decode(content) }
-        .getOrNull()
-        ?.takeIf { it.size <= MaxSyncDocumentBytes }
-}
-
 /**
  * Linear scan for a (possibly ~1 MB) string value. The regex in [extractJsonString] recurses per character in
  * java.util.regex and can overflow the stack on inputs that long. Escapes are dropped rather than decoded,
@@ -815,7 +821,7 @@ private fun String.rawJsonStringValue(name: String): String? {
     return null
 }
 
-internal data class CachedSyncDocumentMetadata(val etag: String, val sha: String)
+internal data class CachedSyncDocumentMetadata(val etag: String, val shaByPath: Map<String, String>)
 
 /** Last ETag and SHA seen per repository path, for conditional metadata requests. */
 internal object GitHubMetadataCache {
@@ -834,6 +840,13 @@ internal object GitHubMetadataCache {
     @Synchronized
     fun clear() = entries.clear()
 }
+
+/** The git object id these bytes get as a file, so a write can seed [GitHubBlobCache] without reading them back. */
+internal fun gitBlobSha(bytes: ByteArray): String =
+    java.security.MessageDigest.getInstance("SHA-1").run {
+        update("blob ${bytes.size}\u0000".toByteArray(Charsets.UTF_8))
+        digest(bytes)
+    }.joinToString("") { "%02x".format(it) }
 
 /** Size-bounded LRU of sync-document bytes keyed by git blob SHA (content-addressed, so never stale). */
 internal object GitHubBlobCache {

@@ -843,15 +843,16 @@ class BookRepositoryImpl @Inject constructor(
             // A stale device must not roll back a newer file while this device awaits its download.
             if (record.fileHash != existing.fileHash && !applyRemoteFile) return CloudBookMergeResult.SKIPPED
             val progressResetAt = tombstoneDao.findBySyncId(readingProgressResetTombstoneId(existing.syncId))?.deletedAt
-            bookDao.update(
-                record.toCloudOnlyEntity(id = existing.id, coverPath = existing.coverPath)
-                    .withCoverAlternatesFrom(existing)
-                    .withMergedGoodreadsFieldsFrom(existing)
-                    .withMergedGutenbergIdFrom(existing)
-                    .withMergedReadNextFrom(existing)
-                    .withMergedDispositionFrom(existing)
-                    .keepingResetProgress(existing, progressResetAt),
-            )
+            val merged = record.toCloudOnlyEntity(id = existing.id, coverPath = existing.coverPath)
+                .withCoverAlternatesFrom(existing)
+                .withMergedGoodreadsFieldsFrom(existing)
+                .withMergedGutenbergIdFrom(existing)
+                .withMergedReadNextFrom(existing)
+                .withMergedDispositionFrom(existing)
+                .keepingResetProgress(existing, progressResetAt)
+            // Cloud-only books come round again on every full sync; rewriting an unchanged row is pure waste.
+            if (merged == existing) return CloudBookMergeResult.SKIPPED
+            bookDao.update(merged)
             return CloudBookMergeResult.UPDATED
         }
 

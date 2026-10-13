@@ -1243,9 +1243,28 @@ class LibraryViewModel @Inject constructor(
         fullSyncLog = log
         val result = try {
             runSyncNow(allowInitialSync, mode, showProgress, launchReadingProgressBookId)
-        } catch (throwable: Throwable) {
-            log?.let { recordFullSyncLog(it, "aborted (${throwable.javaClass.simpleName}: ${throwable.message})") }
-            throw throwable
+        } catch (cancellation: CancellationException) {
+            log?.let { recordFullSyncLog(it, "cancelled") }
+            throw cancellation
+        } catch (failure: Exception) {
+            // Callers launch this from UI scopes: an exception escaping here crashes the app. Report a failed sync.
+            log?.let { recordFullSyncLog(it, "aborted (${failure.javaClass.simpleName}: ${failure.message})") }
+            withContext(dispatchers.io) {
+                diagnosticsLogStore.record(DiagnosticCategory.SYNC, "LibraryViewModel.syncNow", "Sync aborted: ${failure.message}", failure.stackTraceToString())
+            }
+            finishSyncProgress(showProgress = showProgress, GitHubSyncProgressStep.FAILED, failure.syncFailureMessage())
+            GitHubSyncNowResult.Complete(
+                uploaded = 0,
+                failed = 0,
+                progressUpdated = 0,
+                cloudBooksCreated = 0,
+                cloudBooksUpdated = 0,
+                conflicts = 0,
+                skipped = 0,
+                pullFailed = true,
+                metadataSynced = false,
+                failureMessage = failure.syncFailureMessage(),
+            )
         } finally {
             fullSyncLog = null
         }
@@ -1513,8 +1532,30 @@ class LibraryViewModel @Inject constructor(
         )
         val remoteSnapshot = progressMerge.remoteSnapshot
         // Every slice is merged below; download them together instead of one after another.
-        remoteSnapshot?.prefetch()
-        fullSyncLog?.phase("Download slices", remoteSnapshot?.sliceStats() ?: "noRemoteSnapshot")
+        val sliceDownloadFailure = remoteSnapshot?.prefetch()
+        fullSyncLog?.phase(
+            "Download slices",
+            (remoteSnapshot?.sliceStats() ?: "noRemoteSnapshot") + (sliceDownloadFailure?.let { ", failed=${it.javaClass.simpleName}: ${it.message}" } ?: ""),
+        )
+        if (sliceDownloadFailure != null) {
+            finishSyncProgress(
+                showProgress = showProgress,
+                GitHubSyncProgressStep.FAILED,
+                sliceDownloadFailure.syncFailureMessage(),
+            )
+            return@withContext GitHubSyncNowResult.Complete(
+                uploaded = 0,
+                failed = 0,
+                progressUpdated = progressMerge.applied,
+                cloudBooksCreated = 0,
+                cloudBooksUpdated = 0,
+                conflicts = progressMerge.conflictCount,
+                skipped = progressMerge.skipped,
+                pullFailed = true,
+                metadataSynced = false,
+                failureMessage = sliceDownloadFailure.syncFailureMessage(),
+            )
+        }
         // Tombstones were already merged (all of them) by pullReadingProgress above, from this same snapshot.
         val cloudLibraryMerge = if (remoteSnapshot == null) {
             CloudLibraryMergeSummary()
@@ -1695,14 +1736,24 @@ class LibraryViewModel @Inject constructor(
             "Upload books and covers",
             "books=$uploaded/${uploadCandidates.size}, failedBooks=$failed, covers=$uploadedCovers/${coverUploadCandidates.size}",
         )
-        val metadataSave = saveMetadataSnapshotWithRebase(
-            store = store,
-            syncConfig = syncConfig,
-            expectedSha = progressMerge.remoteSnapshotSha,
-            previousSnapshot = progressMerge.remoteSnapshot,
-            conflicts = progressMerge.conflicts,
-            onSnapshotProgress = snapshotProgress,
+        val entityMerges = listOf(
+            cloudLibraryMerge, bookAliasMerge, shelfMerge, shelfMembershipMerge,
+            vocabularyCardMerge, readingSessionMerge, wordLookupCounterMerge, annotationMerge,
         )
+        // A publish exports this device's records: after a failed merge it would replace the cloud copy with one
+        // missing whatever didn't merge. Report the sync failed and leave the cloud as it is.
+        val metadataSave = if (entityMerges.anyFailed()) {
+            SnapshotMetadataSaveResult(synced = false, failureMessage = entityMerges.firstFailureMessage())
+        } else {
+            saveMetadataSnapshotWithRebase(
+                store = store,
+                syncConfig = syncConfig,
+                expectedSha = progressMerge.remoteSnapshotSha,
+                previousSnapshot = progressMerge.remoteSnapshot,
+                conflicts = progressMerge.conflicts,
+                onSnapshotProgress = snapshotProgress,
+            )
+        }
         fullSyncLog?.phase(
             "Publish snapshot",
             "synced=${metadataSave.synced}, rebaseBooks=+${metadataSave.extraBooksCreated}/~${metadataSave.extraBooksUpdated}" +
@@ -1711,10 +1762,6 @@ class LibraryViewModel @Inject constructor(
         if (metadataSave.synced) deletePendingCloudAssets(store)
         // A rebase (409-conflict retry) may have pulled and merged additional remote data into the local DB after
         // the counts above were computed; fold its deltas in so the reported summary reflects what actually synced.
-        val entityMerges = listOf(
-            cloudLibraryMerge, bookAliasMerge, shelfMerge, shelfMembershipMerge,
-            vocabularyCardMerge, readingSessionMerge, wordLookupCounterMerge, annotationMerge,
-        )
         val totalBooksCreated = cloudLibraryMerge.created + metadataSave.extraBooksCreated
         val totalBooksUpdated = cloudLibraryMerge.updated + metadataSave.extraBooksUpdated
         val totalSkipped = progressMerge.skipped + entityMerges.totalSkipped() + metadataSave.extraSkipped
@@ -1800,11 +1847,11 @@ class LibraryViewModel @Inject constructor(
             var updated = 0
             var skipped = 0
             val coverTargets = ArrayList<Pair<PortableCloudBook, CloudBookRecord>>()
-            for (cloudBook in parsePortableCloudBooks(snapshotJson)) {
+            parsePortableCloudBooks(snapshotJson).forEachMergeChunk { cloudBook ->
                 val record = cloudBook.toRecord()
                 if (record == null) {
                     skipped += 1
-                    continue
+                    return@forEachMergeChunk
                 }
                 when (bookRepository.mergeCloudBook(record)) {
                     CloudBookMergeResult.CREATED -> created += 1
@@ -2169,7 +2216,9 @@ class LibraryViewModel @Inject constructor(
                     return result(synced = false, failureMessage = refetchFailure.syncFailureMessage())
                 }
             currentDocument.skipAlreadySynced(syncedSnapshotSlices())
-            currentDocument.prefetch()
+            currentDocument.prefetch()?.let { failure ->
+                return result(synced = false, failureMessage = failure.syncFailureMessage())
+            }
             val rebase = mergeRemoteSnapshotForMetadataRebase(currentDocument, store)
             rebaseBooksCreated += rebase.booksCreated
             rebaseBooksUpdated += rebase.booksUpdated
@@ -2291,7 +2340,7 @@ class LibraryViewModel @Inject constructor(
                 ?.let(storageRoots::resolve)
                 ?.takeIf { it.isFile && it.length() == reference.sizeBytes }
                 ?.let { coverFile ->
-                    runCatchingCancellable { Hashing.sha256(coverFile.inputStream()) == reference.sha256 }
+                    runCatchingCancellable { CoverHashes.of(coverFile) == reference.sha256 }
                         .getOrDefault(false)
                 } == true
         if (localCoverIsCurrent) return 0
@@ -3011,6 +3060,19 @@ private fun Book.coverAssetReference(): CloudAssetReference? {
     }.getOrNull()
 }
 
+/**
+ * Cover SHA-256s by file identity (path, size, modification time): every full sync checks every cover twice, once
+ * for download and once for upload, and covers almost never change. Lives as long as the process.
+ */
+private object CoverHashes {
+    private val byFile = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    fun of(file: File): String {
+        val identity = "${file.path}|${file.length()}|${file.lastModified()}"
+        return byFile[identity] ?: Hashing.sha256(file.inputStream()).also { byFile[identity] = it }
+    }
+}
+
 private fun Book.coverNeedsUpload(storageRoots: StorageRoots): Boolean {
     val coverPath = coverPath?.takeIf { it.isNotBlank() } ?: return false
     val coverFile = storageRoots.resolve(coverPath)
@@ -3018,7 +3080,7 @@ private fun Book.coverNeedsUpload(storageRoots: StorageRoots): Boolean {
     val expectedSha = coverAssetSha256?.takeIf { it.isNotBlank() } ?: return true
     if (coverAssetSizeBytes != coverFile.length()) return true
     return runCatchingCancellable {
-        Hashing.sha256(coverFile.inputStream()) != expectedSha
+        CoverHashes.of(coverFile) != expectedSha
     }.getOrDefault(true)
 }
 

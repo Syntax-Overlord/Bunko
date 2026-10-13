@@ -37,7 +37,7 @@ internal class RemoteReadingProgressMerger(
             add(RemotePortableSnapshotSlice.Tombstones)
             add(RemotePortableSnapshotSlice.Books)
             if (includeSessions) add(RemotePortableSnapshotSlice.ReadingSessions)
-        })
+        })?.let { throw it }
         val tombstoneMerge = mergeTombstones(document.jsonFor(RemotePortableSnapshotSlice.Tombstones), tombstones)
         if (tombstoneMerge.failed) {
             return ReadingProgressMergeSummary(
