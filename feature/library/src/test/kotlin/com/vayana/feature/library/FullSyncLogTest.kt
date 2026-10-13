@@ -7,7 +7,7 @@ class FullSyncLogTest {
     @Test
     fun phasesAreTimedFromTheEndOfThePreviousPhase() {
         var now = 0L
-        val log = FullSyncLog { now }
+        val log = FullSyncLog("Full sync") { now }
         log.note("network=wifi")
         now = 5_000_000
         log.phase("Pull", "remoteSha=abc")

@@ -608,11 +608,8 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
-    fun slicedProgressPushWritesNewSliceBeforeGuardedManifest() = runBlocking {
-        val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(201, """{"content":{"sha":"slice-sha"}}""".toByteArray()),
-            GitHubHttpResponse(200, """{"content":{"sha":"manifest-sha"}}""".toByteArray()),
-        )
+    fun slicedProgressPushCommitsNewSliceAndGuardedManifestTogether() = runBlocking {
+        val client = RecordingGitHubHttpClient(*singleCommitResponses())
         val store = testStore(client)
         val remote = RemotePortableSnapshotDocument(
             jsonText = latestManifestReferencing(1000).toString(Charsets.UTF_8),
@@ -629,13 +626,35 @@ class GitHubContentsAssetStoreTest {
         )
 
         assertEquals(1, result.pushed)
-        // New slice paths are create-only: no existing-SHA lookup before the write.
-        assertEquals(listOf("PUT", "PUT"), client.requests.map { it.method })
-        val puts = client.requests.filter { it.method == "PUT" }
-        assertTrue(!puts[0].bodyText().contains(""""sha":"""))
-        assertTrue(puts[0].url.endsWith("contents/vayana/snapshot-slices/3000/reading-sessions.json"))
-        assertTrue(puts[1].url.endsWith("contents/vayana/snapshot-latest.json"))
-        assertTrue(puts[1].bodyText().contains(""""sha":"$ExistingSha""""))
+        assertEquals(listOf("GET", "GET", "POST", "POST", "PATCH"), client.requests.map { it.method })
+        val tree = client.requests.single { it.url.endsWith("/git/trees") }.bodyText()
+        assertTrue(tree.contains(""""path":"vayana/snapshot-slices/3000/reading-sessions.json""""))
+        assertTrue(tree.contains(""""path":"vayana/snapshot-latest.json""""))
+    }
+
+    @Test
+    fun progressPushLeavesOutSlicesThisDeviceAlreadyHolds() = runBlocking {
+        val sessionsPath = "vayana/snapshot-slices/1000/reading-sessions.json"
+        val remote = RemotePortableSnapshotDocument(
+            jsonText = latestManifestReferencing(1000).toString(Charsets.UTF_8),
+            sha = ExistingSha,
+            sliced = true,
+            slicePaths = mapOf("readingSessions" to sessionsPath),
+            loadSlice = { error("a slice this device already holds must not be downloaded") },
+        )
+        remote.skipAlreadySynced(listOf(SyncedSnapshotSlice("readingSessions", sessionsPath, "hash")))
+        val client = RecordingGitHubHttpClient() // nothing to push: no request at all
+
+        val result = testStore(client).pushPortableReadingProgress(
+            remote = remote,
+            patches = emptyList(),
+            exportedAt = 3000,
+            readingSessions = listOf(PortableReadingSession("s-held", "book-a", 1500, 1600, 100)),
+            locallyUnchangedSliceKeys = setOf("readingSessions"),
+        )
+
+        assertEquals(0, result.pushed)
+        assertTrue(client.requests.isEmpty())
     }
 
     @Test
@@ -671,12 +690,7 @@ class GitHubContentsAssetStoreTest {
                 else -> """{"tombstones":[]}"""
             }
         }
-        val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(201, ByteArray(0)),
-            GitHubHttpResponse(201, ByteArray(0)),
-            GitHubHttpResponse(201, ByteArray(0)),
-            GitHubHttpResponse(200, ByteArray(0)),
-        )
+        val client = RecordingGitHubHttpClient(*singleCommitResponses())
         val push = async {
             testStore(client).pushPortableReadingProgress(
                 remote = remote,

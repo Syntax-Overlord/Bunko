@@ -319,6 +319,11 @@ suspend fun GitHubContentsAssetStore.pushPortableReadingProgress(
     readingSessions: List<PortableReadingSession> = emptyList(),
     wordLookupCounters: List<PortableWordLookupCounter> = emptyList(),
     tombstones: List<PortableTombstone> = emptyList(),
+    /**
+     * Slices with no local change since this device published them (see [locallyUnchangedSliceKeys]). Where the
+     * snapshot still points at that file, this device has nothing new for it: it is neither downloaded nor patched.
+     */
+    locallyUnchangedSliceKeys: Set<String> = emptySet(),
 ): PortableReadingProgressPushResult {
     if (!remote.sliced) {
         val result = patchPortableReadingProgressOnly(
@@ -340,11 +345,16 @@ suspend fun GitHubContentsAssetStore.pushPortableReadingProgress(
         }
         return pushResult
     }
+    fun <T> unlessHeld(slice: RemotePortableSnapshotSlice, records: List<T>): List<T> =
+        if (slice.key in locallyUnchangedSliceKeys && remote.isAlreadySynced(slice.key)) emptyList() else records
+    val sessionsToPush = unlessHeld(RemotePortableSnapshotSlice.ReadingSessions, readingSessions)
+    val countersToPush = unlessHeld(RemotePortableSnapshotSlice.WordLookupCounters, wordLookupCounters)
+    val tombstonesToPush = unlessHeld(RemotePortableSnapshotSlice.Tombstones, tombstones)
     // Only slices with local data to merge are worth downloading; the rest can't change.
     val neededSlices = buildList {
-        if (readingSessions.isNotEmpty()) add(RemotePortableSnapshotSlice.ReadingSessions)
-        if (wordLookupCounters.isNotEmpty()) add(RemotePortableSnapshotSlice.WordLookupCounters)
-        if (tombstones.isNotEmpty()) add(RemotePortableSnapshotSlice.Tombstones)
+        if (sessionsToPush.isNotEmpty()) add(RemotePortableSnapshotSlice.ReadingSessions)
+        if (countersToPush.isNotEmpty()) add(RemotePortableSnapshotSlice.WordLookupCounters)
+        if (tombstonesToPush.isNotEmpty()) add(RemotePortableSnapshotSlice.Tombstones)
     }
     remote.prefetch(neededSlices)?.let { throw it }
     val sliceJsonByKey = neededSlices
@@ -355,16 +365,20 @@ suspend fun GitHubContentsAssetStore.pushPortableReadingProgress(
         sliceJsonByKey = sliceJsonByKey,
         patches = patches,
         exportedAt = exportedAt,
-        readingSessions = readingSessions,
-        wordLookupCounters = wordLookupCounters,
-        tombstones = tombstones,
+        readingSessions = sessionsToPush,
+        wordLookupCounters = countersToPush,
+        tombstones = tombstonesToPush,
     )
     if (result.changed > 0) {
-        result.sliceWrites.forEach { (path, jsonText) ->
-            putNewSyncDocument(path, jsonText.toByteArray(Charsets.UTF_8))
-            SnapshotSliceCache.put("$cacheScope|$path", jsonText)
+        val manifestBytes = result.manifestJson.toByteArray(Charsets.UTF_8)
+        val changes = result.sliceWrites.map { (path, jsonText) -> SyncDocumentChange(path, jsonText.toByteArray(Charsets.UTF_8)) } +
+            SyncDocumentChange(PortableSnapshotLatestPath, manifestBytes)
+        // One commit for the new slices and the pointer to them; per-file writes only for an empty repository.
+        if (!commitSyncDocuments(changes, "Sync Vayana reading progress $exportedAt", PortableSnapshotLatestPath, remote.sha)) {
+            result.sliceWrites.forEach { (path, jsonText) -> putNewSyncDocument(path, jsonText.toByteArray(Charsets.UTF_8)) }
+            putSyncDocumentIfUnchanged(PortableSnapshotLatestPath, manifestBytes, remote.sha)
         }
-        putSyncDocumentIfUnchanged(PortableSnapshotLatestPath, result.manifestJson.toByteArray(Charsets.UTF_8), remote.sha)
+        result.sliceWrites.forEach { (path, jsonText) -> SnapshotSliceCache.put("$cacheScope|$path", jsonText) }
     }
     return PortableReadingProgressPushResult(
         patched = result.patched,

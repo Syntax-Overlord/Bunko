@@ -1,7 +1,7 @@
 package com.vayana.feature.library
 
-/** Timed notes on one full sync, saved to diagnostics as a single event so slow phases are easy to spot. */
-internal class FullSyncLog(private val nanoClock: () -> Long = System::nanoTime) {
+/** Timed notes on one sync, saved to diagnostics as a single event so slow phases are easy to spot. */
+internal class FullSyncLog(val label: String = "Full sync", private val nanoClock: () -> Long = System::nanoTime) {
     private val startedAt = nanoClock()
     private var phaseStartedAt = startedAt
     private val lines = mutableListOf<String>()

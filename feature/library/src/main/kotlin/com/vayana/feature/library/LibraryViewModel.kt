@@ -113,6 +113,8 @@ import com.vayana.core.sync.snapshot.PortableSnapshotPublishStage
 import com.vayana.core.sync.snapshot.RemotePortableSnapshotDocument
 import com.vayana.core.sync.snapshot.RemotePortableSnapshotSlice
 import com.vayana.core.sync.snapshot.SyncedSnapshotSlice
+import com.vayana.core.sync.snapshot.locallyUnchangedSliceKeys
+import com.vayana.core.sync.snapshot.markedSlices
 import com.vayana.core.sync.snapshot.getLatestPortableSnapshotDocumentUnlessSha
 import com.vayana.core.sync.snapshot.getLatestPortableSnapshotDocument
 import com.vayana.core.sync.snapshot.pushPortableReadingProgress
@@ -1239,7 +1241,11 @@ class LibraryViewModel @Inject constructor(
         showProgress: Boolean = true,
         launchReadingProgressBookId: Long? = null,
     ): GitHubSyncNowResult = syncOperationCoordinator.run {
-        val log = if (mode == GitHubSyncMode.FULL) FullSyncLog().also { it.note(networkSummary()) } else null
+        val log = when (mode) {
+            GitHubSyncMode.FULL -> FullSyncLog("Full sync")
+            GitHubSyncMode.READING_PROGRESS_ONLY -> FullSyncLog("Progress sync")
+            else -> null
+        }?.also { it.note(networkSummary()) }
         fullSyncLog = log
         val result = try {
             runSyncNow(allowInitialSync, mode, showProgress, launchReadingProgressBookId)
@@ -1498,6 +1504,7 @@ class LibraryViewModel @Inject constructor(
                 progressUpdated = progressMerge.applied,
             )
             val progressPush = pushReadingProgressOnly(remoteSnapshot = progressMerge.remoteSnapshot, store = store)
+            fullSyncLog?.phase("Push reading progress", "pushed=${progressPush.pushed}, failed=${progressPush.failed}")
             if (!progressPush.failed) deletePendingCloudAssets(store)
             finishSyncProgress(
                 showProgress = showProgress,
@@ -2107,7 +2114,7 @@ class LibraryViewModel @Inject constructor(
             // A clean sync's log is information; anything else is also a sync issue.
             category = if (result?.isCompleteFullSync() == true) DiagnosticCategory.SYNC_LOG else DiagnosticCategory.SYNC,
             source = "FullSync",
-            message = "Full sync $outcome in ${"%.1f".format(Locale.ROOT, log.elapsedMillis / 1000.0)} s",
+            message = "${log.label} $outcome in ${"%.1f".format(Locale.ROOT, log.elapsedMillis / 1000.0)} s",
             detail = log.text(),
         )
     }
@@ -2141,19 +2148,12 @@ class LibraryViewModel @Inject constructor(
     /** The current full sync's log; [syncOperationCoordinator] runs one sync at a time. */
     private var fullSyncLog: FullSyncLog? = null
 
-    /**
-     * Slices to leave out of the export: the cloud still points at the file this device published for them, and no
-     * local write has touched them since (their `sync_slice_versions` counter is where that publish recorded it).
-     */
-    private suspend fun unchangedSliceKeys(previous: RemotePortableSnapshotDocument?, versions: Map<String, Long>): Set<String> {
-        previous ?: return emptySet()
-        return syncedSnapshotSliceDao.getAll()
-            .filter { mark -> mark.localVersion >= 0 && versions[mark.sliceKey] == mark.localVersion && previous.isAlreadySynced(mark.sliceKey) }
-            .mapTo(mutableSetOf()) { it.sliceKey }
-    }
+    /** Slices to leave out of the export: unchanged here, and the cloud still points at the file this device published. */
+    private suspend fun unchangedSliceKeys(previous: RemotePortableSnapshotDocument?, versions: Map<String, Long>): Set<String> =
+        previous?.let { document -> syncedSnapshotSliceDao.locallyUnchangedSliceKeys(versions).filterTo(mutableSetOf(), document::isAlreadySynced) }
+            .orEmpty()
 
-    private suspend fun syncedSnapshotSlices(): List<SyncedSnapshotSlice> =
-        syncedSnapshotSliceDao.getAll().map { SyncedSnapshotSlice(it.sliceKey, it.path, it.dataHash) }
+    private suspend fun syncedSnapshotSlices(): List<SyncedSnapshotSlice> = syncedSnapshotSliceDao.markedSlices()
 
     /** Removes permanently deleted books' cloud files, now that the snapshot carrying their purge tombstones is published. */
     private suspend fun deletePendingCloudAssets(store: GitHubContentsAssetStore) = withContext(dispatchers.io) {
@@ -2317,6 +2317,7 @@ class LibraryViewModel @Inject constructor(
                         .mapNotNull { it.toPortable(bookSyncIdsByLocalId, bookFileHashesByLocalId) },
                     wordLookupCounters = wordLookupStatRepository.getAllForSync().map { it.toPortable() },
                     tombstones = progressTombstones,
+                    locallyUnchangedSliceKeys = syncedSnapshotSliceDao.locallyUnchangedSliceKeys(),
                 )
                 ReadingProgressOnlyPushSummary(pushed = result.pushed)
             }
@@ -2328,7 +2329,7 @@ class LibraryViewModel @Inject constructor(
             if (throwable?.isGitHubConflict() != true || attemptIndex == MaxProgressOnlyPushAttempts - 1) {
                 return ReadingProgressOnlyPushSummary(failed = true, failureMessage = throwable?.syncFailureMessage())
             }
-            remote = runCatchingCancellable { store.getLatestPortableSnapshotDocument() }
+            remote = runCatchingCancellable { store.getLatestPortableSnapshotDocument().also { it.skipAlreadySynced(syncedSnapshotSlices()) } }
                 .getOrElse { refetchFailure ->
                     return ReadingProgressOnlyPushSummary(failed = true, failureMessage = refetchFailure.syncFailureMessage())
                 }

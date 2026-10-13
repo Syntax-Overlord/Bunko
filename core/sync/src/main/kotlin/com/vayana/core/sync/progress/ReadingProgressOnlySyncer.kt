@@ -34,6 +34,8 @@ import com.vayana.core.sync.github.gitHubSyncConfig
 import com.vayana.core.sync.snapshot.RemotePortableSnapshotSlice
 import com.vayana.core.sync.snapshot.getLatestPortableSnapshotDocument
 import com.vayana.core.sync.snapshot.pushPortableReadingProgress
+import com.vayana.core.sync.snapshot.markedSlices
+import com.vayana.core.sync.snapshot.locallyUnchangedSliceKeys
 import java.net.HttpURLConnection
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
@@ -69,6 +71,8 @@ data class ReadingProgressSyncResult(
     val pushed: Int = 0,
     val pulled: Int = 0,
     val failureMessage: String? = null,
+    /** Slice and GitHub request stats, for the diagnostics log. */
+    val detail: String? = null,
 )
 
 /**
@@ -91,6 +95,7 @@ class ReadingProgressOnlySyncer @Inject constructor(
     private val cloudAssetDeletionProcessor: CloudAssetDeletionProcessor,
     private val remoteBookDeletionNotices: RemoteBookDeletionNotices,
     private val syncOperationCoordinator: SyncOperationCoordinator,
+    private val syncedSnapshotSliceDao: com.vayana.core.database.dao.SyncedSnapshotSliceDao,
 ) {
     private val lastSyncedAtMillis = AtomicLong(0L)
     private val lastAppliedRemoteSha = AtomicReference<String?>(null)
@@ -101,7 +106,17 @@ class ReadingProgressOnlySyncer @Inject constructor(
     /** [force] skips the minimum interval between runs, e.g. to send a book deletion straight away. */
     suspend fun syncReadingProgress(force: Boolean = false): ReadingProgressSyncResult =
         syncOperationCoordinator.run {
+            val startedAt = System.nanoTime()
             val result = runSync(force)
+            // Runs that moved something get a timing log (like full sync's); the frequent "nothing to do" runs don't.
+            if (result.status in LoggedStatuses) {
+                diagnosticsLogStore.record(
+                    category = DiagnosticCategory.SYNC_LOG,
+                    source = "ReadingProgressOnlySyncer",
+                    message = "Background progress sync ${result.status} in ${(System.nanoTime() - startedAt) / 1_000_000} ms",
+                    detail = "pushed=${result.pushed}, pulled=${result.pulled}" + (result.detail?.let { ", $it" } ?: ""),
+                )
+            }
             if (result.status.isIssue) {
                 diagnosticsLogStore.record(
                     category = DiagnosticCategory.SYNC,
@@ -158,7 +173,10 @@ class ReadingProgressOnlySyncer @Inject constructor(
 
         var lastFailure: Throwable? = null
         repeat(MaxProgressOnlySyncAttempts) {
-            val remoteSnapshot = runCatchingCancellable { store.getLatestPortableSnapshotDocument() }
+            val remoteSnapshot = runCatchingCancellable {
+                // Slices still at the file this device published are neither downloaded nor merged again.
+                store.getLatestPortableSnapshotDocument().also { it.skipAlreadySynced(syncedSnapshotSliceDao.markedSlices()) }
+            }
                 .getOrElse { throwable ->
                     return@withContext if (throwable.isMissingRemoteSnapshot()) {
                         ReadingProgressSyncResult(
@@ -234,6 +252,7 @@ class ReadingProgressOnlySyncer @Inject constructor(
                     readingSessions = readingSessions,
                     wordLookupCounters = wordLookupCounters,
                     tombstones = tombstones,
+                    locallyUnchangedSliceKeys = syncedSnapshotSliceDao.locallyUnchangedSliceKeys(),
                 ).pushed
                 if (pushed > 0) {
                     // The push changed the remote object, so our cached SHA is stale; force the
@@ -243,6 +262,7 @@ class ReadingProgressOnlySyncer @Inject constructor(
                         status = if (pulled > 0) ReadingProgressSyncStatus.SYNCED else ReadingProgressSyncStatus.PUSHED,
                         pushed = pushed,
                         pulled = pulled,
+                        detail = "${remoteSnapshot.sliceStats()}, ${store.requestStats()}",
                     )
                 } else {
                     lastAppliedRemoteSha.set(remoteSnapshot.sha)
@@ -251,6 +271,7 @@ class ReadingProgressOnlySyncer @Inject constructor(
                     ReadingProgressSyncResult(
                         status = if (pulled > 0) ReadingProgressSyncStatus.PULLED else ReadingProgressSyncStatus.NO_CHANGES,
                         pulled = pulled,
+                        detail = "${remoteSnapshot.sliceStats()}, ${store.requestStats()}",
                     )
                 }
             }
@@ -504,6 +525,7 @@ private fun Throwable.isGitHubConflict(): Boolean =
     this is GitHubAssetStoreException && statusCode == HttpURLConnection.HTTP_CONFLICT
 
 private const val MaxProgressOnlySyncAttempts = 2
+private val LoggedStatuses = setOf(ReadingProgressSyncStatus.PUSHED, ReadingProgressSyncStatus.PULLED, ReadingProgressSyncStatus.SYNCED)
 private const val MinSyncIntervalMillis = 20_000L
 private const val MaxSyncFailureBodyChars = 320
 private const val MaxSyncFailureMessageChars = 400
