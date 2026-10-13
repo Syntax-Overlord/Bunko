@@ -1375,6 +1375,7 @@
     <string name="sync_detail_progress_synced">Прогресс чтения синхронизирован</string>
     <string name="sync_detail_adding_cloud_books">Добавление книг из облака</string>
     <string name="sync_detail_saving_latest_snapshot">Сохранение последнего снимка</string>
+    <string name="library_sync_newer_build">Последняя синхронизация из более новой версии Vayana на %1$s (v%2$s, сборка %3$s). Обновите это приложение, чтобы всё оставалось синхронизированным.</string>
     <string name="sync_detail_finished">Синхронизация завершена</string>
     <string name="sync_detail_snapshot_save_failed">Не удалось сохранить снимок</string>
     <string name="sync_error_concurrent_save">Другое устройство сохранило изменения, пока шла выгрузка. Ваши выгрузки в сохранности — синхронизируйте ещё раз, чтобы завершить.</string>

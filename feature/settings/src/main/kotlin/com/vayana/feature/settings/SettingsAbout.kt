@@ -1,5 +1,6 @@
 package com.vayana.feature.settings
 
+import com.vayana.core.common.appBuild
 import android.content.Intent
 import android.net.Uri
 import androidx.annotation.DrawableRes
@@ -212,7 +213,7 @@ private fun SettingsAboutSection() {
     val documentationUrl = stringResource(R.string.vayana_documentation_url)
     val coroutineScope = rememberCoroutineScope()
     var showShareDialog by rememberSaveable { mutableStateOf(false) }
-    val version = remember(context) { context.appVersion() }
+    val build = remember(context) { context.appBuild() }
     val shareTitle = stringResource(R.string.about_share)
     val shareText = stringResource(R.string.about_share_text)
     val initialShareTheme = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
@@ -276,8 +277,8 @@ private fun SettingsAboutSection() {
                     Text(
                         text = stringResource(
                             R.string.about_version,
-                            version.name ?: "0.1.0",
-                            version.code.toString(),
+                            build.versionName,
+                            build.buildNumber,
                         ),
                         modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.xs),
                         style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),

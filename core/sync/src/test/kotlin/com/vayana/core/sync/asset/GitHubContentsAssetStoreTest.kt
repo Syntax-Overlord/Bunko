@@ -1,6 +1,7 @@
 package com.vayana.core.sync.asset
 
 import com.vayana.core.backup.PortableAnnotation
+import com.vayana.core.backup.PortableAppBuild
 import com.vayana.core.backup.PortableReadingSession
 import com.vayana.core.backup.PortableSnapshot
 import com.vayana.core.backup.PortableTombstone
@@ -825,6 +826,41 @@ class GitHubContentsAssetStoreTest {
 
         assertTrue(client.requests.isEmpty())
         assertEquals(synced.toSet(), published.toSet())
+    }
+
+    @Test
+    fun unchangedSnapshotIsRepublishedOnceToStampANewerAppBuild() = runBlocking {
+        val older = PortableAppBuild("0.90", 3, "3.20261013.2200", builtAt = 1_000)
+        val newer = older.copy(buildNumber = "3.20261013.2300", builtAt = 2_000)
+        val earlier = emptySnapshot(2000).copy(appBuild = older)
+        val slices = earlier.toSlicedJsonDocuments().filter { it.sliceKey != null }
+        val pathsByKey = slices.associate { document ->
+            val key = document.sliceKey!!
+            key to if (key == "communityQuotes") document.path.removeSuffix(".json") + ".zip" else document.path
+        }
+        fun previous() = RemotePortableSnapshotDocument(
+            jsonText = repointPortableSnapshotSlices(earlier.toSlicedJsonDocuments().last().jsonText, pathsByKey),
+            sha = ExistingSha,
+            sliced = true,
+            slicePaths = pathsByKey,
+            loadSlice = { error("an already synced slice must not be downloaded") },
+        ).also { document ->
+            document.skipAlreadySynced(slices.map { SyncedSnapshotSlice(it.sliceKey!!, pathsByKey.getValue(it.sliceKey!!), it.dataHash!!) })
+        }
+
+        val sameBuild = RecordingGitHubHttpClient()
+        testStore(sameBuild).putPortableSnapshotDocuments(earlier.copy(exportedAt = 3000), "vayana/snapshots/phone.json", ExistingSha, previous = previous())
+        assertTrue(sameBuild.requests.isEmpty())
+
+        val newerBuild = RecordingGitHubHttpClient(*singleCommitResponses())
+        testStore(newerBuild).putPortableSnapshotDocuments(
+            earlier.copy(exportedAt = 3000, appBuild = newer),
+            "vayana/snapshots/phone.json",
+            ExistingSha,
+            previous = previous(),
+        )
+        val tree = newerBuild.requests.single { it.url.endsWith("/git/trees") }.bodyText()
+        assertTrue(tree.contains("3.20261013.2300"))
     }
 
     @Test

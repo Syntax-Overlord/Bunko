@@ -1357,6 +1357,7 @@
     <string name="sync_detail_progress_synced">വായനാപുരോഗതി സമന്വയിപ്പിച്ചു</string>
     <string name="sync_detail_adding_cloud_books">ക്ലൗഡ് പുസ്തകങ്ങൾ ചേർക്കുന്നു</string>
     <string name="sync_detail_saving_latest_snapshot">പുതിയ സ്ഥിതിപ്പകർപ്പ് സൂക്ഷിക്കുന്നു</string>
+    <string name="library_sync_newer_build">%1$s-ലെ പുതിയ Vayana-യിൽ നിന്നാണ് അവസാനം സമന്വയിപ്പിച്ചത് (v%2$s, ബിൽഡ് %3$s). എല്ലാം സമന്വയത്തിലാക്കാൻ ഈ ആപ്പ് അപ്ഡേറ്റ് ചെയ്യുക.</string>
     <string name="sync_detail_finished">സമന്വയം പൂർത്തിയായി</string>
     <string name="sync_detail_snapshot_save_failed">സ്ഥിതിപ്പകർപ്പ് സൂക്ഷിക്കാനായില്ല</string>
     <string name="sync_error_concurrent_save">ഈ സമന്വയം കയറ്റുന്നതിനിടെ മറ്റൊരു ഉപകരണം മാറ്റങ്ങൾ സൂക്ഷിച്ചു. നിങ്ങൾ കയറ്റിയവ സുരക്ഷിതമാണ് — പൂർത്തിയാക്കാൻ വീണ്ടും സമന്വയിപ്പിക്കുക.</string>

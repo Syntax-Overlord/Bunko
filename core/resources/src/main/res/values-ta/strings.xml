@@ -1357,6 +1357,7 @@
     <string name="sync_detail_progress_synced">வாசிப்பு முன்னேற்றம் ஒத்திசைக்கப்பட்டது</string>
     <string name="sync_detail_adding_cloud_books">கிளவுட் நூல்களைச் சேர்க்கிறது</string>
     <string name="sync_detail_saving_latest_snapshot">புதிய நிலைப்படத்தைச் சேமிக்கிறது</string>
+    <string name="library_sync_newer_build">%1$s-இல் உள்ள புதிய Vayana-விலிருந்து கடைசியாக ஒத்திசைக்கப்பட்டது (v%2$s, உருவாக்கம் %3$s). அனைத்தும் ஒத்திசைவில் இருக்க இந்த ஆப்பைப் புதுப்பிக்கவும்.</string>
     <string name="sync_detail_finished">ஒத்திசைவு முடிந்தது</string>
     <string name="sync_detail_snapshot_save_failed">நிலைப்படத்தைச் சேமிக்க முடியவில்லை</string>
     <string name="sync_error_concurrent_save">இந்த ஒத்திசைவு பதிவேற்றும்போது மற்றொரு சாதனம் மாற்றங்களைச் சேமித்தது. உங்கள் பதிவேற்றங்கள் பாதுகாப்பாக உள்ளன — முடிக்க மீண்டும் ஒத்திசையுங்கள்.</string>

@@ -271,6 +271,16 @@ fun PortableSnapshot.toSlicedJsonDocuments(): List<PortableSnapshotDocument> {
         .put("exportedAt", exportedAt)
         .put("deviceLabel", deviceLabel)
         .put("sliceVersion", CurrentPortableSnapshotSliceVersion)
+        .putOptional(
+            "appBuild",
+            appBuild?.let { build ->
+                JSONObject()
+                    .put("versionName", build.versionName)
+                    .put("versionCode", build.versionCode)
+                    .put("buildNumber", build.buildNumber)
+                    .put("builtAt", build.builtAt)
+            },
+        )
         .put("books", books.toJsonArray { it.toJson() })
         .put("settings", JSONObject(settings))
         .put("syncConflicts", syncConflicts.toJsonArray { it.toJson() })
@@ -283,6 +293,17 @@ fun PortableSnapshot.toSlicedJsonDocuments(): List<PortableSnapshotDocument> {
     val manifestText = manifest.toString(2)
     return slices + PortableSnapshotDocument(path = PortableSnapshotLatestPath, render = { manifestText })
 }
+
+/** The app build that published a snapshot (from its manifest), or null for snapshots older than the field. */
+fun parsePortableAppBuild(jsonText: String): PortableAppBuild? = runCatching {
+    val build = JSONObject(jsonText).optJSONObject("appBuild") ?: return null
+    PortableAppBuild(
+        versionName = build.optSnapshotBoundedString("versionName", MaxSnapshotEnumChars).orEmpty(),
+        versionCode = build.optLong("versionCode", 0L),
+        buildNumber = build.optSnapshotBoundedString("buildNumber", MaxSnapshotEnumChars) ?: return null,
+        builtAt = build.optLong("builtAt", 0L),
+    )
+}.getOrNull()
 
 fun portableSnapshotSlicePaths(jsonText: String): Map<String, String> {
     require(jsonText.length <= MaxPortableSnapshotJsonChars) { "Portable snapshot is too large" }
@@ -332,12 +353,14 @@ private fun sha256Hex(text: String): String =
 
 /**
  * True when two latest-pointer manifests carry the same data (books, settings, conflicts, slice paths), ignoring
- * the per-export exportedAt and deviceLabel. Key-order sensitive, so it can only err toward "different".
+ * the per-export exportedAt, deviceLabel and appBuild. Key-order sensitive, so it can only err toward "different".
  */
 fun portableSnapshotManifestDataEquals(first: String, second: String): Boolean = runCatching {
+    // The publishing build says who wrote the data, not what it is: a newer build syncing unchanged data isn't news.
     fun data(jsonText: String) = JSONObject(jsonText).apply {
         remove("exportedAt")
         remove("deviceLabel")
+        remove("appBuild")
     }.toString()
     data(first) == data(second)
 }.getOrDefault(false)

@@ -1,5 +1,6 @@
 package com.vayana.feature.settings
 
+import com.vayana.core.common.appBuild
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -500,10 +501,10 @@ private fun DiagnosticsIconBadge(
 }
 
 private fun Context.diagnosticsEnvironment(): DiagnosticsEnvironment {
-    val version = appVersion()
+    val build = appBuild()
     return DiagnosticsEnvironment(
-        appVersionName = version.name.orEmpty(),
-        appVersionCode = version.code,
+        appVersionName = build.versionName,
+        appBuildNumber = build.buildNumber,
         androidVersion = Build.VERSION.RELEASE,
         sdkInt = Build.VERSION.SDK_INT,
         manufacturer = Build.MANUFACTURER,

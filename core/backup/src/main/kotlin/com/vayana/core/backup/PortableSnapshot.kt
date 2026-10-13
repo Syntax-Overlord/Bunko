@@ -15,6 +15,16 @@ data class PortableSnapshot(
     val tombstones: List<PortableTombstone> = emptyList(),
     val settings: Map<String, String>,
     val syncConflicts: List<PortableSyncConflict> = emptyList(),
+    /** The app build that published this snapshot (the device is [deviceLabel]); null in older snapshots. */
+    val appBuild: PortableAppBuild? = null,
+)
+
+data class PortableAppBuild(
+    val versionName: String,
+    val versionCode: Long,
+    /** Version code + build date and time, e.g. 3.20261013.2245. */
+    val buildNumber: String,
+    val builtAt: Long,
 )
 
 data class PortableBook(

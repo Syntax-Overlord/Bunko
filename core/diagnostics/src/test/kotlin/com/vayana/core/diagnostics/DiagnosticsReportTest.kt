@@ -7,7 +7,7 @@ import kotlin.test.assertFalse
 class DiagnosticsReportTest {
     private val environment = DiagnosticsEnvironment(
         appVersionName = "0.85",
-        appVersionCode = 1,
+        appBuildNumber = "1.20260925.1030",
         androidVersion = "16",
         sdkInt = 36,
         manufacturer = "Google",
@@ -25,7 +25,7 @@ class DiagnosticsReportTest {
             generatedAt = 0L,
         )
 
-        assertContains(report, "App: 0.85 (1)")
+        assertContains(report, "App: 0.85 (build 1.20260925.1030)")
         assertContains(report, "Android: 16 (SDK 36)")
         assertContains(report, "Events: 2 total; 1 crashes; 1 sync issues")
         assertContains(report, "Technical details:\ntrace")

@@ -1517,6 +1517,7 @@
     <string name="sync_detail_progress_synced">Reading progress synced</string>
     <string name="sync_detail_adding_cloud_books">Adding cloud books</string>
     <string name="sync_detail_saving_latest_snapshot">Saving latest snapshot</string>
+    <string name="library_sync_newer_build">Last synced from a newer Vayana on %1$s (v%2$s, build %3$s). Update this app to keep everything in sync.</string>
     <string name="sync_detail_finished">Sync finished</string>
     <string name="sync_detail_snapshot_save_failed">Snapshot save failed</string>
     <string name="sync_error_concurrent_save">Another device saved changes while this sync was uploading. Your uploads are safe - sync again to finish.</string>

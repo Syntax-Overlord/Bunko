@@ -28,7 +28,9 @@ import com.vayana.core.backup.PortableShelf
 import com.vayana.core.backup.PortableShelfMembership
 import com.vayana.core.backup.PortableTombstone
 import com.vayana.core.backup.PortableVocabularyCard
+import com.vayana.core.backup.PortableAppBuild
 import com.vayana.core.backup.parsePortableAnnotations
+import com.vayana.core.backup.parsePortableAppBuild
 import com.vayana.core.backup.parsePortableBookAliases
 import com.vayana.core.backup.parsePortableCloudBooks
 import com.vayana.core.backup.parsePortableReadingSessions
@@ -39,7 +41,9 @@ import com.vayana.core.backup.parsePortableTombstones
 import com.vayana.core.backup.parsePortableVocabularyCards
 import com.vayana.core.backup.parsePortableWordLookupCounters
 import com.vayana.core.backup.toJsonString
+import com.vayana.core.common.AppBuild
 import com.vayana.core.common.DispatcherProvider
+import com.vayana.core.common.appBuild
 import com.vayana.core.common.Hashing
 import com.vayana.core.common.ParsedQuote
 import com.vayana.core.common.QuoteParser
@@ -245,6 +249,9 @@ data class CloudBookDownloadProgressState(
     val fraction: Float = (completedSteps.toFloat() / totalSteps.toFloat()).coerceIn(0f, 1f)
 }
 
+/** The app build that published the latest cloud snapshot, and on which device. */
+data class RemoteAppBuild(val deviceLabel: String?, val versionName: String, val buildNumber: String)
+
 sealed interface GitHubSyncNowResult {
     data class Complete(
         val uploaded: Int,
@@ -262,11 +269,17 @@ sealed interface GitHubSyncNowResult {
         val progressAppliedSyncIds: Set<String> = emptySet(),
         val syncedDeviceLabel: String? = null,
         val syncedAt: Long? = null,
+        /** The latest snapshot was published by a newer app build than this one: this device should update. */
+        val newerRemoteBuild: RemoteAppBuild? = null,
     ) : GitHubSyncNowResult
     data class InitialSyncConfirmationRequired(val message: UiText?) : GitHubSyncNowResult
     data object SyncDisabled : GitHubSyncNowResult
     data object ConfigIncomplete : GitHubSyncNowResult
 }
+
+private fun PortableAppBuild.toAppBuild() = AppBuild(versionName, versionCode, buildNumber, builtAt)
+
+private fun AppBuild.toPortable() = PortableAppBuild(versionName, versionCode, buildNumber, builtAt)
 
 private fun GitHubSyncNowResult.isCompleteFullSync(): Boolean =
     this is GitHubSyncNowResult.Complete && !pullFailed && metadataSynced && failed == 0
@@ -1488,6 +1501,7 @@ class LibraryViewModel @Inject constructor(
                 progressAppliedSyncIds = progressMerge.appliedSyncIds,
                 syncedDeviceLabel = progressMerge.remoteDeviceLabel,
                 syncedAt = progressMerge.remoteSyncedAt,
+                newerRemoteBuild = newerRemoteBuild(progressMerge),
             )
         }
         updateSyncProgress(
@@ -1732,7 +1746,24 @@ class LibraryViewModel @Inject constructor(
             pullFailed = anyPullFailed && !allowInitialSync,
             metadataSynced = metadataSave.synced,
             failureMessage = metadataSave.failureMessage ?: entityMerges.firstFailureMessage(),
+            newerRemoteBuild = newerRemoteBuild(progressMerge),
         )
+    }
+
+    /** The snapshot's publishing build when it is newer than this app's; noted in the full-sync log either way. */
+    private fun newerRemoteBuild(progressMerge: ReadingProgressMergeSummary): RemoteAppBuild? {
+        val remote = progressMerge.remoteSnapshot?.jsonText?.let(::parsePortableAppBuild)
+        val local = appContext.appBuild()
+        if (remote == null) {
+            fullSyncLog?.note("Cloud snapshot app build: unknown (published before builds were recorded); this app ${local.buildNumber}")
+            return null
+        }
+        val comparison = remote.toAppBuild().compareTo(local)
+        fullSyncLog?.note(
+            "Cloud snapshot app build: ${remote.versionName} (${remote.buildNumber}) from ${progressMerge.remoteDeviceLabel}, " +
+                "${if (comparison > 0) "newer than" else if (comparison < 0) "older than" else "same as"} this app ${local.buildNumber}",
+        )
+        return RemoteAppBuild(progressMerge.remoteDeviceLabel, remote.versionName, remote.buildNumber).takeIf { comparison > 0 }
     }
 
     private suspend fun pullReadingProgress(
@@ -2097,7 +2128,7 @@ class LibraryViewModel @Inject constructor(
         repeat(MaxSnapshotMetadataSaveAttempts) { attemptIndex ->
             val saveAttempt = runCatchingCancellable {
                 val snapshot = snapshotExporter.export()
-                    .copy(syncConflicts = latestConflicts)
+                    .copy(syncConflicts = latestConflicts, appBuild = appContext.appBuild().toPortable())
                 fullSyncLog?.phase("Export local snapshot", "attempt=${attemptIndex + 1}")
                 store.putPortableSnapshotDocuments(
                     snapshot = snapshot,

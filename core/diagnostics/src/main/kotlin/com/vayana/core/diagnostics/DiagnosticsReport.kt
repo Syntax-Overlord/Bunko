@@ -4,7 +4,8 @@ import java.time.Instant
 
 data class DiagnosticsEnvironment(
     val appVersionName: String,
-    val appVersionCode: Long,
+    /** Version code + build date and time, e.g. 3.20261013.2245. */
+    val appBuildNumber: String,
     val androidVersion: String,
     val sdkInt: Int,
     val manufacturer: String,
@@ -21,7 +22,7 @@ fun buildDiagnosticsReport(
     val syncCount = events.count { it.category == DiagnosticCategory.SYNC }
     appendLine("Vayana diagnostics report")
     appendLine("Generated: ${generatedAt.toIsoTimestamp()}")
-    appendLine("App: ${environment.appVersionName} (${environment.appVersionCode})")
+    appendLine("App: ${environment.appVersionName} (build ${environment.appBuildNumber})")
     appendLine("Android: ${environment.androidVersion} (SDK ${environment.sdkInt})")
     appendLine("Device: ${environment.manufacturer} ${environment.model}")
     appendLine("Events: ${events.size} total; $crashCount crashes; $syncCount sync issues")

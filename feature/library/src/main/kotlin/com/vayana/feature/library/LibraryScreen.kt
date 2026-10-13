@@ -375,6 +375,8 @@ private fun LibraryScreen(
     val syncDisabledMessage = stringResource(R.string.library_sync_disabled)
     val syncConfigMissingMessage = stringResource(R.string.library_sync_config_missing)
     val syncCompleteMessage = stringResource(R.string.library_sync_complete)
+    val syncNewerBuildMessage = stringResource(R.string.library_sync_newer_build)
+    val unknownSyncDevice = stringResource(R.string.sync_status_unknown_device)
     val syncCompleteWithCloudMessage = stringResource(R.string.library_sync_complete_with_cloud)
     val syncPartialMessage = stringResource(R.string.library_sync_partial)
     val syncConflictMessage = stringResource(R.string.library_sync_conflicts)
@@ -470,6 +472,11 @@ private fun LibraryScreen(
                     }
                 }
                 snackbarHostState.showSnackbar(message)
+                result.newerRemoteBuild?.let { newer ->
+                    snackbarHostState.showSnackbar(
+                        syncNewerBuildMessage.format(newer.deviceLabel ?: unknownSyncDevice, newer.versionName, newer.buildNumber),
+                    )
+                }
             }
             is GitHubSyncNowResult.InitialSyncConfirmationRequired -> {
                 syncBadge = LibrarySyncBadge.FAILED

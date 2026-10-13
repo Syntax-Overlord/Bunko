@@ -1366,6 +1366,7 @@
     <string name="sync_detail_progress_synced">Progresso de leitura sincronizado</string>
     <string name="sync_detail_adding_cloud_books">Adicionando livros da nuvem</string>
     <string name="sync_detail_saving_latest_snapshot">Salvando o snapshot mais recente</string>
+    <string name="library_sync_newer_build">Última sincronização a partir de uma versão mais nova do Vayana em %1$s (v%2$s, build %3$s). Atualize este app para manter tudo sincronizado.</string>
     <string name="sync_detail_finished">Sincronização concluída</string>
     <string name="sync_detail_snapshot_save_failed">Falha ao salvar o snapshot</string>
     <string name="sync_error_concurrent_save">Outro dispositivo salvou alterações enquanto esta sincronização enviava dados. Seus envios estão seguros: sincronize de novo para terminar.</string>

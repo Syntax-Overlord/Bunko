@@ -8,6 +8,7 @@ import com.vayana.core.backup.PortableTombstone
 import com.vayana.core.backup.PortableWordLookupCounter
 import com.vayana.core.backup.patchPortableReadingProgressOnly
 import com.vayana.core.backup.patchSlicedPortableReadingProgress
+import com.vayana.core.backup.parsePortableAppBuild
 import com.vayana.core.backup.portableSnapshotManifestDataEquals
 import com.vayana.core.backup.portableSnapshotSliceDataHash
 import com.vayana.core.backup.portableSnapshotSlicePaths
@@ -404,7 +405,14 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
     val publishedPathsByKey = reusedPathsByKey + sliceUploads.associate { it.sliceKey to it.path }
     val published = publishedPathsByKey.map { (key, path) -> SyncedSnapshotSlice(key, path, dataHashByKey.getValue(key)) }
     val latestJson = repointPortableSnapshotSlices(latestDocument.jsonText, publishedPathsByKey)
-    if (sliceUploads.isEmpty() && previous != null && portableSnapshotManifestDataEquals(latestJson, previous.jsonText)) {
+    // Unchanged data still goes out once per newer build, so the snapshot names the newest app that synced it.
+    val remoteBuild = previous?.let { parsePortableAppBuild(it.jsonText) }
+    val outdatedBuildStamp = snapshot.appBuild?.let { local ->
+        remoteBuild == null || compareValuesBy(local, remoteBuild, { it.versionCode }, { it.builtAt }) > 0
+    } == true
+    if (sliceUploads.isEmpty() && previous != null && !outdatedBuildStamp &&
+        portableSnapshotManifestDataEquals(latestJson, previous.jsonText)
+    ) {
         // The latest snapshot already says exactly this: writing it again would only bump exportedAt (and cost
         // five GitHub round trips).
         diagnosticsLogStore?.record(

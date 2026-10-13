@@ -1,4 +1,6 @@
 import java.io.FileInputStream
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Properties
 
 plugins {
@@ -63,6 +65,41 @@ android {
                 signingConfig = signingConfigs.getByName("release")
             }
         }
+    }
+}
+
+/**
+ * Writes assets/build-info.properties: the build number (version code + local build date and time, e.g.
+ * 3.20261013.2245) and build time. A task rather than a BuildConfig field, because the configuration cache would
+ * freeze a timestamp taken while configuring; never up to date, so every build gets its own number.
+ */
+abstract class GenerateBuildInfo : DefaultTask() {
+    @get:Input
+    abstract val versionCode: Property<Int>
+
+    @get:OutputDirectory
+    abstract val outputDirectory: DirectoryProperty
+
+    init {
+        outputs.upToDateWhen { false }
+    }
+
+    @TaskAction
+    fun write() {
+        val now = ZonedDateTime.now()
+        val buildNumber = "${versionCode.get()}.${now.format(DateTimeFormatter.ofPattern("yyyyMMdd.HHmm"))}"
+        outputDirectory.file("build-info.properties").get().asFile.writeText(
+            "buildNumber=$buildNumber\nbuiltAt=${now.toInstant().toEpochMilli()}\n",
+        )
+    }
+}
+
+androidComponents {
+    onVariants { variant ->
+        val buildInfo = tasks.register<GenerateBuildInfo>("generate${variant.name.replaceFirstChar(Char::uppercase)}BuildInfo") {
+            versionCode.set(variant.outputs.single().versionCode.map { it })
+        }
+        variant.sources.assets?.addGeneratedSourceDirectory(buildInfo, GenerateBuildInfo::outputDirectory)
     }
 }
 
