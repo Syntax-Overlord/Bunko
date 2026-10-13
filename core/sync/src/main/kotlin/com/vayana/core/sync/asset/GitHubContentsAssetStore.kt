@@ -53,6 +53,9 @@ class GitHubContentsAssetStore(
     fun requestStats(): String = "githubRequests=${requestCount.get()}, downBytes=${bytesDown.get()}, upBytes=${bytesUp.get()}"
 
     private fun execute(request: GitHubHttpRequest): GitHubHttpResponse {
+        // Every Contents API write (asset uploads, cloud file deletes) is a commit of its own: the branch head is no
+        // longer the commit commitSyncDocuments could build on.
+        if (request.method == "PUT" || request.method == "DELETE") LastSyncCommits.remove(cacheScope)
         requestCount.incrementAndGet()
         bytesUp.addAndGet(request.body?.size?.toLong() ?: request.streamingBody?.contentLength ?: 0L)
         return client.execute(request).also { bytesDown.addAndGet(it.body.size.toLong()) }

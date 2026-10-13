@@ -970,6 +970,25 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
+    fun anAssetUploadInBetweenSendsTheNextCommitBackToReadingTheBranch() = runBlocking {
+        val manifest = "{\"v\":1}".toByteArray()
+        val client = RecordingGitHubHttpClient(
+            *singleCommitResponses(),
+            GitHubHttpResponse(201, """{"content":{"sha":"x"}}""".toByteArray()), // cover upload: its own commit
+            *singleCommitResponses().also { it[1] = GitHubHttpResponse(200, folderListing("vayana/snapshot-latest.json" to gitBlobSha(manifest))) },
+        )
+        val store = testStore(client)
+        val write = listOf(SyncDocumentChange("vayana/snapshot-latest.json", manifest))
+
+        store.commitSyncDocuments(write, "Sync", "vayana/snapshot-latest.json", ExistingSha)
+        store.put(CloudAssetLayout.pathFor(AssetId), "ciphertext".toByteArray())
+        val afterUpload = client.requests.size
+        store.commitSyncDocuments(write, "Sync", "vayana/snapshot-latest.json", gitBlobSha(manifest))
+
+        assertTrue(client.requests[afterUpload].url.contains("/branches/main"))
+    }
+
+    @Test
     fun singleCommitReportsAConflictWhenTheBranchMovedOrTheGuardChanged() = runBlocking {
         val change = listOf(SyncDocumentChange("vayana/snapshot-latest.json", "{}".toByteArray()))
         val branchMoved = RecordingGitHubHttpClient(
