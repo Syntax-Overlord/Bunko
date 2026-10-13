@@ -506,34 +506,27 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
-    fun listsSnapshotSliceDirectories() = runBlocking {
+    fun listsTheSlicesTreeFromItsParentListingWithNestedLinks() = runBlocking {
         val client = RecordingGitHubHttpClient(
             GitHubHttpResponse(
                 200,
                 """
                 [
-                  {"name":"12345","path":"vayana/snapshot-slices/12345","sha":"$ExistingSha","type":"dir",
+                  {"name":"snapshot-slices","path":"vayana/snapshot-slices","sha":"$TreeSha","type":"dir",
                    "_links":{"self":"https://api.github.test/x","git":"https://api.github.test/g","html":"https://github.test/h"}},
-                  {"name":"notes.txt","path":"vayana/snapshot-slices/notes.txt","sha":"$ExistingSha","type":"file",
+                  {"name":"snapshot-latest.json","path":"vayana/snapshot-latest.json","sha":"$ExistingSha","type":"file",
                    "_links":{"self":"https://api.github.test/y","git":"https://api.github.test/g2","html":"https://github.test/h2"}}
                 ]
                 """.trimIndent().toByteArray(),
             ),
+            GitHubHttpResponse(200, sliceTree("12345" to "tree", "12345/notes.txt" to "blob")),
         )
-        val store = testStore(client)
 
-        val entries = store.listSyncDocumentDirectory("vayana/snapshot-slices")
+        val entries = testStore(client).listSyncDocumentTree("vayana/snapshot-slices")
 
-        assertEquals(2, entries.size)
-        assertEquals("12345", entries[0].name)
-        assertEquals("dir", entries[0].type)
-        assertEquals(ExistingSha, entries[0].sha)
-        assertEquals("vayana/snapshot-slices/notes.txt", entries[1].path)
-        assertEquals("file", entries[1].type)
-        assertEquals(
-            "https://api.github.test/repos/owner/repo/contents/vayana/snapshot-slices?ref=main",
-            client.requests.single().url,
-        )
+        assertEquals(listOf("vayana/snapshot-slices/12345", "vayana/snapshot-slices/12345/notes.txt"), entries.map { it.path })
+        assertEquals(listOf("dir", "file"), entries.map { it.type })
+        assertEquals("https://api.github.test/repos/owner/repo/contents/vayana?ref=main", client.requests[0].url)
     }
 
     @Test
@@ -542,7 +535,7 @@ class GitHubContentsAssetStoreTest {
         val store = testStore(client)
 
         val failure = assertFailsWith<IllegalArgumentException> {
-            store.listSyncDocumentDirectory("vayana/snapshot-slices/../12345")
+            store.listSyncDocumentTree("vayana/snapshot-slices/../12345")
         }
 
         assertEquals("Invalid sync document directory path", failure.message)
@@ -571,24 +564,18 @@ class GitHubContentsAssetStoreTest {
 
     @Test
     fun staleSnapshotSliceFilesAreOnlyKnownSliceFilesInOldDirectories() = runBlocking {
-        val sliceRootListing = """
-            [
-              {"name":"4000","path":"vayana/snapshot-slices/4000","type":"dir","sha":"$ExistingSha"},
-              {"name":"3000","path":"vayana/snapshot-slices/3000","type":"dir","sha":"$ExistingSha"},
-              {"name":"2000","path":"vayana/snapshot-slices/2000","type":"dir","sha":"$ExistingSha"},
-              {"name":"1000","path":"vayana/snapshot-slices/1000","type":"dir","sha":"$ExistingSha"}
-            ]
-        """.trimIndent().toByteArray()
-        val staleDirectoryListing = """
-            [
-              {"name":"annotations.json","path":"vayana/snapshot-slices/1000/annotations.json","type":"file","sha":"$ExistingSha"},
-              {"name":"community-quotes.zip","path":"vayana/snapshot-slices/1000/community-quotes.zip","type":"file","sha":"$ExistingSha"},
-              {"name":"rogue.json","path":"vayana/snapshot-slices/1000/rogue.json","type":"file","sha":"$ExistingSha"}
-            ]
-        """.trimIndent().toByteArray()
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(200, sliceRootListing),
-            GitHubHttpResponse(200, staleDirectoryListing),
+            GitHubHttpResponse(200, slicesFolderListing()),
+            GitHubHttpResponse(
+                200,
+                sliceTree(
+                    "4000" to "tree", "3000" to "tree", "2000" to "tree", "1000" to "tree",
+                    "4000/annotations.json" to "blob",
+                    "1000/annotations.json" to "blob",
+                    "1000/community-quotes.zip" to "blob",
+                    "1000/rogue.json" to "blob",
+                ),
+            ),
         )
 
         val stale = testStore(client).staleSnapshotSliceFiles(currentExportedAt = 4000, referencedExportTimes = setOf(4000))
@@ -597,30 +584,27 @@ class GitHubContentsAssetStoreTest {
             listOf("vayana/snapshot-slices/1000/annotations.json", "vayana/snapshot-slices/1000/community-quotes.zip"),
             stale,
         )
-        assertTrue(client.requests.all { it.method == "GET" })
+        assertEquals(2, client.requests.size) // parent listing + one recursive tree, however many folders
+        assertEquals("https://api.github.test/repos/owner/repo/git/trees/$TreeSha?recursive=1", client.requests[1].url)
     }
 
     @Test
     fun pruneKeepsSliceSetsThePublishedSnapshotReferencesEvenWhenTheySortOld() = runBlocking {
         // A lagging-clock device publishes exportedAt=500 after other devices wrote 4000/3000/2000.
-        val sliceRootListing = """
-            [
-              {"name":"4000","path":"vayana/snapshot-slices/4000","type":"dir","sha":"$ExistingSha"},
-              {"name":"3000","path":"vayana/snapshot-slices/3000","type":"dir","sha":"$ExistingSha"},
-              {"name":"2000","path":"vayana/snapshot-slices/2000","type":"dir","sha":"$ExistingSha"},
-              {"name":"1000","path":"vayana/snapshot-slices/1000","type":"dir","sha":"$ExistingSha"},
-              {"name":"500","path":"vayana/snapshot-slices/500","type":"dir","sha":"$ExistingSha"}
-            ]
-        """.trimIndent().toByteArray()
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(200, sliceRootListing),
-            GitHubHttpResponse(200, "[]".toByteArray()),
+            GitHubHttpResponse(200, slicesFolderListing()),
+            GitHubHttpResponse(
+                200,
+                sliceTree(
+                    "4000" to "tree", "3000" to "tree", "2000" to "tree", "1000" to "tree", "500" to "tree",
+                    "1000/tombstones.json" to "blob", "500/tombstones.json" to "blob",
+                ),
+            ),
         )
 
-        testStore(client).staleSnapshotSliceFiles(currentExportedAt = 500, referencedExportTimes = setOf(500))
+        val stale = testStore(client).staleSnapshotSliceFiles(currentExportedAt = 500, referencedExportTimes = setOf(500))
 
-        assertTrue(client.requests.any { it.url.contains("snapshot-slices/1000?") })
-        assertTrue(client.requests.none { it.url.contains("snapshot-slices/500?") })
+        assertEquals(listOf("vayana/snapshot-slices/1000/tombstones.json"), stale)
     }
 
     @Test
@@ -743,7 +727,7 @@ class GitHubContentsAssetStoreTest {
             slicePaths = mapOf("annotations" to "vayana/snapshot-slices/1000/annotations.json"),
         )
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
+            GitHubHttpResponse(200, "[]".toByteArray()), // prune: no slices folder yet
             *singleCommitResponses(blobs = 2), // the zipped community quotes, the manifest shared by two paths
         )
 
@@ -786,7 +770,7 @@ class GitHubContentsAssetStoreTest {
         previous.prefetch()
         assertEquals(previous.jsonText, previous.jsonFor(RemotePortableSnapshotSlice.Annotations))
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
+            GitHubHttpResponse(200, "[]".toByteArray()), // prune: no slices folder yet
             *singleCommitResponses(blobs = 2),
         )
 
@@ -812,7 +796,7 @@ class GitHubContentsAssetStoreTest {
         )
         previous.skipAlreadySynced(listOf(SyncedSnapshotSlice("communityQuotes", quotesPath, "quotes-hash")))
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
+            GitHubHttpResponse(200, "[]".toByteArray()), // prune: no slices folder yet
             *singleCommitResponses(blobs = 1), // the manifest, shared by two paths; no quotes zip
         )
 
@@ -901,7 +885,7 @@ class GitHubContentsAssetStoreTest {
         )
         val quote = note.copy(syncId = "quote-1", type = "UNDERLINE", colorKey = "popular", locator = "goodreads-quote:1", selectedText = "Quoted")
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
+            GitHubHttpResponse(200, "[]".toByteArray()), // prune: no slices folder yet
             *singleCommitResponses(blobs = 2),
         )
 
@@ -1099,6 +1083,16 @@ private fun blobTexts(client: RecordingGitHubHttpClient): List<String> =
         val content = Regex(""""content":"([^"]+)"""").find(request.bodyText())!!.groupValues[1]
         Base64.getDecoder().decode(content).toString(Charsets.UTF_8)
     }
+
+/** The `vayana` folder listing naming the slices folder's tree. */
+private fun slicesFolderListing(): ByteArray =
+    """[{"name":"snapshot-slices","path":"vayana/snapshot-slices","type":"dir","sha":"$TreeSha"}]""".toByteArray()
+
+/** A recursive Git tree response for the slices folder: paths relative to it, "tree" or "blob". */
+private fun sliceTree(vararg entries: Pair<String, String>): ByteArray =
+    entries.joinToString(",", """{"sha":"$TreeSha","tree":[""", """],"truncated":false}""") { (path, type) ->
+        """{"path":"$path","mode":"${if (type == "tree") "040000" else "100644"}","type":"$type","sha":"$ExistingSha"}"""
+    }.toByteArray()
 
 private fun folderListing(vararg files: Pair<String, String>): ByteArray =
     files.joinToString(",", "[", "]") { (path, sha) ->

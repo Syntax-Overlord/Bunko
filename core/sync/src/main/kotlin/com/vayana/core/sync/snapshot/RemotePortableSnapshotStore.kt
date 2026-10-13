@@ -426,7 +426,7 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
         // The latest snapshot already says exactly this: writing it again would only bump exportedAt (and cost
         // five GitHub round trips).
         diagnosticsLogStore?.record(
-            category = DiagnosticCategory.SYNC,
+            category = DiagnosticCategory.SYNC_LOG,
             source = "RemotePortableSnapshotStore.putPortableSnapshotDocuments",
             message = "Snapshot unchanged; publish skipped",
             detail = "exportedAt=${snapshot.exportedAt}, books=${snapshot.books.size}",
@@ -492,7 +492,7 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
     }
     sliceUploads.forEach { upload -> SnapshotSliceCache.put("$cacheScope|${upload.path}", upload.jsonText) }
     diagnosticsLogStore?.record(
-        category = DiagnosticCategory.SYNC,
+        category = DiagnosticCategory.SYNC_LOG,
         source = "RemotePortableSnapshotStore.putPortableSnapshotDocuments",
         message = "Published sliced snapshot",
         detail = buildString {
@@ -521,20 +521,25 @@ internal suspend fun GitHubContentsAssetStore.staleSnapshotSliceFiles(
     currentExportedAt: Long,
     referencedExportTimes: Set<Long>,
 ): List<String> {
-    val sliceDirectoryTimes = listSyncDocumentDirectory(SnapshotSlicesRoot)
-        .filter { it.type == "dir" }
+    // One recursive read of the whole slices folder: progress-only pushes leave a folder each, and listing them one
+    // by one cost a request per folder.
+    val entries = listSyncDocumentTree(SnapshotSlicesRoot)
+    val sliceDirectoryTimes = entries
+        .filter { it.type == "dir" && it.path == "$SnapshotSlicesRoot/${it.name}" }
         .mapNotNull { entry -> entry.name.toLongOrNull()?.takeIf { it > 0L } }
     val retainedExportTimes = (sliceDirectoryTimes + currentExportedAt)
         .distinct()
         .sortedDescending()
         .take(RetainedSnapshotSliceSets)
         .toSet() + currentExportedAt + referencedExportTimes
-    return sliceDirectoryTimes.filterNot { it in retainedExportTimes }.flatMap { exportedAt ->
-        val allowedPaths = SnapshotSliceFileNames.mapTo(mutableSetOf()) { fileName -> "$SnapshotSlicesRoot/$exportedAt/$fileName" }
-        listSyncDocumentDirectory("$SnapshotSlicesRoot/$exportedAt")
-            .filter { it.type == "file" && it.path in allowedPaths }
-            .map { it.path }
-    }
+    val staleExportTimes = sliceDirectoryTimes.filterNot { it in retainedExportTimes }.toSet()
+    return entries
+        .filter { entry ->
+            val exportedAt = sliceExportTimeOrNull(entry.path)
+            entry.type == "file" && exportedAt in staleExportTimes &&
+                entry.name in SnapshotSliceFileNames && entry.path == "$SnapshotSlicesRoot/$exportedAt/${entry.name}"
+        }
+        .map { it.path }
 }
 
 private fun sliceExportTimeOrNull(path: String): Long? =

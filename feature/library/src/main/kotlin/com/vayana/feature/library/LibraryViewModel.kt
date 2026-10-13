@@ -1935,10 +1935,13 @@ class LibraryViewModel @Inject constructor(
             var created = 0
             var skipped = 0
             parsePortableBookAliases(snapshotJson).forEachMergeChunk { remote ->
-                if (tombstoneDao.findBySyncId(remote.syncId) != null || remote.syncId.isBlank() || remote.fileHash.isBlank()) {
+                val alias = BookAliasEntity(syncId = remote.syncId, fileHash = remote.fileHash, createdAt = remote.createdAt)
+                if (tombstoneDao.findBySyncId(remote.syncId) != null || remote.syncId.isBlank() || remote.fileHash.isBlank() ||
+                    bookAliasDao.findBySyncId(remote.syncId) == alias
+                ) {
                     skipped += 1
                 } else {
-                    bookAliasDao.upsert(BookAliasEntity(syncId = remote.syncId, fileHash = remote.fileHash, createdAt = remote.createdAt))
+                    bookAliasDao.upsert(alias)
                     created += 1
                 }
             }
@@ -2101,7 +2104,8 @@ class LibraryViewModel @Inject constructor(
             )
         }
         diagnosticsLogStore.record(
-            category = DiagnosticCategory.SYNC,
+            // A clean sync's log is information; anything else is also a sync issue.
+            category = if (result?.isCompleteFullSync() == true) DiagnosticCategory.SYNC_LOG else DiagnosticCategory.SYNC,
             source = "FullSync",
             message = "Full sync $outcome in ${"%.1f".format(Locale.ROOT, log.elapsedMillis / 1000.0)} s",
             detail = log.text(),
@@ -3336,7 +3340,8 @@ private fun DiagnosticsLogStore.recordLaunchProgressCheck(
     detail: String? = null,
 ) {
     record(
-        category = DiagnosticCategory.SYNC,
+        // Only a failed check is an issue; skips and "no newer progress" are the normal outcomes.
+        category = if ("failed" in message) DiagnosticCategory.SYNC else DiagnosticCategory.SYNC_LOG,
         source = "LibraryViewModel.launchReadingProgress",
         message = bookId?.let { "$message for book $it" } ?: message,
         detail = detail,

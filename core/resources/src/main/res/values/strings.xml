@@ -250,6 +250,7 @@
     <string name="diagnostics_empty_title">Everything looks clear</string>
     <string name="diagnostics_empty">No crashes or sync issues have been recorded. You can still share a report with app and device details.</string>
     <string name="diagnostics_crash_label">App crash</string>
+    <string name="diagnostics_sync_log_label">Sync log</string>
     <string name="diagnostics_sync_issue_label">Sync issue</string>
     <string name="diagnostics_source_value">Source: %1$s</string>
     <string name="diagnostics_show_details">Show technical details</string>

@@ -235,6 +235,7 @@
     <string name="diagnostics_empty_title">Alles in Ordnung</string>
     <string name="diagnostics_empty">Es wurden keine Abstürze oder Sync-Probleme aufgezeichnet. Du kannst trotzdem einen Bericht mit App- und Gerätedetails teilen.</string>
     <string name="diagnostics_crash_label">App-Absturz</string>
+    <string name="diagnostics_sync_log_label">Sync-Protokoll</string>
     <string name="diagnostics_sync_issue_label">Sync-Problem</string>
     <string name="diagnostics_source_value">Quelle: %1$s</string>
     <string name="diagnostics_show_details">Technische Details anzeigen</string>

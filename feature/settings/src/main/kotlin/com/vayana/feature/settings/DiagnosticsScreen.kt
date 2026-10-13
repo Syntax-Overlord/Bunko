@@ -374,8 +374,13 @@ private fun DiagnosticsEmptyCard() {
 private fun DiagnosticEventCard(event: DiagnosticEvent) {
     var expanded by remember { mutableStateOf(false) }
     val isCrash = event.category == DiagnosticCategory.CRASH
+    val isLog = event.category == DiagnosticCategory.SYNC_LOG
     val (eventContainer, eventContent) = with(MaterialTheme.colorScheme) {
-        if (isCrash) errorContainer to onErrorContainer else tertiaryContainer to onTertiaryContainer
+        when {
+            isCrash -> errorContainer to onErrorContainer
+            isLog -> secondaryContainer to onSecondaryContainer
+            else -> tertiaryContainer to onTertiaryContainer
+        }
     }
     val expansionModifier = if (event.detail != null) {
         Modifier.clickable { expanded = !expanded }
@@ -393,7 +398,11 @@ private fun DiagnosticEventCard(event: DiagnosticEvent) {
                 horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 DiagnosticsIconBadge(
-                    icon = if (isCrash) Icons.Outlined.BugReport else Icons.Outlined.SyncProblem,
+                    icon = when {
+                        isCrash -> Icons.Outlined.BugReport
+                        isLog -> Icons.Outlined.Info
+                        else -> Icons.Outlined.SyncProblem
+                    },
                     size = Sizes.badge,
                     containerColor = eventContainer,
                     contentColor = eventContent,
@@ -401,7 +410,11 @@ private fun DiagnosticEventCard(event: DiagnosticEvent) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = stringResource(
-                            if (isCrash) R.string.diagnostics_crash_label else R.string.diagnostics_sync_issue_label,
+                            when {
+                                isCrash -> R.string.diagnostics_crash_label
+                                isLog -> R.string.diagnostics_sync_log_label
+                                else -> R.string.diagnostics_sync_issue_label
+                            },
                         ),
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.SemiBold,

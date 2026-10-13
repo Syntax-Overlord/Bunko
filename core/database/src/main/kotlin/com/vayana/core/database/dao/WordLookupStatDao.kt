@@ -1,6 +1,8 @@
 package com.vayana.core.database.dao
 
 import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import com.vayana.core.database.entity.WordLookupStatEntity
 import kotlinx.coroutines.flow.Flow
@@ -29,25 +31,25 @@ interface WordLookupStatDao {
     )
     fun observeRecent(limit: Int): Flow<List<WordLookupStatEntity>>
 
-    @Query(
-        """
-        INSERT INTO word_lookup_stats (word, writerOrigin, count, lastLookedUpAt)
-        VALUES (:word, :writerOrigin, 1, :lookedUpAt)
-        ON CONFLICT(word, writerOrigin) DO UPDATE SET count = count + 1, lastLookedUpAt = :lookedUpAt
-        """,
-    )
-    suspend fun recordLookup(word: String, lookedUpAt: Long, writerOrigin: String = "legacy-local")
+    // No `INSERT … ON CONFLICT DO UPDATE` here: upserts need SQLite 3.24 (Android 11), and the app runs from Android 8.
+    // Callers insert if absent, then update.
+
+    /** -1 when the (word, writerOrigin) row already exists. */
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertIfAbsent(stat: WordLookupStatEntity): Long
 
     @Query(
-        """
-        INSERT INTO word_lookup_stats (word, writerOrigin, count, lastLookedUpAt)
-        VALUES (:word, :writerOrigin, :count, :lastLookedUpAt)
-        ON CONFLICT(word, writerOrigin) DO UPDATE SET
-            count = CASE WHEN excluded.count > count THEN excluded.count ELSE count END,
-            lastLookedUpAt = CASE WHEN excluded.lastLookedUpAt > lastLookedUpAt THEN excluded.lastLookedUpAt ELSE lastLookedUpAt END
-        """,
+        "UPDATE word_lookup_stats SET count = count + 1, lastLookedUpAt = :lookedUpAt " +
+            "WHERE word = :word AND writerOrigin = :writerOrigin",
     )
-    suspend fun mergeCounter(word: String, writerOrigin: String, count: Int, lastLookedUpAt: Long)
+    suspend fun incrementLookup(word: String, writerOrigin: String, lookedUpAt: Long)
+
+    /** Takes the larger count and later lookup; a counter that is no newer changes nothing (and fires no triggers). */
+    @Query(
+        "UPDATE word_lookup_stats SET count = MAX(count, :count), lastLookedUpAt = MAX(lastLookedUpAt, :lastLookedUpAt) " +
+            "WHERE word = :word AND writerOrigin = :writerOrigin AND (:count > count OR :lastLookedUpAt > lastLookedUpAt)",
+    )
+    suspend fun raiseCounter(word: String, writerOrigin: String, count: Int, lastLookedUpAt: Long): Int
 
     @Query("SELECT * FROM word_lookup_stats ORDER BY word COLLATE NOCASE ASC, writerOrigin ASC")
     suspend fun getAllForSync(): List<WordLookupStatEntity>

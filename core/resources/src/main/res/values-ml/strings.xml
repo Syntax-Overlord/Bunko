@@ -235,6 +235,7 @@
     <string name="diagnostics_empty_title">എല്ലാം ശരിയാണ്</string>
     <string name="diagnostics_empty">തകരാറുകളോ സമന്വയ പ്രശ്നങ്ങളോ രേഖപ്പെടുത്തിയിട്ടില്ല. എങ്കിലും ആപ്പിന്റെയും ഉപകരണത്തിന്റെയും വിവരങ്ങളോടെ റിപ്പോർട്ട് പങ്കിടാം.</string>
     <string name="diagnostics_crash_label">ആപ്പ് തകരാർ</string>
+    <string name="diagnostics_sync_log_label">സമന്വയ ലോഗ്</string>
     <string name="diagnostics_sync_issue_label">സമന്വയ പ്രശ്നം</string>
     <string name="diagnostics_source_value">ഉറവിടം: %1$s</string>
     <string name="diagnostics_show_details">സാങ്കേതിക വിശദാംശങ്ങൾ കാണിക്കുക</string>

@@ -237,6 +237,7 @@
     <string name="diagnostics_empty_title">Todo en orden</string>
     <string name="diagnostics_empty">No se han registrado fallos ni problemas de sincronización. Aun así, puedes compartir un informe con datos de la app y del dispositivo.</string>
     <string name="diagnostics_crash_label">Fallo de la app</string>
+    <string name="diagnostics_sync_log_label">Registro de sincronización</string>
     <string name="diagnostics_sync_issue_label">Problema de sincronización</string>
     <string name="diagnostics_source_value">Origen: %1$s</string>
     <string name="diagnostics_show_details">Mostrar detalles técnicos</string>

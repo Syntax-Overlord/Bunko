@@ -237,6 +237,7 @@
     <string name="diagnostics_empty_title">Tutto a posto</string>
     <string name="diagnostics_empty">Nessun arresto anomalo o problema di sincronizzazione registrato. Puoi comunque condividere un report con i dettagli di app e dispositivo.</string>
     <string name="diagnostics_crash_label">Arresto anomalo dell\'app</string>
+    <string name="diagnostics_sync_log_label">Registro di sincronizzazione</string>
     <string name="diagnostics_sync_issue_label">Problema di sincronizzazione</string>
     <string name="diagnostics_source_value">Origine: %1$s</string>
     <string name="diagnostics_show_details">Mostra dettagli tecnici</string>

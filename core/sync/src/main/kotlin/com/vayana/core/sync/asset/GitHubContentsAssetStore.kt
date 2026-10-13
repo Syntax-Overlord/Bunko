@@ -290,20 +290,38 @@ class GitHubContentsAssetStore(
         GitHubSyncDocument(bytes = blobResponse.body, sha = sha)
     }
 
-    suspend fun listSyncDocumentDirectory(path: String): List<GitHubContentEntry> = withContext(dispatcher) {
+    /**
+     * Every file and folder under [path], from one recursive Git tree read. The folder's tree id comes from its
+     * parent's listing (usually a 304), where listing each subfolder through the Contents API took a request apiece.
+     * Empty when the folder doesn't exist.
+     */
+    suspend fun listSyncDocumentTree(path: String): List<GitHubContentEntry> = withContext(dispatcher) {
         validateSyncDocumentDirectoryPath(path)
+        val treeSha = try {
+            getSyncDocumentSha(path)
+        } catch (missing: GitHubAssetStoreException) {
+            if (missing.statusCode == HttpURLConnection.HTTP_NOT_FOUND) return@withContext emptyList()
+            throw missing
+        }
         val response = executeRead(
             GitHubHttpRequest(
                 method = "GET",
-                url = contentsUrl(path, includeRef = true),
+                url = gitUrl("git/trees/$treeSha?recursive=1"),
                 headers = jsonHeaders(),
                 maxResponseBytes = MaxSyncDocumentJsonBytes,
             ),
         )
-        when (response.statusCode) {
-            HttpURLConnection.HTTP_OK -> parseContentEntries(response.bodyText())
-            HttpURLConnection.HTTP_NOT_FOUND -> emptyList()
-            else -> throw GitHubAssetStoreException("GitHub metadata directory lookup failed", response.statusCode, response.safeBodyText())
+        if (response.statusCode != HttpURLConnection.HTTP_OK) {
+            throw GitHubAssetStoreException("GitHub tree listing failed", response.statusCode, response.safeBodyText())
+        }
+        response.bodyText().substringAfter("\"tree\"").topLevelJsonObjects().map { entry ->
+            val relativePath = entry.extractJsonString("path").orEmpty()
+            GitHubContentEntry(
+                name = relativePath.substringAfterLast('/'),
+                path = "$path/$relativePath",
+                type = if (entry.extractJsonString("type") == "tree") "dir" else "file",
+                sha = entry.extractJsonString("sha")?.takeIf { it.matches(GitHubObjectShaRegex) },
+            )
         }
     }
 
@@ -354,8 +372,8 @@ class GitHubContentsAssetStore(
         )
         val shaByPath = when {
             response.statusCode == HttpURLConnection.HTTP_NOT_MODIFIED && cached != null -> cached.shaByPath
+            // Folders too: their tree ids let [listSyncDocumentTree] read a whole subtree at once.
             response.statusCode == HttpURLConnection.HTTP_OK -> parseContentEntries(response.bodyText())
-                .filter { it.type == "file" }
                 .mapNotNull { entry -> entry.sha?.let { entry.path to it } }
                 .toMap()
                 .also { listing -> response.header("ETag")?.let { GitHubMetadataCache.put(metadataKey, CachedSyncDocumentMetadata(it, listing)) } }

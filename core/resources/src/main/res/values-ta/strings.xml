@@ -235,6 +235,7 @@
     <string name="diagnostics_empty_title">எல்லாம் சரியாக உள்ளது</string>
     <string name="diagnostics_empty">செயலிழப்புகளோ ஒத்திசைவுச் சிக்கல்களோ பதிவாகவில்லை. இருந்தாலும் செயலி, சாதன விவரங்களுடன் அறிக்கையைப் பகிரலாம்.</string>
     <string name="diagnostics_crash_label">செயலி செயலிழப்பு</string>
+    <string name="diagnostics_sync_log_label">ஒத்திசைவு பதிவு</string>
     <string name="diagnostics_sync_issue_label">ஒத்திசைவுச் சிக்கல்</string>
     <string name="diagnostics_source_value">மூலம்: %1$s</string>
     <string name="diagnostics_show_details">தொழில்நுட்ப விவரங்களைக் காட்டு</string>

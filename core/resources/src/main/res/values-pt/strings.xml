@@ -237,6 +237,7 @@
     <string name="diagnostics_empty_title">Tudo certo</string>
     <string name="diagnostics_empty">Nenhuma falha ou problema de sincronização foi registrado. Mesmo assim, você pode compartilhar um relatório com dados do app e do dispositivo.</string>
     <string name="diagnostics_crash_label">Falha do app</string>
+    <string name="diagnostics_sync_log_label">Registro de sincronização</string>
     <string name="diagnostics_sync_issue_label">Problema de sincronização</string>
     <string name="diagnostics_source_value">Origem: %1$s</string>
     <string name="diagnostics_show_details">Mostrar detalhes técnicos</string>

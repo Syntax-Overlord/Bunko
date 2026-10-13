@@ -21,13 +21,14 @@ class DiagnosticsReportTest {
             events = listOf(
                 DiagnosticEvent("old", 1_000L, DiagnosticCategory.SYNC, "Sync", "old issue"),
                 DiagnosticEvent("new", 2_000L, DiagnosticCategory.CRASH, "main", "new crash", "trace"),
+                DiagnosticEvent("log", 1_500L, DiagnosticCategory.SYNC_LOG, "FullSync", "Full sync finished in 1.1 s"),
             ),
             generatedAt = 0L,
         )
 
         assertContains(report, "App: 0.85 (build 1.20260925.1030)")
         assertContains(report, "Android: 16 (SDK 36)")
-        assertContains(report, "Events: 2 total; 1 crashes; 1 sync issues")
+        assertContains(report, "Events: 3 total; 1 crashes; 1 sync issues")
         assertContains(report, "Technical details:\ntrace")
         assertFalse(report.indexOf("ID: new") > report.indexOf("ID: old"))
     }

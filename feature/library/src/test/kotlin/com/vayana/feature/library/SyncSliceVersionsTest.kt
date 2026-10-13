@@ -6,6 +6,9 @@ import com.vayana.core.database.entity.AnnotationEntity
 import com.vayana.core.database.entity.ReadingSessionEntity
 import com.vayana.core.database.model.BookFormat
 import com.vayana.core.database.repository.BookRepositoryImpl
+import com.vayana.core.database.repository.CloudWordLookupCounter
+import com.vayana.core.database.repository.WordLookupCounterMergeResult
+import com.vayana.core.database.repository.WordLookupStatRepositoryImpl
 import com.vayana.core.database.sync.FullSyncChangeTrackerCallback
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -78,6 +81,24 @@ class SyncSliceVersionsTest {
             setOf("annotations", "communityQuotes", "shelfMemberships", "readingSessions", "vocabularyCards"),
             changedSince(before),
         )
+    }
+
+    @Test
+    fun mergingACounterThatIsNoNewerWritesNothing() = runBlocking {
+        // Robolectric's SQLite is 3.22 (as on Android 8–10): this also proves no upsert syntax is needed.
+        val counters = WordLookupStatRepositoryImpl(database.wordLookupStatDao())
+        val counter = CloudWordLookupCounter(word = "Serendipity", writerOrigin = "phone", count = 3, lastLookedUpAt = 100)
+        assertEquals(WordLookupCounterMergeResult.MERGED, counters.mergeCloudCounter(counter))
+        val before = versions()
+
+        assertEquals(WordLookupCounterMergeResult.SKIPPED, counters.mergeCloudCounter(counter))
+        assertEquals(WordLookupCounterMergeResult.SKIPPED, counters.mergeCloudCounter(counter.copy(count = 2, lastLookedUpAt = 50)))
+        assertEquals(emptySet(), changedSince(before))
+
+        assertEquals(WordLookupCounterMergeResult.MERGED, counters.mergeCloudCounter(counter.copy(count = 4)))
+        assertEquals(setOf("wordLookupCounters"), changedSince(before))
+        counters.recordLookup("serendipity", "phone")
+        assertEquals(5, database.wordLookupStatDao().getAllForSync().single().count)
     }
 
     private suspend fun versions(): Map<String, Long> =

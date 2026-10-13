@@ -239,6 +239,7 @@
     <string name="diagnostics_empty_title">Всё в порядке</string>
     <string name="diagnostics_empty">Сбоев и проблем синхронизации не зафиксировано. Вы всё равно можете отправить отчёт со сведениями о приложении и устройстве.</string>
     <string name="diagnostics_crash_label">Сбой приложения</string>
+    <string name="diagnostics_sync_log_label">Журнал синхронизации</string>
     <string name="diagnostics_sync_issue_label">Проблема синхронизации</string>
     <string name="diagnostics_source_value">Источник: %1$s</string>
     <string name="diagnostics_show_details">Показать технические подробности</string>

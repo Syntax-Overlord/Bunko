@@ -1,6 +1,14 @@
 package com.vayana.core.diagnostics
 
-enum class DiagnosticCategory { CRASH, SYNC }
+enum class DiagnosticCategory {
+    CRASH,
+
+    /** Something in sync went wrong: counted as a sync issue. */
+    SYNC,
+
+    /** A sync that went fine, recorded for its timings and counts: shown, but not counted as an issue. */
+    SYNC_LOG,
+}
 
 data class DiagnosticEvent(
     val id: String,

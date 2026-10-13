@@ -237,6 +237,7 @@
     <string name="diagnostics_empty_title">Tout va bien</string>
     <string name="diagnostics_empty">Aucun plantage ni problème de synchronisation enregistré. Vous pouvez tout de même partager un rapport avec les infos de l\'appli et de l\'appareil.</string>
     <string name="diagnostics_crash_label">Plantage de l\'appli</string>
+    <string name="diagnostics_sync_log_label">Journal de synchronisation</string>
     <string name="diagnostics_sync_issue_label">Problème de synchronisation</string>
     <string name="diagnostics_source_value">Source : %1$s</string>
     <string name="diagnostics_show_details">Afficher les détails techniques</string>

@@ -26,20 +26,21 @@ class WordLookupStatRepositoryImpl @Inject constructor(
     override suspend fun recordLookup(word: String, writerOrigin: String) {
         val normalizedWord = word.normalizedLookupWord() ?: return
         val normalizedWriterOrigin = writerOrigin.normalizedWriterOrigin()
-        dao.recordLookup(normalizedWord, System.currentTimeMillis(), normalizedWriterOrigin)
+        val now = System.currentTimeMillis()
+        if (dao.insertIfAbsent(WordLookupStatEntity(normalizedWord, 1, now, normalizedWriterOrigin)) == -1L) {
+            dao.incrementLookup(normalizedWord, normalizedWriterOrigin, now)
+        }
     }
 
     override suspend fun mergeCloudCounter(counter: CloudWordLookupCounter): WordLookupCounterMergeResult {
         val normalizedWord = counter.word.normalizedLookupWord() ?: return WordLookupCounterMergeResult.SKIPPED
         val normalizedWriterOrigin = counter.writerOrigin.normalizedWriterOrigin()
         if (counter.count <= 0 || counter.lastLookedUpAt <= 0L) return WordLookupCounterMergeResult.SKIPPED
-        dao.mergeCounter(
-            word = normalizedWord,
-            writerOrigin = normalizedWriterOrigin,
-            count = counter.count,
-            lastLookedUpAt = counter.lastLookedUpAt,
-        )
-        return WordLookupCounterMergeResult.MERGED
+        val inserted = dao.insertIfAbsent(
+            WordLookupStatEntity(normalizedWord, counter.count, counter.lastLookedUpAt, normalizedWriterOrigin),
+        ) != -1L
+        val raised = !inserted && dao.raiseCounter(normalizedWord, normalizedWriterOrigin, counter.count, counter.lastLookedUpAt) > 0
+        return if (inserted || raised) WordLookupCounterMergeResult.MERGED else WordLookupCounterMergeResult.SKIPPED
     }
 }
 
