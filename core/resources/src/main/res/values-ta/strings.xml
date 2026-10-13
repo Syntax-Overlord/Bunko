@@ -1335,7 +1335,6 @@
     <string name="settings_search_keywords_github_sync_passphrase">github ஒத்திசைவு கடவுச்சொற்றொடர் கடவுச்சொல் மறையாக்கம் கிளவுட் நூல்கள்</string>
 
     <!-- Sync and cloud download progress -->
-    <string name="sync_detail_saving_device_snapshot">இந்தச் சாதனத்தின் நிலைப்படத்தைச் சேமிக்கிறது</string>
     <string name="sync_detail_publishing_latest_snapshot">புதிய நிலைப்படத்தை வெளியிடுகிறது</string>
     <string name="sync_detail_cleaning_old_slices">பழைய நிலைப்படப் பகுதிகளைச் சுத்தம் செய்கிறது</string>
     <string name="sync_detail_checking_settings">GitHub அமைப்புகளைச் சரிபார்க்கிறது</string>
@@ -1363,6 +1362,7 @@
     <string name="sync_error_concurrent_save">இந்த ஒத்திசைவு பதிவேற்றும்போது மற்றொரு சாதனம் மாற்றங்களைச் சேமித்தது. உங்கள் பதிவேற்றங்கள் பாதுகாப்பாக உள்ளன — முடிக்க மீண்டும் ஒத்திசையுங்கள்.</string>
     <string name="sync_error_request_failed">GitHub கோரிக்கை தோல்வியடைந்தது</string>
     <string name="sync_error_failed">GitHub ஒத்திசைவு தோல்வியடைந்தது</string>
+    <string name="sync_slice_community_quotes">Goodreads மேற்கோள்கள்</string>
     <string name="sync_slice_annotations">விளக்கக் குறிப்புகள்</string>
     <string name="sync_slice_shelves">அடுக்குகள்</string>
     <string name="sync_slice_shelf_memberships">அடுக்குகளிலுள்ள நூல்கள்</string>

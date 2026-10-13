@@ -1,5 +1,6 @@
 package com.vayana.core.backup
 
+import com.vayana.core.database.model.isCommunityQuoteLocator
 import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
@@ -243,19 +244,26 @@ fun PortableSnapshot.toJsonString(): String =
         .put("syncConflicts", syncConflicts.toJsonArray { it.toJson() })
         .toString(2)
 
-data class PortableSnapshotDocument(
+class PortableSnapshotDocument(
     val path: String,
-    val jsonText: String,
     /** The slice this document holds, or null for the latest-pointer manifest. */
     val sliceKey: String? = null,
-)
+    /** [portableSnapshotSliceDataHash] of [jsonText], known without rendering it; null for the manifest. */
+    val dataHash: String? = null,
+    render: () -> String,
+) {
+    /** Rendered on first use: a slice that is reused rather than uploaded never becomes text. */
+    val jsonText: String by lazy(render)
+}
 
 fun PortableSnapshot.toSlicedJsonDocuments(): List<PortableSnapshotDocument> {
     val slices = PortableSnapshotSlice.entries.map { slice ->
+        val records = sliceRecords(slice)
         PortableSnapshotDocument(
             path = slice.path(exportedAt),
-            jsonText = sliceJson(slice).toString(2),
             sliceKey = slice.key,
+            dataHash = sha256Hex(records.toString()),
+            render = { sliceJson(slice, records).toString(2) },
         )
     }
     val manifest = JSONObject()
@@ -272,7 +280,8 @@ fun PortableSnapshot.toSlicedJsonDocuments(): List<PortableSnapshotDocument> {
                 PortableSnapshotSlice.entries.forEach { slice -> root.put(slice.key, slice.path(exportedAt)) }
             },
         )
-    return slices + PortableSnapshotDocument(path = PortableSnapshotLatestPath, jsonText = manifest.toString(2))
+    val manifestText = manifest.toString(2)
+    return slices + PortableSnapshotDocument(path = PortableSnapshotLatestPath, render = { manifestText })
 }
 
 fun portableSnapshotSlicePaths(jsonText: String): Map<String, String> {
@@ -290,12 +299,16 @@ fun portableSnapshotSlicePaths(jsonText: String): Map<String, String> {
 fun mergePortableSnapshotSlices(baseJson: String, sliceJsonByKey: Map<String, String>): String {
     require(baseJson.length <= MaxPortableSnapshotJsonChars) { "Portable snapshot is too large" }
     val root = JSONObject(baseJson)
+    // Several slices can share one array (personal annotations and community quotes both fill "annotations").
+    val arrays = LinkedHashMap<String, JSONArray>()
     PortableSnapshotSlice.entries.forEach { slice ->
         val sliceJson = sliceJsonByKey[slice.key] ?: return@forEach
         require(sliceJson.length <= MaxPortableSnapshotJsonChars) { "Portable snapshot slice is too large" }
-        val sliceRoot = JSONObject(sliceJson)
-        root.put(slice.jsonArrayName, sliceRoot.optJSONArray(slice.jsonArrayName) ?: JSONArray())
+        val records = JSONObject(sliceJson).optJSONArray(slice.jsonArrayName) ?: JSONArray()
+        val merged = arrays.getOrPut(slice.jsonArrayName) { JSONArray() }
+        for (index in 0 until records.length()) merged.put(records.get(index))
     }
+    arrays.forEach { (name, records) -> root.put(name, records) }
     return root.toString(2)
 }
 
@@ -310,11 +323,12 @@ fun portableSnapshotSliceDataHash(sliceKey: String, jsonText: String): String? {
     val slice = PortableSnapshotSlice.entries.firstOrNull { it.key == sliceKey } ?: return null
     return runCatching {
         // Every document comes from the same toJson() writers, so equal records serialize identically.
-        val records = (JSONObject(jsonText).optJSONArray(slice.jsonArrayName) ?: JSONArray()).toString()
-        MessageDigest.getInstance("SHA-256").digest(records.toByteArray(Charsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
+        sha256Hex((JSONObject(jsonText).optJSONArray(slice.jsonArrayName) ?: JSONArray()).toString())
     }.getOrNull()
 }
+
+private fun sha256Hex(text: String): String =
+    MessageDigest.getInstance("SHA-256").digest(text.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
 
 /**
  * True when two latest-pointer manifests carry the same data (books, settings, conflicts, slice paths), ignoring
@@ -413,27 +427,36 @@ fun patchSlicedPortableReadingProgress(
     )
 }
 
-private fun PortableSnapshot.sliceJson(slice: PortableSnapshotSlice): JSONObject =
+private fun PortableSnapshot.sliceJson(slice: PortableSnapshotSlice, records: JSONArray): JSONObject =
     JSONObject()
         .put("formatVersion", formatVersion)
         .put("exportedAt", exportedAt)
         .put("deviceLabel", deviceLabel)
-        .put(
-            slice.jsonArrayName,
-            when (slice) {
-                PortableSnapshotSlice.Annotations -> annotations.toJsonArray { it.toJson() }
-                PortableSnapshotSlice.Shelves -> shelves.toJsonArray { it.toJson() }
-                PortableSnapshotSlice.ShelfMemberships -> shelfMemberships.toJsonArray { it.toJson() }
-                PortableSnapshotSlice.ReadingSessions -> readingSessions.toJsonArray { it.toJson() }
-                PortableSnapshotSlice.VocabularyCards -> vocabularyCards.toJsonArray { it.toJson() }
-                PortableSnapshotSlice.WordLookupCounters -> wordLookupCounters.toJsonArray { it.toJson() }
-                PortableSnapshotSlice.BookAliases -> bookAliases.toJsonArray { it.toJson() }
-                PortableSnapshotSlice.Tombstones -> tombstones.toJsonArray { it.toJson() }
-            },
-        )
+        .put(slice.jsonArrayName, records)
 
+private fun PortableSnapshot.sliceRecords(slice: PortableSnapshotSlice): JSONArray =
+    when (slice) {
+        PortableSnapshotSlice.Annotations ->
+            annotations.filterNot { isCommunityQuoteLocator(it.locator) }.toJsonArray { it.toJson() }
+        PortableSnapshotSlice.CommunityQuotes ->
+            annotations.filter { isCommunityQuoteLocator(it.locator) }.toJsonArray { it.toJson() }
+        PortableSnapshotSlice.Shelves -> shelves.toJsonArray { it.toJson() }
+        PortableSnapshotSlice.ShelfMemberships -> shelfMemberships.toJsonArray { it.toJson() }
+        PortableSnapshotSlice.ReadingSessions -> readingSessions.toJsonArray { it.toJson() }
+        PortableSnapshotSlice.VocabularyCards -> vocabularyCards.toJsonArray { it.toJson() }
+        PortableSnapshotSlice.WordLookupCounters -> wordLookupCounters.toJsonArray { it.toJson() }
+        PortableSnapshotSlice.BookAliases -> bookAliases.toJsonArray { it.toJson() }
+        PortableSnapshotSlice.Tombstones -> tombstones.toJsonArray { it.toJson() }
+    }
+
+/**
+ * One file of a sliced snapshot. Community (Goodreads) quotes travel apart from personal annotations, in the same
+ * "annotations" array shape: they are almost all of the records but rarely change, so editing one highlight no
+ * longer re-sends thousands of quotes. Older snapshots keep quotes inside [Annotations], which still reads fine.
+ */
 private enum class PortableSnapshotSlice(val key: String, val jsonArrayName: String, private val fileName: String) {
     Annotations("annotations", "annotations", "annotations.json"),
+    CommunityQuotes("communityQuotes", "annotations", "community-quotes.json"),
     Shelves("shelves", "shelves", "shelves.json"),
     ShelfMemberships("shelfMemberships", "shelfMemberships", "shelf-memberships.json"),
     ReadingSessions("readingSessions", "readingSessions", "reading-sessions.json"),
@@ -445,11 +468,11 @@ private enum class PortableSnapshotSlice(val key: String, val jsonArrayName: Str
     fun path(exportedAt: Long): String = "vayana/snapshot-slices/$exportedAt/$fileName"
 
     fun isValidPath(path: String): Boolean = path.length <= MaxSnapshotPathChars && (
-        pathRegex.matches(path) || (this == Annotations && compressedPathRegex.matches(path))
+        pathRegex.matches(path) || ((this == Annotations || this == CommunityQuotes) && compressedPathRegex.matches(path))
     )
 
     private val pathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*/${Regex.escape(fileName)}$")
-    private val compressedPathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*/annotations\\.zip$")
+    private val compressedPathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*/${Regex.escape(fileName.removeSuffix(".json"))}\\.zip$")
 }
 
 private fun PortableBook.toJson(): JSONObject =

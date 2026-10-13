@@ -6,10 +6,11 @@ import com.vayana.core.backup.PortableSnapshot
 import com.vayana.core.backup.PortableTombstone
 import com.vayana.core.backup.PortableWordLookupCounter
 import com.vayana.core.backup.portableSnapshotSliceDataHash
+import com.vayana.core.backup.repointPortableSnapshotSlices
 import com.vayana.core.backup.toSlicedJsonDocuments
 import com.vayana.core.sync.snapshot.SnapshotSliceCache
 import com.vayana.core.sync.snapshot.getLatestPortableSnapshotDocument
-import com.vayana.core.sync.snapshot.pruneOlderPortableSnapshotSlices
+import com.vayana.core.sync.snapshot.staleSnapshotSliceFiles
 import com.vayana.core.sync.snapshot.pushPortableReadingProgress
 import com.vayana.core.sync.snapshot.putPortableSnapshotDocuments
 import com.vayana.core.sync.snapshot.remotePortableSnapshotDocumentFrom
@@ -568,7 +569,7 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
-    fun staleSnapshotSlicePruneDeletesOnlyKnownSliceFiles() = runBlocking {
+    fun staleSnapshotSliceFilesAreOnlyKnownSliceFilesInOldDirectories() = runBlocking {
         val sliceRootListing = """
             [
               {"name":"4000","path":"vayana/snapshot-slices/4000","type":"dir","sha":"$ExistingSha"},
@@ -580,35 +581,27 @@ class GitHubContentsAssetStoreTest {
         val staleDirectoryListing = """
             [
               {"name":"annotations.json","path":"vayana/snapshot-slices/1000/annotations.json","type":"file","sha":"$ExistingSha"},
+              {"name":"community-quotes.zip","path":"vayana/snapshot-slices/1000/community-quotes.zip","type":"file","sha":"$ExistingSha"},
               {"name":"rogue.json","path":"vayana/snapshot-slices/1000/rogue.json","type":"file","sha":"$ExistingSha"}
             ]
         """.trimIndent().toByteArray()
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(200, latestManifestReferencing(4000)),
             GitHubHttpResponse(200, sliceRootListing),
             GitHubHttpResponse(200, staleDirectoryListing),
-            GitHubHttpResponse(200, """{"commit":{"sha":"deleted-sha"}}""".toByteArray()),
         )
-        val store = testStore(client)
 
-        val summary = store.pruneOlderPortableSnapshotSlices(currentExportedAt = 4000)
+        val stale = testStore(client).staleSnapshotSliceFiles(currentExportedAt = 4000, referencedExportTimes = setOf(4000))
 
-        val deleteRequests = client.requests.filter { it.method == "DELETE" }
-        assertEquals(listOf("GET", "GET", "GET", "DELETE"), client.requests.map { it.method })
-        assertEquals(1, summary.directoriesPruned)
-        assertEquals(1, summary.filesPruned)
-        assertEquals(false, summary.failed)
-        assertEquals(1, deleteRequests.size)
         assertEquals(
-            "https://api.github.test/repos/owner/repo/contents/vayana/snapshot-slices/1000/annotations.json",
-            deleteRequests.single().url,
+            listOf("vayana/snapshot-slices/1000/annotations.json", "vayana/snapshot-slices/1000/community-quotes.zip"),
+            stale,
         )
-        assertTrue(client.requests.none { it.method == "DELETE" && it.url.contains("rogue.json") })
+        assertTrue(client.requests.all { it.method == "GET" })
     }
 
     @Test
-    fun pruneKeepsSliceSetsTheLatestPointerReferencesEvenWhenTheySortOld() = runBlocking {
-        // A lagging-clock device published exportedAt=500 after other devices wrote 4000/3000/2000.
+    fun pruneKeepsSliceSetsThePublishedSnapshotReferencesEvenWhenTheySortOld() = runBlocking {
+        // A lagging-clock device publishes exportedAt=500 after other devices wrote 4000/3000/2000.
         val sliceRootListing = """
             [
               {"name":"4000","path":"vayana/snapshot-slices/4000","type":"dir","sha":"$ExistingSha"},
@@ -619,15 +612,12 @@ class GitHubContentsAssetStoreTest {
             ]
         """.trimIndent().toByteArray()
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(200, latestManifestReferencing(500)),
             GitHubHttpResponse(200, sliceRootListing),
             GitHubHttpResponse(200, "[]".toByteArray()),
         )
-        val store = testStore(client)
 
-        val summary = store.pruneOlderPortableSnapshotSlices(currentExportedAt = 500)
+        testStore(client).staleSnapshotSliceFiles(currentExportedAt = 500, referencedExportTimes = setOf(500))
 
-        assertEquals(1, summary.directoriesPruned)
         assertTrue(client.requests.any { it.url.contains("snapshot-slices/1000?") })
         assertTrue(client.requests.none { it.url.contains("snapshot-slices/500?") })
     }
@@ -742,20 +732,7 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
-    fun fullPublishReusesUnchangedSliceInsteadOfUploadingIt() = runBlocking {
-        val snapshot = PortableSnapshot(
-            formatVersion = 1,
-            exportedAt = 2000,
-            deviceLabel = "Phone",
-            books = emptyList(),
-            annotations = emptyList(),
-            shelves = emptyList(),
-            shelfMemberships = emptyList(),
-            readingSessions = emptyList(),
-            vocabularyCards = emptyList(),
-            wordLookupCounters = emptyList(),
-            settings = emptyMap(),
-        )
+    fun fullPublishReusesUnchangedSliceAndWritesEverythingElseInOneCommit() = runBlocking {
         val previous = RemotePortableSnapshotDocument(
             jsonText = latestManifestReferencing(1000).toString(Charsets.UTF_8),
             sha = ExistingSha,
@@ -763,45 +740,31 @@ class GitHubContentsAssetStoreTest {
             sliceJsonByKey = mapOf("annotations" to """{"exportedAt":1000,"deviceLabel":"Tablet","annotations":[]}"""),
             slicePaths = mapOf("annotations" to "vayana/snapshot-slices/1000/annotations.json"),
         )
-        val created = GitHubHttpResponse(201, """{"content":{"sha":"x"}}""".toByteArray())
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(404, """{"message":"Not Found"}""".toByteArray()), // device snapshot SHA lookup
-            created, // device snapshot
-            *Array(7) { created }, // the seven slices that changed
-            GitHubHttpResponse(200, """{"content":{"sha":"x"}}""".toByteArray()), // latest pointer
-            GitHubHttpResponse(200, latestManifestReferencing(2000)), // prune: live pointer
             GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
+            *singleCommitResponses(blobs = 1), // the zipped community quotes
         )
-        val store = testStore(client)
 
-        store.putPortableSnapshotDocuments(snapshot, "vayana/snapshots/phone.json", ExistingSha, previous = previous)
+        testStore(client).putPortableSnapshotDocuments(emptySnapshot(2000), "vayana/snapshots/phone.json", ExistingSha, previous = previous)
 
-        val puts = client.requests.filter { it.method == "PUT" }
-        assertEquals(9, puts.size)
-        assertTrue(puts.none { it.url.contains("snapshot-slices/2000/annotations.json") })
-        assertTrue(puts.any { it.url.contains("snapshot-slices/2000/shelves.json") })
-        val manifestBody = puts.last().body!!.toString(Charsets.UTF_8)
-        val manifestJson = Regex(""""content":"([^"]+)"""").find(manifestBody)!!.groupValues[1]
-        val manifest = Base64.getDecoder().decode(manifestJson).toString(Charsets.UTF_8)
-        assertTrue(manifest.contains("vayana/snapshot-slices/1000/annotations.json"))
-        assertTrue(manifest.contains("vayana/snapshot-slices/2000/shelves.json"))
+        assertEquals(listOf("GET", "GET", "GET", "POST", "POST", "POST", "PATCH"), client.requests.map { it.method })
+        assertTrue(client.requests.none { it.method == "PUT" || it.method == "DELETE" })
+        val tree = client.requests.single { it.url.endsWith("/git/trees") }.bodyText()
+        assertTrue(!tree.contains(""""path":"vayana/snapshot-slices/2000/annotations.json""""))
+        assertTrue(tree.contains(""""path":"vayana/snapshot-slices/2000/shelves.json""""))
+        assertTrue(tree.contains(""""path":"vayana/snapshots/phone.json""""))
+        assertTrue(tree.contains(""""path":"vayana/snapshot-latest.json""""))
+        assertTrue(tree.contains("vayana/snapshot-slices/1000/annotations.json")) // the manifest keeps pointing there
+        assertTrue(tree.contains(""""base_tree":"$TreeSha""""))
+        val commit = client.requests.single { it.url.endsWith("/git/commits") }.bodyText()
+        assertTrue(commit.contains(""""parents":["$HeadSha"]"""))
+        val update = client.requests.single { it.method == "PATCH" }
+        assertTrue(update.url.endsWith("/git/refs/heads/main"))
+        assertTrue(update.bodyText().contains(""""force":false"""))
     }
 
     @Test
     fun alreadySyncedSliceIsNeitherDownloadedNorReuploaded() = runBlocking {
-        val snapshot = PortableSnapshot(
-            formatVersion = 1,
-            exportedAt = 2000,
-            deviceLabel = "Phone",
-            books = emptyList(),
-            annotations = emptyList(),
-            shelves = emptyList(),
-            shelfMemberships = emptyList(),
-            readingSessions = emptyList(),
-            vocabularyCards = emptyList(),
-            wordLookupCounters = emptyList(),
-            settings = emptyMap(),
-        )
         val annotationsPath = "vayana/snapshot-slices/1000/annotations.json"
         val previous = RemotePortableSnapshotDocument(
             jsonText = latestManifestReferencing(1000).toString(Charsets.UTF_8),
@@ -819,50 +782,37 @@ class GitHubContentsAssetStoreTest {
         )
         previous.prefetch()
         assertEquals(previous.jsonText, previous.jsonFor(RemotePortableSnapshotSlice.Annotations))
-
-        val created = GitHubHttpResponse(201, """{"content":{"sha":"x"}}""".toByteArray())
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(404, """{"message":"Not Found"}""".toByteArray()), // device snapshot SHA lookup
-            created, // device snapshot
-            *Array(7) { created }, // the seven slices not already synced
-            GitHubHttpResponse(200, """{"content":{"sha":"x"}}""".toByteArray()), // latest pointer
-            GitHubHttpResponse(200, latestManifestReferencing(2000)), // prune: live pointer
             GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
+            *singleCommitResponses(blobs = 1),
         )
 
         val published = testStore(client)
-            .putPortableSnapshotDocuments(snapshot, "vayana/snapshots/phone.json", ExistingSha, previous = previous)
+            .putPortableSnapshotDocuments(emptySnapshot(2000), "vayana/snapshots/phone.json", ExistingSha, previous = previous)
 
-        assertTrue(client.requests.filter { it.method == "PUT" }.none { it.url.contains("snapshot-slices/2000/annotations") })
+        val tree = client.requests.single { it.url.endsWith("/git/trees") }.bodyText()
+        assertTrue(!tree.contains(""""path":"vayana/snapshot-slices/2000/annotations.json""""))
         assertEquals(SyncedSnapshotSlice("annotations", annotationsPath, emptyAnnotationsHash), published.single { it.key == "annotations" })
         assertEquals("vayana/snapshot-slices/2000/shelves.json", published.single { it.key == "shelves" }.path)
+        assertEquals("vayana/snapshot-slices/2000/community-quotes.zip", published.single { it.key == "communityQuotes" }.path)
     }
 
     @Test
     fun unchangedSnapshotIsNotPublishedAgain() = runBlocking {
-        val earlier = PortableSnapshot(
-            formatVersion = 1,
-            exportedAt = 2000,
-            deviceLabel = "Tablet",
-            books = emptyList(),
-            annotations = emptyList(),
-            shelves = emptyList(),
-            shelfMemberships = emptyList(),
-            readingSessions = emptyList(),
-            vocabularyCards = emptyList(),
-            wordLookupCounters = emptyList(),
-            settings = emptyMap(),
-        )
-        val documents = earlier.toSlicedJsonDocuments()
-        val slices = documents.filter { it.sliceKey != null }
+        val earlier = emptySnapshot(2000)
+        val slices = earlier.toSlicedJsonDocuments().filter { it.sliceKey != null }
+        val pathsByKey = slices.associate { document ->
+            val key = document.sliceKey!!
+            key to if (key == "communityQuotes") document.path.removeSuffix(".json") + ".zip" else document.path
+        }
         val previous = RemotePortableSnapshotDocument(
-            jsonText = documents.last().jsonText,
+            jsonText = repointPortableSnapshotSlices(earlier.toSlicedJsonDocuments().last().jsonText, pathsByKey),
             sha = ExistingSha,
             sliced = true,
-            slicePaths = slices.associate { it.sliceKey!! to it.path },
+            slicePaths = pathsByKey,
             loadSlice = { error("an already synced slice must not be downloaded") },
         )
-        val synced = slices.map { SyncedSnapshotSlice(it.sliceKey!!, it.path, portableSnapshotSliceDataHash(it.sliceKey!!, it.jsonText)!!) }
+        val synced = slices.map { SyncedSnapshotSlice(it.sliceKey!!, pathsByKey.getValue(it.sliceKey!!), portableSnapshotSliceDataHash(it.sliceKey!!, it.jsonText)!!) }
         previous.skipAlreadySynced(synced)
         val client = RecordingGitHubHttpClient() // any request fails the test
 
@@ -878,55 +828,91 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
-    fun fullPublishUploadsOnlyZipForBookWithMoreThanFiftyGoodreadsQuotes() = runBlocking {
-        val snapshot = PortableSnapshot(
-            formatVersion = 1,
-            exportedAt = 2000,
-            deviceLabel = "Phone",
-            books = emptyList(),
-            annotations = List(51) { index ->
-                PortableAnnotation(
-                    syncId = "quote-$index",
-                    bookSyncId = "book-a",
-                    type = "POPULAR_HIGHLIGHT",
-                    colorKey = "popular",
-                    locator = "goodreads-quote:$index",
-                    chapterTitle = null,
-                    chapterHref = null,
-                    selectedText = "Quote number $index",
-                    readerNote = null,
-                    createdAt = 1,
-                    updatedAt = 1,
-                    isDeleted = false,
-                )
-            },
-            shelves = emptyList(),
-            shelfMemberships = emptyList(),
-            readingSessions = emptyList(),
-            vocabularyCards = emptyList(),
-            wordLookupCounters = emptyList(),
-            settings = emptyMap(),
+    fun communityQuotesPublishZippedApartFromPersonalAnnotations() = runBlocking {
+        val note = PortableAnnotation(
+            syncId = "note-1", bookSyncId = "book-a", type = "HIGHLIGHT", colorKey = "yellow", locator = "epubcfi(/6/2)",
+            chapterTitle = null, chapterHref = null, selectedText = "Mine", readerNote = null,
+            createdAt = 1, updatedAt = 1, isDeleted = false,
         )
-        val created = GitHubHttpResponse(201, """{"content":{"sha":"x"}}""".toByteArray())
+        val quote = note.copy(syncId = "quote-1", type = "UNDERLINE", colorKey = "popular", locator = "goodreads-quote:1", selectedText = "Quoted")
         val client = RecordingGitHubHttpClient(
-            GitHubHttpResponse(404, """{"message":"Not Found"}""".toByteArray()),
-            *Array(9) { created },
-            GitHubHttpResponse(200, """{"content":{"sha":"x"}}""".toByteArray()),
-            GitHubHttpResponse(200, latestManifestReferencing(2000)),
-            GitHubHttpResponse(200, "[]".toByteArray()),
+            GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
+            *singleCommitResponses(blobs = 1),
         )
-        val store = testStore(client)
 
-        store.putPortableSnapshotDocuments(snapshot, "vayana/snapshots/phone.json", ExistingSha)
+        testStore(client).putPortableSnapshotDocuments(
+            emptySnapshot(2000).copy(annotations = listOf(note, quote)),
+            "vayana/snapshots/phone.json",
+            ExistingSha,
+        )
 
-        val puts = client.requests.filter { it.method == "PUT" }
-        assertTrue(puts.any { it.url.endsWith("/vayana/snapshot-slices/2000/annotations.zip") })
-        assertTrue(puts.none { it.url.endsWith("/vayana/snapshot-slices/2000/annotations.json") })
-        val manifest = Base64.getDecoder().decode(
-            Regex(""""content":"([^"]+)"""").find(puts.last().bodyText())!!.groupValues[1],
-        ).toString(Charsets.UTF_8)
-        assertTrue(manifest.contains("vayana/snapshot-slices/2000/annotations.zip"))
-        assertTrue(!manifest.contains("annotations.json"))
+        val blob = client.requests.single { it.url.endsWith("/git/blobs") }.bodyText()
+        assertTrue(blob.contains(""""encoding":"base64""""))
+        val tree = client.requests.single { it.url.endsWith("/git/trees") }.bodyText()
+        assertTrue(tree.contains(""""path":"vayana/snapshot-slices/2000/community-quotes.zip","mode":"100644","type":"blob","sha":"$BlobSha""""))
+        assertTrue(!tree.contains("community-quotes.json"))
+        assertTrue(tree.contains("note-1"))
+        assertTrue(!tree.contains("quote-1")) // only inside the zip
+    }
+
+    @Test
+    fun singleCommitDeletesStaleFilesInTheSameCommit() = runBlocking {
+        val client = RecordingGitHubHttpClient(*singleCommitResponses())
+
+        val committed = testStore(client).commitSyncDocuments(
+            changes = listOf(
+                SyncDocumentChange("vayana/snapshot-latest.json", "{}".toByteArray()),
+                SyncDocumentChange("vayana/snapshot-slices/1000/annotations.json", null),
+            ),
+            message = "Sync",
+            guardPath = "vayana/snapshot-latest.json",
+            guardSha = ExistingSha,
+        )
+
+        assertTrue(committed)
+        val tree = client.requests.single { it.url.endsWith("/git/trees") }.bodyText()
+        assertTrue(tree.contains(""""path":"vayana/snapshot-slices/1000/annotations.json","mode":"100644","type":"blob","sha":null"""))
+        assertTrue(tree.contains(""""path":"vayana/snapshot-latest.json","mode":"100644","type":"blob","content":"{}""""))
+    }
+
+    @Test
+    fun singleCommitReportsAConflictWhenTheBranchMovedOrTheGuardChanged() = runBlocking {
+        val change = listOf(SyncDocumentChange("vayana/snapshot-latest.json", "{}".toByteArray()))
+        val branchMoved = RecordingGitHubHttpClient(
+            *singleCommitResponses().dropLast(1).toTypedArray(),
+            GitHubHttpResponse(422, """{"message":"Update is not a fast forward"}""".toByteArray()),
+        )
+        val moved = assertFailsWith<GitHubAssetStoreException> {
+            testStore(branchMoved).commitSyncDocuments(change, "Sync", "vayana/snapshot-latest.json", ExistingSha)
+        }
+        assertEquals(409, moved.statusCode)
+
+        val guardChanged = RecordingGitHubHttpClient(
+            singleCommitResponses()[0],
+            GitHubHttpResponse(200, """{"sha":"${"f".repeat(40)}"}""".toByteArray()),
+        )
+        val changed = assertFailsWith<GitHubAssetStoreException> {
+            testStore(guardChanged).commitSyncDocuments(change, "Sync", "vayana/snapshot-latest.json", ExistingSha)
+        }
+        assertEquals(409, changed.statusCode)
+        assertTrue(guardChanged.requests.none { it.method == "POST" || it.method == "PATCH" })
+    }
+
+    @Test
+    fun emptyRepositoryFallsBackToPerFileWrites() = runBlocking {
+        val client = RecordingGitHubHttpClient(
+            GitHubHttpResponse(409, """{"message":"Git Repository is empty."}""".toByteArray()),
+        )
+
+        val committed = testStore(client).commitSyncDocuments(
+            listOf(SyncDocumentChange("vayana/snapshot-latest.json", "{}".toByteArray())),
+            "Sync",
+            "vayana/snapshot-latest.json",
+            null,
+        )
+
+        assertEquals(false, committed)
+        assertEquals(1, client.requests.size)
     }
 
     @Test
@@ -1052,6 +1038,30 @@ private fun embeddedObjectResponse(content: String): ByteArray =
         }
     """.trimIndent().toByteArray()
 
+/** Branch head, unchanged guard, [blobs] blob uploads, then tree, commit and fast-forward. */
+private fun singleCommitResponses(blobs: Int = 0): Array<GitHubHttpResponse> = arrayOf(
+    GitHubHttpResponse(200, """{"name":"main","commit":{"sha":"$HeadSha","commit":{"tree":{"sha":"$TreeSha"}}}}""".toByteArray()),
+    GitHubHttpResponse(200, """{"sha":"$ExistingSha"}""".toByteArray()),
+    *Array(blobs) { GitHubHttpResponse(201, """{"sha":"$BlobSha"}""".toByteArray()) },
+    GitHubHttpResponse(201, """{"sha":"${"a".repeat(40)}"}""".toByteArray()),
+    GitHubHttpResponse(201, """{"sha":"${"b".repeat(40)}"}""".toByteArray()),
+    GitHubHttpResponse(200, """{"ref":"refs/heads/main"}""".toByteArray()),
+)
+
+private fun emptySnapshot(exportedAt: Long) = PortableSnapshot(
+    formatVersion = 1,
+    exportedAt = exportedAt,
+    deviceLabel = "Phone",
+    books = emptyList(),
+    annotations = emptyList(),
+    shelves = emptyList(),
+    shelfMemberships = emptyList(),
+    readingSessions = emptyList(),
+    vocabularyCards = emptyList(),
+    wordLookupCounters = emptyList(),
+    settings = emptyMap(),
+)
+
 private fun latestManifestReferencing(exportedAt: Long): ByteArray =
     """
         {
@@ -1071,5 +1081,8 @@ private fun GitHubHttpRequest.bodyText(): String {
 
 private const val AssetId = "abcdEFGH1234_wxyz"
 private const val ExistingSha = "0123456789abcdef0123456789abcdef01234567"
+private const val HeadSha = "1111111111111111111111111111111111111111"
+private const val TreeSha = "2222222222222222222222222222222222222222"
+private const val BlobSha = "3333333333333333333333333333333333333333"
 private const val MaxSyncDocumentBytesForTest = 16 * 1024 * 1024
 private const val MaxSyncDocumentJsonBytesForTest = MaxSyncDocumentBytesForTest * 2

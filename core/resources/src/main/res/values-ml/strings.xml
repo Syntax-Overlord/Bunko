@@ -1335,7 +1335,6 @@
     <string name="settings_search_keywords_github_sync_passphrase">github സമന്വയം രഹസ്യവാക്യം രഹസ്യവാക്ക് രഹസ്യകോഡ് ക്ലൗഡ് പുസ്തകങ്ങൾ</string>
 
     <!-- Sync and cloud download progress -->
-    <string name="sync_detail_saving_device_snapshot">ഈ ഉപകരണത്തിന്റെ സ്ഥിതിപ്പകർപ്പ് സൂക്ഷിക്കുന്നു</string>
     <string name="sync_detail_publishing_latest_snapshot">പുതിയ സ്ഥിതിപ്പകർപ്പ് പ്രസിദ്ധീകരിക്കുന്നു</string>
     <string name="sync_detail_cleaning_old_slices">പഴയ സ്ഥിതിപ്പകർപ്പ് ഭാഗങ്ങൾ വൃത്തിയാക്കുന്നു</string>
     <string name="sync_detail_checking_settings">GitHub ക്രമീകരണങ്ങൾ പരിശോധിക്കുന്നു</string>
@@ -1363,6 +1362,7 @@
     <string name="sync_error_concurrent_save">ഈ സമന്വയം കയറ്റുന്നതിനിടെ മറ്റൊരു ഉപകരണം മാറ്റങ്ങൾ സൂക്ഷിച്ചു. നിങ്ങൾ കയറ്റിയവ സുരക്ഷിതമാണ് — പൂർത്തിയാക്കാൻ വീണ്ടും സമന്വയിപ്പിക്കുക.</string>
     <string name="sync_error_request_failed">GitHub അഭ്യർത്ഥന പരാജയപ്പെട്ടു</string>
     <string name="sync_error_failed">GitHub സമന്വയം പരാജയപ്പെട്ടു</string>
+    <string name="sync_slice_community_quotes">Goodreads ഉദ്ധരണികൾ</string>
     <string name="sync_slice_annotations">വ്യാഖ്യാനങ്ങൾ</string>
     <string name="sync_slice_shelves">പുസ്തകത്തട്ടുകൾ</string>
     <string name="sync_slice_shelf_memberships">തട്ടുകളിലെ പുസ്തകങ്ങൾ</string>

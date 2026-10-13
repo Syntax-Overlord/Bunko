@@ -1344,7 +1344,6 @@
     <string name="settings_search_keywords_github_sync_passphrase">github synchronisation phrase secrète mot de passe chiffrement cloud fichiers livres</string>
 
     <!-- Sync and cloud download progress -->
-    <string name="sync_detail_saving_device_snapshot">Enregistrement de l\'instantané de cet appareil</string>
     <string name="sync_detail_publishing_latest_snapshot">Publication du dernier instantané</string>
     <string name="sync_detail_cleaning_old_slices">Nettoyage des anciens fragments d\'instantané</string>
     <string name="sync_detail_checking_settings">Vérification des paramètres GitHub</string>
@@ -1372,6 +1371,7 @@
     <string name="sync_error_concurrent_save">Un autre appareil a enregistré des modifications pendant l\'envoi. Vos envois sont sauvegardés : synchronisez à nouveau pour terminer.</string>
     <string name="sync_error_request_failed">Échec de la requête GitHub</string>
     <string name="sync_error_failed">Échec de la synchronisation GitHub</string>
+    <string name="sync_slice_community_quotes">citations Goodreads</string>
     <string name="sync_slice_annotations">annotations</string>
     <string name="sync_slice_shelves">étagères</string>
     <string name="sync_slice_shelf_memberships">livres des étagères</string>

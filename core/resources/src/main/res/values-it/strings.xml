@@ -1344,7 +1344,6 @@
     <string name="settings_search_keywords_github_sync_passphrase">github sincronizzazione passphrase password crittografia cloud file libri</string>
 
     <!-- Sync and cloud download progress -->
-    <string name="sync_detail_saving_device_snapshot">Salvataggio dello snapshot di questo dispositivo</string>
     <string name="sync_detail_publishing_latest_snapshot">Pubblicazione dell\'ultimo snapshot</string>
     <string name="sync_detail_cleaning_old_slices">Pulizia delle vecchie parti dello snapshot</string>
     <string name="sync_detail_checking_settings">Controllo delle impostazioni GitHub</string>
@@ -1372,6 +1371,7 @@
     <string name="sync_error_concurrent_save">Un altro dispositivo ha salvato modifiche durante il caricamento. I tuoi caricamenti sono al sicuro: sincronizza di nuovo per completare.</string>
     <string name="sync_error_request_failed">Richiesta a GitHub non riuscita</string>
     <string name="sync_error_failed">Sincronizzazione GitHub non riuscita</string>
+    <string name="sync_slice_community_quotes">citazioni di Goodreads</string>
     <string name="sync_slice_annotations">annotazioni</string>
     <string name="sync_slice_shelves">scaffali</string>
     <string name="sync_slice_shelf_memberships">libri negli scaffali</string>

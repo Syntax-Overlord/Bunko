@@ -444,7 +444,7 @@ Statistics → the highlight card opens a review of highlights that are due, ins
 
 ## Reader and Notes work bounds
 
-Notes partitions highlights and computes community quote counts once per annotation revision, then reuses those counts for sorting. The WebView reader indexes community badges by loaded section and skips quote matching for a document whose annotation revision is unchanged. Page estimates and the contents page map are cached until layout samples change; relocation messages omit an unchanged contents map. Annotation mapping and JSON serialization run off the UI thread, while WebView application serializes updates and keeps only the newest waiting snapshot. Sync uploads encode one changed snapshot slice at a time, and concurrent readers of an immutable slice share its load.
+Notes partitions highlights and computes community quote counts once per annotation revision, then reuses those counts for sorting. The WebView reader indexes community badges by loaded section and skips quote matching for a document whose annotation revision is unchanged. Page estimates and the contents page map are cached until layout samples change; relocation messages omit an unchanged contents map. Annotation mapping and JSON serialization run off the UI thread, while WebView application serializes updates and keeps only the newest waiting snapshot. Full sync skips slices this device already holds and skips publishing an unchanged snapshot; Goodreads quotes travel in their own zipped slice, so editing a highlight re-sends only personal annotations. A publish writes every changed file and prunes old slice folders in one Git commit. Concurrent readers of an immutable slice share its load.
 
 ## E-Ink mode
 

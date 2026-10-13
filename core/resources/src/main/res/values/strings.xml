@@ -1495,7 +1495,6 @@
     <string name="settings_search_keywords_github_sync_passphrase">github sync passphrase password encryption cloud assets books</string>
 
     <!-- Sync and cloud download progress -->
-    <string name="sync_detail_saving_device_snapshot">Saving this device snapshot</string>
     <string name="sync_detail_publishing_latest_snapshot">Publishing latest snapshot</string>
     <string name="sync_detail_cleaning_old_slices">Cleaning old snapshot slices</string>
     <string name="sync_detail_checking_settings">Checking GitHub settings</string>
@@ -1523,6 +1522,7 @@
     <string name="sync_error_concurrent_save">Another device saved changes while this sync was uploading. Your uploads are safe - sync again to finish.</string>
     <string name="sync_error_request_failed">GitHub request failed</string>
     <string name="sync_error_failed">GitHub sync failed</string>
+    <string name="sync_slice_community_quotes">Goodreads quotes</string>
     <string name="sync_slice_annotations">annotations</string>
     <string name="sync_slice_shelves">shelves</string>
     <string name="sync_slice_shelf_memberships">shelf memberships</string>

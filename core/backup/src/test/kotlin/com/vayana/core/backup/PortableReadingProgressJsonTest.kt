@@ -968,14 +968,52 @@ class PortableReadingProgressJsonTest {
         val manifest = JSONObject(manifestDocument.jsonText)
         val slices = manifest.getJSONObject("slices")
 
-        assertEquals(9, documents.size)
+        assertEquals(10, documents.size)
         assertEquals(PortableSnapshotLatestPath, manifestDocument.path)
         assertEquals(CurrentPortableSnapshotSliceVersion, manifest.getInt("sliceVersion"))
         assertEquals("vayana/snapshot-slices/12345/annotations.json", slices.getString("annotations"))
         assertEquals("vayana/snapshot-slices/12345/reading-sessions.json", slices.getString("readingSessions"))
+        assertEquals("vayana/snapshot-slices/12345/community-quotes.json", slices.getString("communityQuotes"))
         assertEquals(false, manifest.has("annotations"))
         assertEquals(false, manifest.has("readingSessions"))
         assertEquals(1, manifest.getJSONArray("books").length())
+    }
+
+    @Test
+    fun communityQuotesTravelInTheirOwnSliceAndMergeBackWithAnnotations() {
+        val personal = PortableAnnotation(
+            syncId = "note-1", bookSyncId = "book-a", type = "HIGHLIGHT", colorKey = "yellow", locator = "epubcfi(/6/2)",
+            chapterTitle = null, chapterHref = null, selectedText = "Mine", readerNote = null,
+            createdAt = 1, updatedAt = 1, isDeleted = false,
+        )
+        val quote = personal.copy(syncId = "quote-1", locator = "goodreads-quote:1", type = "UNDERLINE", colorKey = "popular")
+        val snapshot = testPortableSnapshot().copy(annotations = listOf(personal, quote))
+
+        val documents = snapshot.toSlicedJsonDocuments()
+        val annotationsJson = documents.single { it.sliceKey == "annotations" }.jsonText
+        val quotesJson = documents.single { it.sliceKey == "communityQuotes" }.jsonText
+
+        assertEquals(listOf(personal.syncId), parsePortableAnnotations(annotationsJson).map { it.syncId })
+        assertEquals(listOf("quote-1"), parsePortableAnnotations(quotesJson).map { it.syncId })
+        val merged = mergePortableSnapshotSlices(
+            documents.last().jsonText,
+            mapOf("annotations" to annotationsJson, "communityQuotes" to quotesJson),
+        )
+        assertEquals(listOf(personal.syncId, "quote-1"), parsePortableAnnotations(merged).map { it.syncId })
+    }
+
+    @Test
+    fun precomputedSliceHashMatchesTheHashOfTheRenderedSlice() {
+        val note = PortableAnnotation(
+            syncId = "note-1", bookSyncId = "book-a", type = "HIGHLIGHT", colorKey = "yellow", locator = "epubcfi(/6/2)",
+            chapterTitle = "Ch \"1\"", chapterHref = null, selectedText = "Tab\tnewline\né \\ /  ", readerNote = "0.1",
+            createdAt = 1, updatedAt = 1, isDeleted = false,
+        )
+        val snapshot = testPortableSnapshot().copy(annotations = listOf(note, note.copy(syncId = "q", locator = "goodreads-quote:1")))
+
+        snapshot.toSlicedJsonDocuments().filter { it.sliceKey != null }.forEach { document ->
+            assertEquals(portableSnapshotSliceDataHash(document.sliceKey!!, document.jsonText), document.dataHash, document.sliceKey)
+        }
     }
 
     @Test

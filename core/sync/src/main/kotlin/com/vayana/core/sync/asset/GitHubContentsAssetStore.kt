@@ -140,6 +140,90 @@ class GitHubContentsAssetStore(
         putContentsWithKnownSha(path, bytes, "Sync Vayana metadata $path", expectedSha)
     }
 
+    /**
+     * Writes [changes] as one commit through the Git Data API: a single commit however many files change (the
+     * Contents API commits every file, deletes included, one at a time), and readers see all of it or none.
+     * [guardPath] must still be blob [guardSha] (null: must not exist) and the branch must not move meanwhile,
+     * else this fails with a 409 [GitHubAssetStoreException], as [putSyncDocumentIfUnchanged] does. Returns false,
+     * writing nothing, when the branch has no commit yet: the Git Data API can't write to an empty repository.
+     */
+    suspend fun commitSyncDocuments(
+        changes: List<SyncDocumentChange>,
+        message: String,
+        guardPath: String,
+        guardSha: String?,
+    ): Boolean = withContext(dispatcher) {
+        changes.forEach { change ->
+            validateSyncDocumentPath(change.path)
+            change.bytes?.let { require(it.isNotEmpty() && it.size <= MaxSyncDocumentBytes) { "Invalid sync document size" } }
+        }
+        validateSyncDocumentPath(guardPath)
+        val branch = executeRead(GitHubHttpRequest(method = "GET", url = gitUrl("branches/${encodedBranch()}"), headers = jsonHeaders()))
+        when {
+            branch.statusCode == HttpURLConnection.HTTP_NOT_FOUND || branch.isEmptyRepository() -> return@withContext false
+            branch.statusCode != HttpURLConnection.HTTP_OK ->
+                throw GitHubAssetStoreException("GitHub branch lookup failed", branch.statusCode, branch.safeBodyText())
+        }
+        val branchText = branch.bodyText()
+        val headSha = branchText.extractJsonString("sha")?.takeIf { it.matches(GitHubObjectShaRegex) }
+        val baseTreeSha = BranchTreeShaRegex.find(branchText)?.groupValues?.get(1)
+        if (headSha == null || baseTreeSha == null) {
+            throw GitHubAssetStoreException("GitHub branch response was missing its commit", branch.statusCode, branch.safeBodyText())
+        }
+        if (findExistingSha(guardPath) != guardSha) {
+            throw GitHubAssetStoreException("Sync document changed since it was read", HttpURLConnection.HTTP_CONFLICT, guardPath)
+        }
+        val entries = changes.map { change ->
+            val bytes = change.bytes
+            val target = when {
+                bytes == null -> "\"sha\":null"
+                // JSON goes inline in the tree request; only binary content needs its own blob upload.
+                change.path.endsWith(".json") -> "\"content\":\"${bytes.toString(Charsets.UTF_8).escapeJson()}\""
+                else -> "\"sha\":\"${postForSha("git/blobs", "{\"content\":\"${Base64.getEncoder().encodeToString(bytes)}\",\"encoding\":\"base64\"}")}\""
+            }
+            "{\"path\":\"${change.path.escapeJson()}\",\"mode\":\"100644\",\"type\":\"blob\",$target}"
+        }
+        val treeSha = postForSha("git/trees", "{\"base_tree\":\"$baseTreeSha\",\"tree\":[${entries.joinToString(",")}]}")
+        val identity = "{\"name\":\"${committerName.escapeJson()}\",\"email\":\"${committerEmail.escapeJson()}\"}"
+        val commitSha = postForSha(
+            "git/commits",
+            "{\"message\":\"${message.escapeJson()}\",\"tree\":\"$treeSha\",\"parents\":[\"$headSha\"],\"author\":$identity,\"committer\":$identity}",
+        )
+        val update = execute(
+            GitHubHttpRequest(
+                method = "PATCH",
+                url = gitUrl("git/refs/heads/${encodedBranch()}"),
+                headers = jsonHeaders(),
+                body = "{\"sha\":\"$commitSha\",\"force\":false}".toByteArray(Charsets.UTF_8),
+            ),
+        )
+        when (update.statusCode) {
+            HttpURLConnection.HTTP_OK -> true
+            // Not a fast-forward: another device committed since the branch was read.
+            HttpURLConnection.HTTP_CONFLICT, 422 ->
+                throw GitHubAssetStoreException("Branch moved during sync commit", HttpURLConnection.HTTP_CONFLICT, update.safeBodyText())
+            else -> throw GitHubAssetStoreException("GitHub branch update failed", update.statusCode, update.safeBodyText())
+        }
+    }
+
+    private fun postForSha(endpoint: String, body: String): String {
+        val response = execute(
+            GitHubHttpRequest(method = "POST", url = gitUrl(endpoint), headers = jsonHeaders(), body = body.toByteArray(Charsets.UTF_8)),
+        )
+        if (response.statusCode != HttpURLConnection.HTTP_CREATED) {
+            throw GitHubAssetStoreException("GitHub $endpoint write failed", response.statusCode, response.safeBodyText())
+        }
+        return response.bodyText().extractJsonString("sha")?.takeIf { it.matches(GitHubObjectShaRegex) }
+            ?: throw GitHubAssetStoreException("GitHub $endpoint response was missing a valid SHA", response.statusCode, response.safeBodyText())
+    }
+
+    private fun gitUrl(endpoint: String): String =
+        "${repository.apiBaseUrl.trimEnd('/')}/repos/${repository.owner}/${repository.name}/$endpoint"
+
+    private fun encodedBranch(): String = repository.branch.split('/').joinToString("/") { segment ->
+        URLEncoder.encode(segment, Charsets.UTF_8.name()).replace("+", "%20")
+    }
+
     suspend fun getSyncDocument(path: String): ByteArray = withContext(dispatcher) {
         validateSyncDocumentPath(path)
         val response = executeRead(
@@ -506,6 +590,9 @@ data class GitHubSyncDocument(
     val sha: String,
 )
 
+/** A file for [GitHubContentsAssetStore.commitSyncDocuments]: its new content, or null [bytes] to delete it. */
+class SyncDocumentChange(val path: String, val bytes: ByteArray?)
+
 data class GitHubContentEntry(
     val name: String,
     val path: String,
@@ -849,7 +936,8 @@ private val GitHubNameRegex = Regex("^[A-Za-z0-9_.-]{1,100}$")
 private val GitHubBranchRegex = Regex("^[A-Za-z0-9._/-]{1,255}$")
 private val GitHubObjectShaRegex = Regex("^[a-f0-9]{40,64}$")
 private val SyncDocumentPathRegex = Regex("^[A-Za-z0-9._/-]{1,240}$")
-private val CompressedAnnotationsPathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*/annotations\\.zip$")
+private val CompressedAnnotationsPathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*/(annotations|community-quotes)\\.zip$")
+private val BranchTreeShaRegex = Regex(""""tree"\s*:\s*\{\s*"sha"\s*:\s*"([a-f0-9]{40,64})"""")
 private val SnapshotSliceDirectoryPathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*$")
 private val AuthorizationTokenRegex = Regex(""""token"\s*:\s*"[^"]+"""")
 private val RetryableReadStatusCodes = setOf(408, 425, 429, 500, 502, 503, 504)

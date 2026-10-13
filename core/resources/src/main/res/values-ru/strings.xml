@@ -1353,7 +1353,6 @@
     <string name="settings_search_keywords_github_sync_passphrase">github синхронизация кодовая фраза пароль шифрование облако файлы книги</string>
 
     <!-- Sync and cloud download progress -->
-    <string name="sync_detail_saving_device_snapshot">Сохранение снимка этого устройства</string>
     <string name="sync_detail_publishing_latest_snapshot">Публикация последнего снимка</string>
     <string name="sync_detail_cleaning_old_slices">Очистка старых частей снимков</string>
     <string name="sync_detail_checking_settings">Проверка настроек GitHub</string>
@@ -1381,6 +1380,7 @@
     <string name="sync_error_concurrent_save">Другое устройство сохранило изменения, пока шла выгрузка. Ваши выгрузки в сохранности — синхронизируйте ещё раз, чтобы завершить.</string>
     <string name="sync_error_request_failed">Ошибка запроса к GitHub</string>
     <string name="sync_error_failed">Ошибка синхронизации с GitHub</string>
+    <string name="sync_slice_community_quotes">цитаты Goodreads</string>
     <string name="sync_slice_annotations">аннотации</string>
     <string name="sync_slice_shelves">полки</string>
     <string name="sync_slice_shelf_memberships">книги на полках</string>

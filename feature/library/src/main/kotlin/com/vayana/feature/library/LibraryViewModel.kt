@@ -352,9 +352,8 @@ private fun List<SyncMergeOutcome>.firstFailureMessage(): UiText? = firstNotNull
 
 private fun PortableSnapshotPublishProgress.toSyncProgressDetail(): UiText =
     when (stage) {
-        PortableSnapshotPublishStage.DEVICE_SNAPSHOT -> UiText.Res(R.string.sync_detail_saving_device_snapshot)
         PortableSnapshotPublishStage.SNAPSHOT_SLICE -> {
-            val sliceNumber = completedDocuments.coerceAtLeast(1) - 1
+            val sliceNumber = completedDocuments.coerceAtLeast(1)
             val sliceTotal = (totalDocuments - 2).coerceAtLeast(1)
             UiText.Res(R.string.sync_detail_saving_slice, sliceNumber, sliceTotal, currentPath.toSnapshotSliceLabel())
         }
@@ -364,7 +363,8 @@ private fun PortableSnapshotPublishProgress.toSyncProgressDetail(): UiText =
 
 private fun String?.toSnapshotSliceLabel(): UiText = UiText.Res(
     when (this?.substringAfterLast('/')) {
-        "annotations.json" -> R.string.sync_slice_annotations
+        "annotations.json", "annotations.zip" -> R.string.sync_slice_annotations
+        "community-quotes.json", "community-quotes.zip" -> R.string.sync_slice_community_quotes
         "shelves.json" -> R.string.sync_slice_shelves
         "shelf-memberships.json" -> R.string.sync_slice_shelf_memberships
         "reading-sessions.json" -> R.string.sync_slice_reading_sessions
@@ -1554,7 +1554,7 @@ class LibraryViewModel @Inject constructor(
         val annotationMerge = if (remoteSnapshot == null) {
             AnnotationMergeSummary()
         } else {
-            mergeCloudAnnotations(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.Annotations))
+            mergeCloudAnnotations(remoteSnapshot.annotationJsons())
         }
         fullSyncLog?.phase(
             "Merge annotations",
@@ -1979,13 +1979,17 @@ class LibraryViewModel @Inject constructor(
             WordLookupCounterMergeSummary(failed = true, failureMessage = throwable.syncFailureMessage())
         }
 
-    private suspend fun mergeCloudAnnotations(snapshotJson: String): AnnotationMergeSummary =
+    /** Personal annotations and community quotes; one document when the snapshot keeps them together. */
+    private suspend fun RemotePortableSnapshotDocument.annotationJsons(): List<String> =
+        listOf(jsonFor(RemotePortableSnapshotSlice.Annotations), jsonFor(RemotePortableSnapshotSlice.CommunityQuotes)).distinct()
+
+    private suspend fun mergeCloudAnnotations(snapshotJsons: List<String>): AnnotationMergeSummary =
         runCatchingCancellable {
             var created = 0
             var updated = 0
             var skipped = 0
             var conflicts = 0
-            parsePortableAnnotations(snapshotJson).forEachMergeChunk { remote ->
+            snapshotJsons.flatMap(::parsePortableAnnotations).forEachMergeChunk { remote ->
                 val record = remote.toRecord()
                 if (record == null) {
                     skipped += 1
@@ -2163,7 +2167,7 @@ class LibraryViewModel @Inject constructor(
         val vocabularyCardMerge = mergeCloudVocabularyCards(snapshot.jsonFor(RemotePortableSnapshotSlice.VocabularyCards))
         val readingSessionMerge = mergeCloudReadingSessions(snapshot.jsonFor(RemotePortableSnapshotSlice.ReadingSessions))
         val wordLookupCounterMerge = mergeCloudWordLookupCounters(snapshot.jsonFor(RemotePortableSnapshotSlice.WordLookupCounters))
-        val annotationMerge = mergeCloudAnnotations(snapshot.jsonFor(RemotePortableSnapshotSlice.Annotations))
+        val annotationMerge = mergeCloudAnnotations(snapshot.annotationJsons())
         val entityMerges = listOf(
             cloudLibraryMerge, tombstoneMerge, bookAliasMerge, shelfMerge, shelfMembershipMerge,
             vocabularyCardMerge, readingSessionMerge, wordLookupCounterMerge, annotationMerge,
