@@ -1,5 +1,6 @@
 package com.vayana.feature.reader
 
+import com.vayana.core.designsystem.theme.isMonochromeEink
 import com.vayana.core.designsystem.tokens.Strokes
 import com.vayana.core.designsystem.theme.DisplayProfile
 import com.vayana.core.designsystem.theme.LocalDisplayProfile
@@ -406,8 +407,7 @@ internal fun Float.asMultiplier(): String = "${RateFormat.format(this)}×"
 
 @Composable
 private fun readingAidSurfaceColor(): Color =
-    if (LocalDisplayProfile.current == DisplayProfile.E_INK) MaterialTheme.colorScheme.surface
-    else MaterialTheme.colorScheme.surfaceContainerHighest
+    if (isMonochromeEink()) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHighest
 
 @Composable
 private fun readingAidBorder(): BorderStroke? =

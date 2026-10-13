@@ -1,5 +1,6 @@
 package com.vayana.feature.reader
 
+import com.vayana.core.designsystem.theme.isMonochromeEink
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.SizeTransform
 import androidx.compose.animation.togetherWith
@@ -112,7 +113,7 @@ internal fun SelectionActions(
                 .fillMaxWidth()
                 .heightIn(max = maxHeight * DictionaryCardMaximumHeightFraction)
                 .padding(Paddings.screenHorizontal, Spacing.md),
-            color = if (eink) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHigh,
+            color = if (isMonochromeEink()) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHigh,
             shape = MaterialTheme.shapes.extraLargeIncreased,
             border = if (eink) BorderStroke(Strokes.hairlineEink, MaterialTheme.colorScheme.outline) else null,
         ) {
@@ -169,7 +170,7 @@ internal fun HighlightActions(
         modifier = modifier
             .fillMaxWidth()
             .padding(Paddings.screenHorizontal, Spacing.md),
-        color = if (eink) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = if (isMonochromeEink()) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHigh,
         shape = MaterialTheme.shapes.extraLargeIncreased,
         border = if (eink) BorderStroke(Strokes.hairlineEink, MaterialTheme.colorScheme.outline) else null,
     ) {

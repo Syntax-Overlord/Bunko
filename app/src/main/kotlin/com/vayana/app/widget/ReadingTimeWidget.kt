@@ -1,5 +1,6 @@
 package com.vayana.app.widget
 
+import com.vayana.core.designsystem.theme.isMonochrome
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -242,7 +243,8 @@ class ReadingTimeWidgetUpdater @Inject constructor(
                 Configuration.UI_MODE_NIGHT_YES
         }
         val scheme = if (
-            theme.dynamicColor && theme.displayProfile != DisplayProfile.E_INK && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+            // Wallpaper colours on colour E-Ink too; only the monochrome palette replaces them.
+            theme.dynamicColor && !theme.displayProfile.isMonochrome(theme.einkPalette) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
         ) {
             ColorSchemes.dynamic(context, isDark, theme.darkVariant)
         } else {

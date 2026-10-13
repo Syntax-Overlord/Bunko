@@ -1,5 +1,6 @@
 package com.vayana.app.navigation
 
+import com.vayana.core.designsystem.theme.isMonochromeEink
 import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterExitState
@@ -130,6 +131,8 @@ fun VayanaFloatingBar(
     val displayProfile = LocalDisplayProfile.current
     val motionSetting = LocalMotionSetting.current
     val isEInk = displayProfile == DisplayProfile.E_INK
+    // Colour E-Ink keeps the tonal (wallpaper) roles; only monochrome draws the bar as ink on paper.
+    val inkChrome = isMonochromeEink()
     val motionEnabled = !isEInk && motionSetting != MotionSetting.OFF
     val isWallpaperColor = LocalDynamicColor.current && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val motionScheme = MaterialTheme.motionScheme
@@ -162,13 +165,13 @@ fun VayanaFloatingBar(
         )
     }
     val itemHeight = Sizes.floatingNavItem - (Spacing.xs * 2)
-    val indicatorColor = if (isEInk) colors.primary else colors.primary.copy(alpha = 0.16f)
+    val indicatorColor = if (inkChrome) colors.primary else colors.primary.copy(alpha = 0.16f)
     val barColor = when {
-        isEInk -> colors.surface
+        inkChrome -> colors.surface
         isWallpaperColor -> colors.surfaceContainerHigh
         else -> colors.primaryContainer
     }
-    val companionColor = if (isEInk) colors.primary else indicatorColor.compositeOver(barColor)
+    val companionColor = if (inkChrome) colors.primary else indicatorColor.compositeOver(barColor)
     val barBorder = if (isEInk) BorderStroke(1.dp, colors.outline) else null
     val barElevation = if (isEInk) 0.dp else Elevations.shadowLarge
     val showBookDetailBackAttachment = currentDestination?.hasRoute(BookDetailRoute::class) == true
@@ -246,7 +249,7 @@ fun VayanaFloatingBar(
             offset = -attachmentOffset,
             shape = attachmentShape,
             containerColor = companionColor,
-            contentColor = if (isEInk) colors.onPrimary else attachmentContentColor,
+            contentColor = if (inkChrome) colors.onPrimary else attachmentContentColor,
             animateBlob = motionEnabled,
             useSlowReveal = motionEnabled && motionSetting == MotionSetting.FULL,
             shadowElevation = barElevation,
@@ -277,7 +280,7 @@ fun VayanaFloatingBar(
             offset = attachmentOffset,
             shape = attachmentShape,
             containerColor = companionColor,
-            contentColor = if (isEInk) colors.onPrimary else attachmentContentColor,
+            contentColor = if (inkChrome) colors.onPrimary else attachmentContentColor,
             animateBlob = motionEnabled,
             useSlowReveal = motionEnabled && motionSetting == MotionSetting.FULL,
             shadowElevation = barElevation,
@@ -347,8 +350,11 @@ fun VayanaFloatingBar(
                         val pillHeight = size.height - verticalInset * 2f
                         val stretchFraction = (abs(stretch) / maxStretchPx).coerceIn(0f, 1f)
                         drawRoundRect(
-                            color = if (isEInk) {
+                            color = if (inkChrome) {
                                 indicatorColor
+                            } else if (isEInk) {
+                                // No translucency on E-Ink: the tonal pill, flattened onto the bar.
+                                indicatorColor.compositeOver(barColor)
                             } else {
                                 indicatorColor.copy(alpha = 0.16f + (0.06f * stretchFraction))
                             },
@@ -364,7 +370,7 @@ fun VayanaFloatingBar(
                 ) {
                     destinations.forEachIndexed { index, destination ->
                         val selected = selectedFlags[index]
-                        val contentColor = if (isEInk) {
+                        val contentColor = if (inkChrome) {
                             if (selected) colors.onPrimary else colors.onSurface
                         } else if (isWallpaperColor) {
                             if (selected) colors.primary else colors.onSurfaceVariant

@@ -1,5 +1,6 @@
 package com.vayana.feature.reader
 
+import com.vayana.core.designsystem.theme.isMonochromeEink
 import android.widget.Toast
 import com.vayana.core.designsystem.component.asString
 import android.Manifest
@@ -1971,12 +1972,12 @@ private fun ReaderFooterPill(
 }
 
 @Composable
-private fun readerHudSurfaceColor(): Color =
-    if (LocalDisplayProfile.current == DisplayProfile.E_INK) {
-        MaterialTheme.colorScheme.surface
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = ReaderHudStandardAlpha)
-    }
+private fun readerHudSurfaceColor(): Color = when {
+    isMonochromeEink() -> MaterialTheme.colorScheme.surface
+    // Colour E-Ink: the tonal role, opaque (translucency ghosts on E-Ink).
+    LocalDisplayProfile.current == DisplayProfile.E_INK -> MaterialTheme.colorScheme.surfaceContainerHighest
+    else -> MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = ReaderHudStandardAlpha)
+}
 
 @Composable
 private fun readerHudElevation() =
@@ -1985,11 +1986,7 @@ private fun readerHudElevation() =
 @Composable
 /** Raised over the page by surface tier rather than a shadow (design spec). */
 private fun readerChromeSurfaceColor(): Color =
-    if (LocalDisplayProfile.current == DisplayProfile.E_INK) {
-        MaterialTheme.colorScheme.surface
-    } else {
-        MaterialTheme.colorScheme.surfaceContainerHighest
-    }
+    if (isMonochromeEink()) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceContainerHighest
 
 @Composable
 private fun readerChromeTopBorderColor(settings: SettingsSnapshot, chromeColor: Color): Color? {
@@ -2356,7 +2353,7 @@ private fun ReaderChrome(
 
 @Composable
 private fun ReaderPanelButton(icon: ImageVector, labelRes: Int, selected: Boolean, onClick: () -> Unit) {
-    val isEink = LocalDisplayProfile.current == DisplayProfile.E_INK
+    val isEink = isMonochromeEink()
     Surface(
         shape = MaterialTheme.shapes.extraLarge,
         color = when {
@@ -2409,7 +2406,7 @@ private fun ContentsPanel(uiState: ReaderUiState, onOpenTocEntry: (String) -> Un
 
 @Composable
 private fun ContentsEntryRow(item: TocDisplayItem, isCurrent: Boolean, pageNumber: Int?, onClick: () -> Unit) {
-    val isEink = LocalDisplayProfile.current == DisplayProfile.E_INK
+    val isEink = isMonochromeEink()
     val containerColor = when {
         !isCurrent -> Color.Transparent
         isEink -> MaterialTheme.colorScheme.inverseSurface
