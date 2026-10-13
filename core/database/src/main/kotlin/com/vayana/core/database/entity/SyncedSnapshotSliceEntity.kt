@@ -1,5 +1,6 @@
 package com.vayana.core.database.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -13,4 +14,6 @@ data class SyncedSnapshotSliceEntity(
     @PrimaryKey val sliceKey: String,
     val path: String,
     val dataHash: String,
+    /** The slice's `sync_slice_versions` counter when published; -1 when unknown (never skips an export). */
+    @ColumnInfo(defaultValue = "-1") val localVersion: Long = -1,
 )

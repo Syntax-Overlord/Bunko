@@ -257,7 +257,7 @@ class PortableSnapshotDocument(
 }
 
 fun PortableSnapshot.toSlicedJsonDocuments(): List<PortableSnapshotDocument> {
-    val slices = PortableSnapshotSlice.entries.map { slice ->
+    val slices = PortableSnapshotSlice.entries.filter { it.key !in unchangedSliceKeys }.map { slice ->
         val records = sliceRecords(slice)
         PortableSnapshotDocument(
             path = slice.path(exportedAt),

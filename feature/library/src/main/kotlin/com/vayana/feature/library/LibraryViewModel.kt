@@ -2137,6 +2137,17 @@ class LibraryViewModel @Inject constructor(
     /** The current full sync's log; [syncOperationCoordinator] runs one sync at a time. */
     private var fullSyncLog: FullSyncLog? = null
 
+    /**
+     * Slices to leave out of the export: the cloud still points at the file this device published for them, and no
+     * local write has touched them since (their `sync_slice_versions` counter is where that publish recorded it).
+     */
+    private suspend fun unchangedSliceKeys(previous: RemotePortableSnapshotDocument?, versions: Map<String, Long>): Set<String> {
+        previous ?: return emptySet()
+        return syncedSnapshotSliceDao.getAll()
+            .filter { mark -> mark.localVersion >= 0 && versions[mark.sliceKey] == mark.localVersion && previous.isAlreadySynced(mark.sliceKey) }
+            .mapTo(mutableSetOf()) { it.sliceKey }
+    }
+
     private suspend fun syncedSnapshotSlices(): List<SyncedSnapshotSlice> =
         syncedSnapshotSliceDao.getAll().map { SyncedSnapshotSlice(it.sliceKey, it.path, it.dataHash) }
 
@@ -2174,9 +2185,12 @@ class LibraryViewModel @Inject constructor(
         )
         repeat(MaxSnapshotMetadataSaveAttempts) { attemptIndex ->
             val saveAttempt = runCatchingCancellable {
-                val snapshot = snapshotExporter.export()
+                // Read before exporting: a write during the export bumps past these, so the next sync re-exports.
+                val versions = syncedSnapshotSliceDao.getSliceVersions().associate { it.sliceKey to it.version }
+                val unchanged = unchangedSliceKeys(latestPreviousSnapshot, versions)
+                val snapshot = snapshotExporter.export(unchangedSlices = unchanged)
                     .copy(syncConflicts = latestConflicts, appBuild = appContext.appBuild().toPortable())
-                fullSyncLog?.phase("Export local snapshot", "attempt=${attemptIndex + 1}")
+                fullSyncLog?.phase("Export local snapshot", "attempt=${attemptIndex + 1}, unchangedSlices=${unchanged.sorted()}")
                 store.putPortableSnapshotDocuments(
                     snapshot = snapshot,
                     deviceSnapshotPath = syncConfig.deviceSnapshotPath,
@@ -2184,12 +2198,14 @@ class LibraryViewModel @Inject constructor(
                     diagnosticsLogStore = diagnosticsLogStore,
                     onProgress = onSnapshotProgress,
                     previous = latestPreviousSnapshot,
-                )
+                ) to versions
             }
-            saveAttempt.onSuccess { published ->
-                // Only an optimization for the next sync: losing it just means downloading those slices again.
+            saveAttempt.onSuccess { (published, versions) ->
+                // Only an optimization for the next sync: losing it just means exporting or downloading those slices again.
                 runCatchingCancellable {
-                    syncedSnapshotSliceDao.upsertAll(published.map { SyncedSnapshotSliceEntity(it.key, it.path, it.dataHash) })
+                    syncedSnapshotSliceDao.upsertAll(
+                        published.map { SyncedSnapshotSliceEntity(it.key, it.path, it.dataHash, versions[it.key] ?: -1) },
+                    )
                 }
                 return result(synced = true)
             }

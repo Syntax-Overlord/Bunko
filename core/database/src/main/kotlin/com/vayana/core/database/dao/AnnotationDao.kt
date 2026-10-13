@@ -82,6 +82,13 @@ interface AnnotationDao {
     )
     fun observeSearch(match: String, limit: Int): Flow<List<AnnotationEntity>>
 
+    /** Personal annotations: everything but community quotes (same prefixes as isCommunityQuoteLocator). */
+    @Query("SELECT * FROM annotations WHERE NOT (locator GLOB 'quote:*' OR locator GLOB 'goodreads-quote:*') ORDER BY syncId ASC")
+    suspend fun getPersonalForSync(): List<AnnotationEntity>
+
+    @Query("SELECT * FROM annotations WHERE locator GLOB 'quote:*' OR locator GLOB 'goodreads-quote:*' ORDER BY syncId ASC")
+    suspend fun getCommunityQuotesForSync(): List<AnnotationEntity>
+
     @Query("SELECT * FROM annotations ORDER BY syncId ASC")
     suspend fun getAllForSync(): List<AnnotationEntity>
 }

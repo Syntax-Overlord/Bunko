@@ -2,6 +2,17 @@
 
 Every bump to `DATABASE_VERSION` (`core/database/.../VayanaDatabase.kt`) gets an entry here and a real Room `Migration`.
 
+## Version 37
+
+Adds `sync_slice_versions` (`sliceKey` primary key, `version`): a change counter per snapshot slice, seeded at 0 and
+bumped by `slice_version_*` triggers on every insert, update and delete in the slice's tables (annotations split
+into personal and community quotes by locator prefix; books' insert/delete and `syncId`/`fileHash`/`source` changes
+bump the slices that name books; shelves bump shelf memberships). `synced_snapshot_slices` gains `localVersion`
+(default -1): the counter when that slice was published. Full sync skips exporting and hashing a slice whose
+counter is unchanged while the cloud still points at that file. Migration 36→37 creates the table, seeds it and the
+triggers (`SyncSliceVersions`), and adds the column; existing marks read -1, so the first sync exports as before.
+Migrations that rebuild a tracked table must call `SyncSliceVersions.recreate`.
+
 ## Version 36
 
 Adds `synced_snapshot_slices` (`sliceKey` primary key, `path`, `dataHash`): per slice kind, the published

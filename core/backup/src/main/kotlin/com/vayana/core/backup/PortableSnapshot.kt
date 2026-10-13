@@ -17,6 +17,11 @@ data class PortableSnapshot(
     val syncConflicts: List<PortableSyncConflict> = emptyList(),
     /** The app build that published this snapshot (the device is [deviceLabel]); null in older snapshots. */
     val appBuild: PortableAppBuild? = null,
+    /**
+     * Slices left out of this export because nothing in them changed since this device published them: they hold
+     * no records here, get no document, and the publish keeps pointing at their published files.
+     */
+    val unchangedSliceKeys: Set<String> = emptySet(),
 )
 
 data class PortableAppBuild(

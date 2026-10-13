@@ -97,5 +97,6 @@ object FullSyncChangeTracker {
 object FullSyncChangeTrackerCallback : RoomDatabase.Callback() {
     override fun onCreate(connection: SQLiteConnection) {
         FullSyncChangeTracker.create(connection)
+        SyncSliceVersions.create(connection)
     }
 }

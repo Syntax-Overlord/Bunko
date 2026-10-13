@@ -4,12 +4,16 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import com.vayana.core.database.entity.SyncSliceVersionEntity
 import com.vayana.core.database.entity.SyncedSnapshotSliceEntity
 
 @Dao
 interface SyncedSnapshotSliceDao {
     @Query("SELECT * FROM synced_snapshot_slices")
     suspend fun getAll(): List<SyncedSnapshotSliceEntity>
+
+    @Query("SELECT * FROM sync_slice_versions")
+    suspend fun getSliceVersions(): List<SyncSliceVersionEntity>
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(slices: List<SyncedSnapshotSliceEntity>)

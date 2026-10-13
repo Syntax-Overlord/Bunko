@@ -801,6 +801,34 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
+    fun sliceLeftOutOfTheExportKeepsItsPublishedFile() = runBlocking {
+        val quotesPath = "vayana/snapshot-slices/1000/community-quotes.zip"
+        val previous = RemotePortableSnapshotDocument(
+            jsonText = latestManifestReferencing(1000).toString(Charsets.UTF_8),
+            sha = ExistingSha,
+            sliced = true,
+            slicePaths = mapOf("communityQuotes" to quotesPath),
+            loadSlice = { error("an unchanged slice must not be downloaded") },
+        )
+        previous.skipAlreadySynced(listOf(SyncedSnapshotSlice("communityQuotes", quotesPath, "quotes-hash")))
+        val client = RecordingGitHubHttpClient(
+            GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
+            *singleCommitResponses(blobs = 1), // the manifest, shared by two paths; no quotes zip
+        )
+
+        val published = testStore(client).putPortableSnapshotDocuments(
+            emptySnapshot(2000).copy(unchangedSliceKeys = setOf("communityQuotes")),
+            "vayana/snapshots/phone.json",
+            ExistingSha,
+            previous = previous,
+        )
+
+        assertEquals(SyncedSnapshotSlice("communityQuotes", quotesPath, "quotes-hash"), published.single { it.key == "communityQuotes" })
+        assertTrue(!client.requests.single { it.url.endsWith("/git/trees") }.bodyText().contains("community-quotes"))
+        assertTrue(blobTexts(client).single().contains(quotesPath))
+    }
+
+    @Test
     fun unchangedSnapshotIsNotPublishedAgain() = runBlocking {
         val earlier = emptySnapshot(2000)
         val slices = earlier.toSlicedJsonDocuments().filter { it.sliceKey != null }

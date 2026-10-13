@@ -42,7 +42,10 @@ class SnapshotExporter @Inject constructor(
     private val storageRoots: StorageRoots,
     private val dispatchers: DispatcherProvider,
 ) {
-    suspend fun export(): PortableSnapshot = withContext(dispatchers.io) {
+    /** [unchangedSlices]: slice keys not to read at all (see [PortableSnapshot.unchangedSliceKeys]). */
+    suspend fun export(unchangedSlices: Set<String> = emptySet()): PortableSnapshot = withContext(dispatchers.io) {
+        suspend fun <T> unlessUnchanged(sliceKey: String, read: suspend () -> List<T>): List<T> =
+            if (sliceKey in unchangedSlices) emptyList() else read()
         val books = bookDao.getAllForSync()
         val bookSyncIdsByLocalId = books.associate { it.id to it.syncId }
         val bookFileHashesByLocalId = books.associate { it.id to it.fileHash }
@@ -58,29 +61,34 @@ class SnapshotExporter @Inject constructor(
             exportedAt = System.currentTimeMillis(),
             deviceLabel = allSettings[SettingsRegistry.KindleDeviceName.key].orEmpty().ifBlank { SettingsRegistry.KindleDeviceName.defaultValue },
             books = books.map { it.toPortable() }.sortedBy { it.syncId },
-            annotations = annotationDao.getAllForSync()
+            // Community quotes are most of the annotations and rarely change; they are read only when they did.
+            annotations = (
+                unlessUnchanged("annotations") { annotationDao.getPersonalForSync() } +
+                    unlessUnchanged("communityQuotes") { annotationDao.getCommunityQuotesForSync() }
+                )
                 .mapNotNull { it.toPortable(bookSyncIdsByLocalId) }
                 .sortedBy { it.syncId },
-            shelves = shelves.map { it.toPortable() }.sortedBy { it.syncId },
-            shelfMemberships = shelfDao.getMembershipsForSync()
+            shelves = unlessUnchanged("shelves") { shelves.map { it.toPortable() }.sortedBy { it.syncId } },
+            shelfMemberships = unlessUnchanged("shelfMemberships") { shelfDao.getMembershipsForSync() }
                 .mapNotNull { it.toPortable(bookSyncIdsByLocalId, shelfSyncIdsByLocalId) }
                 .sortedWith(compareBy({ it.bookSyncId }, { it.shelfSyncId })),
-            readingSessions = readingSessionDao.getAllForSync()
+            readingSessions = unlessUnchanged("readingSessions") { readingSessionDao.getAllForSync() }
                 .mapNotNull { it.toPortable(bookSyncIdsByLocalId, bookFileHashesByLocalId) }
                 .sortedBy { it.syncId },
-            vocabularyCards = vocabularyCardDao.getAllForSync()
+            vocabularyCards = unlessUnchanged("vocabularyCards") { vocabularyCardDao.getAllForSync() }
                 .map { it.toPortable(bookSyncIdsByLocalId) }
                 .sortedBy { it.syncId },
-            wordLookupCounters = wordLookupStatDao.getAllForSync()
+            wordLookupCounters = unlessUnchanged("wordLookupCounters") { wordLookupStatDao.getAllForSync() }
                 .map { it.toPortable() }
                 .sortedWith(compareBy({ it.word.lowercase() }, { it.writerOrigin })),
-            bookAliases = bookAliasDao.getAll()
+            bookAliases = unlessUnchanged("bookAliases") { bookAliasDao.getAll() }
                 .map { it.toPortable() }
                 .sortedWith(compareBy({ it.fileHash }, { it.syncId })),
-            tombstones = tombstoneDao.getAll()
+            tombstones = unlessUnchanged("tombstones") { tombstoneDao.getAll() }
                 .map { it.toPortable() }
                 .sortedWith(compareBy({ it.entityType }, { it.deletedAt }, { it.syncId })),
             settings = settings,
+            unchangedSliceKeys = unchangedSlices,
         )
     }
 

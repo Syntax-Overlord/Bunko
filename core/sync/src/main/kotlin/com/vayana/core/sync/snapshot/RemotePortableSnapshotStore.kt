@@ -65,6 +65,9 @@ class RemotePortableSnapshotDocument internal constructor(
     fun sliceStats(): String =
         "slicesSkipped=${alreadySyncedHashes.keys.sorted()}, slicesRead=${loadedSlices.entries.sortedBy { it.key }.map { "${it.key}:${it.value.length}" }}"
 
+    /** True when the snapshot still points at the file this device last synced for [key]. */
+    fun isAlreadySynced(key: String): Boolean = alreadySyncedHashes.containsKey(key)
+
     /** The slice's records to merge; empty (the manifest) for a missing slice or one already synced here. */
     suspend fun jsonFor(slice: RemotePortableSnapshotSlice): String =
         if (alreadySyncedHashes.containsKey(slice.key)) jsonText else sliceJsonOrNull(slice.key) ?: jsonText
@@ -386,7 +389,12 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
     val documents = snapshot.toSlicedJsonDocuments()
     val latestDocument = documents.last { it.path == PortableSnapshotLatestPath }
     val allSliceDocuments = documents.filter { it.path != PortableSnapshotLatestPath }
-    val dataHashByKey = allSliceDocuments.associate { document -> requireNotNull(document.sliceKey) to requireNotNull(document.dataHash) }
+    // Slices the exporter skipped as unchanged keep the file the snapshot already points at.
+    val unchangedPathsByKey = snapshot.unchangedSliceKeys.associateWith { key ->
+        checkNotNull(previous?.takeIf { it.isAlreadySynced(key) }?.slicePathOrNull(key)) { "No published file to reuse for unchanged slice $key" }
+    }
+    val dataHashByKey = allSliceDocuments.associate { document -> requireNotNull(document.sliceKey) to requireNotNull(document.dataHash) } +
+        snapshot.unchangedSliceKeys.associateWith { key -> checkNotNull(previous?.knownSliceDataHashOrNull(key)) }
     val reusedPathsByKey = allSliceDocuments.mapNotNull { document ->
         val key = document.sliceKey ?: return@mapNotNull null
         val previousHash = previous?.knownSliceDataHashOrNull(key) ?: return@mapNotNull null
@@ -404,7 +412,7 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
             jsonText = document.jsonText,
         )
     }
-    val publishedPathsByKey = reusedPathsByKey + sliceUploads.associate { it.sliceKey to it.path }
+    val publishedPathsByKey = unchangedPathsByKey + reusedPathsByKey + sliceUploads.associate { it.sliceKey to it.path }
     val published = publishedPathsByKey.map { (key, path) -> SyncedSnapshotSlice(key, path, dataHashByKey.getValue(key)) }
     val latestJson = repointPortableSnapshotSlices(latestDocument.jsonText, publishedPathsByKey)
     // Unchanged data still goes out once per newer build, so the snapshot names the newest app that synced it.
@@ -492,6 +500,7 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
             append(", books=").append(snapshot.books.size)
             append(", slices=").append(sliceDocuments.size)
             append(", reusedSlices=").append(reusedPathsByKey.size)
+            append(", unchangedSlices=").append(unchangedPathsByKey.size)
             append(", latestBytes=").append(latestBytes.size)
             append(", sliceBytes=").append(sliceBytesByPath.values.sumOf { it.size })
             append(", prunedFiles=").append(staleFiles.size)
