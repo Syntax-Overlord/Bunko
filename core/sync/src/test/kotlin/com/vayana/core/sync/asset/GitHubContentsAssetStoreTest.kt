@@ -67,6 +67,7 @@ class GitHubContentsAssetStoreTest {
         GitHubBlobCache.clear()
         GitHubMetadataCache.clear()
         SnapshotSliceCache.clear()
+        LastSyncCommits.clear()
     }
 
     @Test
@@ -935,6 +936,37 @@ class GitHubContentsAssetStoreTest {
         val tree = client.requests.single { it.url.endsWith("/git/trees") }.bodyText()
         assertTrue(tree.contains(""""path":"vayana/snapshot-slices/1000/annotations.json","mode":"100644","type":"blob","sha":null"""))
         assertTrue(tree.contains(""""path":"vayana/snapshot-latest.json","mode":"100644","type":"blob","content":"{}""""))
+    }
+
+    @Test
+    fun nextCommitBuildsOnThisProcessesOwnLastCommitWithoutReReadingTheBranch() = runBlocking {
+        val first = "{\"v\":1}".toByteArray()
+        val second = "{\"v\":2}".toByteArray()
+        val client = RecordingGitHubHttpClient(
+            *singleCommitResponses(),
+            GitHubHttpResponse(201, """{"sha":"${"c".repeat(40)}"}""".toByteArray()), // tree
+            GitHubHttpResponse(201, """{"sha":"${"d".repeat(40)}"}""".toByteArray()), // commit
+            GitHubHttpResponse(422, """{"message":"Update is not a fast forward"}""".toByteArray()),
+            *singleCommitResponses(),
+        )
+        val store = testStore(client)
+        fun write(bytes: ByteArray) = listOf(SyncDocumentChange("vayana/snapshot-latest.json", bytes))
+
+        store.commitSyncDocuments(write(first), "Sync", "vayana/snapshot-latest.json", ExistingSha)
+        val afterFirst = client.requests.size
+        // Another device committed in between: the fast-forward fails, as it would after a branch read.
+        val moved = assertFailsWith<GitHubAssetStoreException> {
+            store.commitSyncDocuments(write(second), "Sync", "vayana/snapshot-latest.json", gitBlobSha(first))
+        }
+        assertEquals(409, moved.statusCode)
+        val ownBase = client.requests.drop(afterFirst)
+        assertEquals(listOf("POST", "POST", "PATCH"), ownBase.map { it.method }) // no branch or guard read
+        assertTrue(ownBase[0].bodyText().contains(""""base_tree":"${"a".repeat(40)}"""")) // the first commit's tree
+        assertTrue(ownBase[1].bodyText().contains(""""parents":["${"b".repeat(40)}"]""")) // on top of the first commit
+
+        // The failure forgets the shortcut: the retry reads the branch again.
+        store.commitSyncDocuments(write(second), "Sync", "vayana/snapshot-latest.json", ExistingSha)
+        assertTrue(client.requests.drop(afterFirst + 3).first().url.contains("/branches/main"))
     }
 
     @Test

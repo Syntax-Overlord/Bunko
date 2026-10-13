@@ -178,7 +178,7 @@ fun patchPortableReadingProgressOnly(
         root.put("exportedAt", exportedAt)
     }
     return PortableReadingProgressPatchResult(
-        jsonText = if (changed) root.toString(2) else jsonText,
+        jsonText = if (changed) root.toString() else jsonText,
         patched = patched,
         sessionsAdded = sessionsAdded,
         wordLookupCountersMerged = wordLookupCountersMerged,

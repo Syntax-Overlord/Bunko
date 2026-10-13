@@ -158,27 +158,35 @@ class GitHubContentsAssetStore(
             change.bytes?.let { require(it.isNotEmpty() && it.size <= MaxSyncDocumentBytes) { "Invalid sync document size" } }
         }
         validateSyncDocumentPath(guardPath)
-        val branch = executeRead(GitHubHttpRequest(method = "GET", url = gitUrl("branches/${encodedBranch()}"), headers = jsonHeaders()))
-        when {
-            branch.statusCode == HttpURLConnection.HTTP_NOT_FOUND || branch.isEmptyRepository() -> return@withContext false
-            branch.statusCode != HttpURLConnection.HTTP_OK ->
-                throw GitHubAssetStoreException("GitHub branch lookup failed", branch.statusCode, branch.safeBodyText())
-        }
-        val branchText = branch.bodyText()
-        val headSha = branchText.extractJsonString("sha")?.takeIf { it.matches(GitHubObjectShaRegex) }
-        val baseTreeSha = BranchTreeShaRegex.find(branchText)?.groupValues?.get(1)
-        if (headSha == null || baseTreeSha == null) {
-            throw GitHubAssetStoreException("GitHub branch response was missing its commit", branch.statusCode, branch.safeBodyText())
-        }
-        // The folder listing names the guard's blob without downloading it (the file's own metadata embeds it).
-        val currentGuardSha = try {
-            getSyncDocumentSha(guardPath)
-        } catch (missing: GitHubAssetStoreException) {
-            if (missing.statusCode != HttpURLConnection.HTTP_NOT_FOUND) throw missing
-            null
-        }
-        if (currentGuardSha != guardSha) {
-            throw GitHubAssetStoreException("Sync document changed since it was read", HttpURLConnection.HTTP_CONFLICT, guardPath)
+        // When this process made the last commit and the guard is what that commit wrote, build on it directly: the
+        // fast-forward-only ref update below still refuses if anyone has committed since. Saves two round trips.
+        val ownLastCommit = LastSyncCommits[cacheScope]?.takeIf { it.guardPath == guardPath && it.guardSha == guardSha }
+        val (headSha, baseTreeSha) = if (ownLastCommit != null) {
+            ownLastCommit.commitSha to ownLastCommit.treeSha
+        } else {
+            val branch = executeRead(GitHubHttpRequest(method = "GET", url = gitUrl("branches/${encodedBranch()}"), headers = jsonHeaders()))
+            when {
+                branch.statusCode == HttpURLConnection.HTTP_NOT_FOUND || branch.isEmptyRepository() -> return@withContext false
+                branch.statusCode != HttpURLConnection.HTTP_OK ->
+                    throw GitHubAssetStoreException("GitHub branch lookup failed", branch.statusCode, branch.safeBodyText())
+            }
+            val branchText = branch.bodyText()
+            val head = branchText.extractJsonString("sha")?.takeIf { it.matches(GitHubObjectShaRegex) }
+            val tree = BranchTreeShaRegex.find(branchText)?.groupValues?.get(1)
+            if (head == null || tree == null) {
+                throw GitHubAssetStoreException("GitHub branch response was missing its commit", branch.statusCode, branch.safeBodyText())
+            }
+            // The folder listing names the guard's blob without downloading it (the file's own metadata embeds it).
+            val currentGuardSha = try {
+                getSyncDocumentSha(guardPath)
+            } catch (missing: GitHubAssetStoreException) {
+                if (missing.statusCode != HttpURLConnection.HTTP_NOT_FOUND) throw missing
+                null
+            }
+            if (currentGuardSha != guardSha) {
+                throw GitHubAssetStoreException("Sync document changed since it was read", HttpURLConnection.HTTP_CONFLICT, guardPath)
+            }
+            head to tree
         }
         // JSON goes inline in the tree request. Binary content, and content written to more than one path (the
         // device snapshot is a copy of the latest pointer), is uploaded once as a blob and referenced by id.
@@ -210,13 +218,21 @@ class GitHubContentsAssetStore(
         )
         when (update.statusCode) {
             HttpURLConnection.HTTP_OK -> {
-                changes.firstOrNull { it.path == guardPath }?.bytes?.let { GitHubBlobCache.put(gitBlobSha(it), it) }
+                val guardChange = changes.firstOrNull { it.path == guardPath }
+                guardChange?.bytes?.let { GitHubBlobCache.put(gitBlobSha(it), it) }
+                val writtenGuardSha = if (guardChange == null) guardSha else guardChange.bytes?.let(::gitBlobSha)
+                LastSyncCommits[cacheScope] = LastSyncCommit(guardPath, writtenGuardSha, commitSha, treeSha)
                 true
             }
             // Not a fast-forward: another device committed since the branch was read.
-            HttpURLConnection.HTTP_CONFLICT, 422 ->
+            HttpURLConnection.HTTP_CONFLICT, 422 -> {
+                LastSyncCommits.remove(cacheScope)
                 throw GitHubAssetStoreException("Branch moved during sync commit", HttpURLConnection.HTTP_CONFLICT, update.safeBodyText())
-            else -> throw GitHubAssetStoreException("GitHub branch update failed", update.statusCode, update.safeBodyText())
+            }
+            else -> {
+                LastSyncCommits.remove(cacheScope)
+                throw GitHubAssetStoreException("GitHub branch update failed", update.statusCode, update.safeBodyText())
+            }
         }
     }
 
@@ -622,6 +638,12 @@ data class GitHubSyncDocument(
     val bytes: ByteArray,
     val sha: String,
 )
+
+/** The last commit this process made to a repository, and the guard blob it left. */
+internal data class LastSyncCommit(val guardPath: String, val guardSha: String?, val commitSha: String, val treeSha: String)
+
+/** By repository scope: stores are created per sync, the branch head outlives them. */
+internal val LastSyncCommits = java.util.concurrent.ConcurrentHashMap<String, LastSyncCommit>()
 
 /** A file for [GitHubContentsAssetStore.commitSyncDocuments]: its new content, or null [bytes] to delete it. */
 class SyncDocumentChange(val path: String, val bytes: ByteArray?)

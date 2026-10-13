@@ -263,7 +263,7 @@ fun PortableSnapshot.toSlicedJsonDocuments(): List<PortableSnapshotDocument> {
             path = slice.path(exportedAt),
             sliceKey = slice.key,
             dataHash = sha256Hex(records.toString()),
-            render = { sliceJson(slice, records).toString(2) },
+            render = { sliceJson(slice, records).toString() },
         )
     }
     val manifest = JSONObject()
@@ -290,7 +290,8 @@ fun PortableSnapshot.toSlicedJsonDocuments(): List<PortableSnapshotDocument> {
                 PortableSnapshotSlice.entries.forEach { slice -> root.put(slice.key, slice.path(exportedAt)) }
             },
         )
-    val manifestText = manifest.toString(2)
+    // Compact, like every sync document: indentation was a fifth of each upload, and every reader parses JSON.
+    val manifestText = manifest.toString()
     return slices + PortableSnapshotDocument(path = PortableSnapshotLatestPath, render = { manifestText })
 }
 
@@ -330,7 +331,7 @@ fun mergePortableSnapshotSlices(baseJson: String, sliceJsonByKey: Map<String, St
         for (index in 0 until records.length()) merged.put(records.get(index))
     }
     arrays.forEach { (name, records) -> root.put(name, records) }
-    return root.toString(2)
+    return root.toString()
 }
 
 fun portableSnapshotHasSlices(jsonText: String): Boolean = portableSnapshotSlicePaths(jsonText).isNotEmpty()
@@ -375,7 +376,7 @@ fun repointPortableSnapshotSlices(manifestJson: String, pathsByKey: Map<String, 
         require(slice.isValidPath(path)) { "Invalid snapshot slice path" }
         slices.put(slice.key, path)
     }
-    return root.toString(2)
+    return root.toString()
 }
 
 data class SlicedPortableReadingProgressPatchResult(
@@ -438,7 +439,7 @@ fun patchSlicedPortableReadingProgress(
             if (path in sliceWrites) slices.put(slice.key, path)
         }
         root.put("exportedAt", exportedAt)
-        root.toString(2)
+        root.toString()
     }
     return SlicedPortableReadingProgressPatchResult(
         manifestJson = manifest,
