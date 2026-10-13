@@ -8,7 +8,8 @@ import com.vayana.core.backup.PortableTombstone
 import com.vayana.core.backup.PortableWordLookupCounter
 import com.vayana.core.backup.patchPortableReadingProgressOnly
 import com.vayana.core.backup.patchSlicedPortableReadingProgress
-import com.vayana.core.backup.portableSnapshotSliceDataEquals
+import com.vayana.core.backup.portableSnapshotManifestDataEquals
+import com.vayana.core.backup.portableSnapshotSliceDataHash
 import com.vayana.core.backup.portableSnapshotSlicePaths
 import com.vayana.core.backup.repointPortableSnapshotSlices
 import com.vayana.core.backup.toSlicedJsonDocuments
@@ -48,14 +49,43 @@ class RemotePortableSnapshotDocument internal constructor(
     private val loadedSlices = ConcurrentHashMap(sliceJsonByKey)
     private val missingSlices: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val sliceLocks = ConcurrentHashMap<String, Mutex>()
+    private val alreadySyncedHashes = ConcurrentHashMap<String, String>()
 
-    suspend fun jsonFor(slice: RemotePortableSnapshotSlice): String = sliceJsonOrNull(slice.key) ?: jsonText
+    /**
+     * Marks the slices whose published file this device already holds (see [SyncedSnapshotSlice]): [jsonFor]
+     * then reads them as empty, so they are neither downloaded nor merged again.
+     */
+    fun skipAlreadySynced(slices: Collection<SyncedSnapshotSlice>) {
+        slices.forEach { synced -> if (slicePaths[synced.key] == synced.path) alreadySyncedHashes[synced.key] = synced.dataHash }
+    }
 
-    /** Downloads the given slices concurrently, for callers about to read most of them. */
+    /** For sync diagnostics: slices skipped as already synced here, and slices read (with their sizes in chars). */
+    fun sliceStats(): String =
+        "slicesSkipped=${alreadySyncedHashes.keys.sorted()}, slicesRead=${loadedSlices.entries.sortedBy { it.key }.map { "${it.key}:${it.value.length}" }}"
+
+    /** The slice's records to merge; empty (the manifest) for a missing slice or one already synced here. */
+    suspend fun jsonFor(slice: RemotePortableSnapshotSlice): String =
+        if (alreadySyncedHashes.containsKey(slice.key)) jsonText else sliceJsonOrNull(slice.key) ?: jsonText
+
+    /**
+     * Downloads the given slices concurrently, for callers about to read most of them. Only a speed-up: a failed
+     * download is left for the read that needs it, which retries and reports it where it is handled. (Thrown from
+     * here, a dropped connection escaped the sync and crashed the app.)
+     */
     suspend fun prefetch(slices: Collection<RemotePortableSnapshotSlice> = RemotePortableSnapshotSlice.entries) {
         coroutineScope {
-            slices.filter { it.key in slicePaths && !loadedSlices.containsKey(it.key) }
-                .map { slice -> async { sliceJsonOrNull(slice.key) } }
+            slices.filter { it.key in slicePaths && !alreadySyncedHashes.containsKey(it.key) && !loadedSlices.containsKey(it.key) }
+                .map { slice ->
+                    async {
+                        try {
+                            sliceJsonOrNull(slice.key)
+                        } catch (cancellation: CancellationException) {
+                            throw cancellation
+                        } catch (_: Exception) {
+                            null
+                        }
+                    }
+                }
                 .awaitAll()
         }
     }
@@ -75,11 +105,19 @@ class RemotePortableSnapshotDocument internal constructor(
         }
     }
 
-    /** A slice already in memory, without triggering a download. */
-    internal fun loadedSliceJsonOrNull(key: String): String? = loadedSlices[key]
+    /** The records hash of a slice already synced here or in memory, without triggering a download. */
+    internal fun knownSliceDataHashOrNull(key: String): String? =
+        alreadySyncedHashes[key] ?: loadedSlices[key]?.let { portableSnapshotSliceDataHash(key, it) }
 
     internal fun slicePathOrNull(key: String): String? = slicePaths[key]
 }
+
+/**
+ * A published slice file whose records this device's database already holds: it published them, and nothing
+ * removes a record without a tombstone. Slice files are never rewritten, so while the latest snapshot still
+ * points at [path], merging it again would change nothing. [dataHash] is [portableSnapshotSliceDataHash].
+ */
+data class SyncedSnapshotSlice(val key: String, val path: String, val dataHash: String)
 
 enum class RemotePortableSnapshotSlice(val key: String) {
     Books("books"),
@@ -340,19 +378,23 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
      * memory keeps pointing at that published file instead of being uploaded (and committed) again.
      */
     previous: RemotePortableSnapshotDocument? = null,
-) {
+): List<SyncedSnapshotSlice> {
     val documents = snapshot.toSlicedJsonDocuments()
     val latestDocument = documents.last { it.path == PortableSnapshotLatestPath }
     val allSliceDocuments = documents.filter { it.path != PortableSnapshotLatestPath }
     val compressAnnotations = snapshot.hasLargeGoodreadsQuoteSet()
+    val dataHashByKey = allSliceDocuments.associate { document ->
+        val key = requireNotNull(document.sliceKey)
+        key to requireNotNull(portableSnapshotSliceDataHash(key, document.jsonText)) { "Unreadable snapshot slice $key" }
+    }
     val reusedPathsByKey = allSliceDocuments.mapNotNull { document ->
         val key = document.sliceKey ?: return@mapNotNull null
-        val previousJson = previous?.loadedSliceJsonOrNull(key) ?: return@mapNotNull null
+        val previousHash = previous?.knownSliceDataHashOrNull(key) ?: return@mapNotNull null
         val previousPath = previous.slicePathOrNull(key) ?: return@mapNotNull null
         if (key == RemotePortableSnapshotSlice.Annotations.key && previousPath.endsWith(".zip") != compressAnnotations) {
             return@mapNotNull null
         }
-        if (portableSnapshotSliceDataEquals(key, document.jsonText, previousJson)) key to previousPath else null
+        if (dataHashByKey[key] == previousHash) key to previousPath else null
     }.toMap()
     val sliceDocuments = allSliceDocuments.filter { it.sliceKey !in reusedPathsByKey }
     val sliceUploads = sliceDocuments.map { document ->
@@ -365,7 +407,20 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
         )
     }
     val publishedPathsByKey = reusedPathsByKey + sliceUploads.associate { it.sliceKey to it.path }
-    val latestBytes = repointPortableSnapshotSlices(latestDocument.jsonText, publishedPathsByKey).toByteArray(Charsets.UTF_8)
+    val published = publishedPathsByKey.map { (key, path) -> SyncedSnapshotSlice(key, path, dataHashByKey.getValue(key)) }
+    val latestJson = repointPortableSnapshotSlices(latestDocument.jsonText, publishedPathsByKey)
+    if (sliceUploads.isEmpty() && previous != null && portableSnapshotManifestDataEquals(latestJson, previous.jsonText)) {
+        // The latest snapshot already says exactly this: writing it again would only bump exportedAt (and cost
+        // five GitHub round trips).
+        diagnosticsLogStore?.record(
+            category = DiagnosticCategory.SYNC,
+            source = "RemotePortableSnapshotStore.putPortableSnapshotDocuments",
+            message = "Snapshot unchanged; publish skipped",
+            detail = "exportedAt=${snapshot.exportedAt}, books=${snapshot.books.size}",
+        )
+        return published
+    }
+    val latestBytes = latestJson.toByteArray(Charsets.UTF_8)
     val totalDocuments = sliceUploads.size + 2
     // Encode one slice at a time to avoid retaining every slice's JSON and encoded bytes together.
     // Exact total bytes are unknown until ZIP encoding; progress uses exact document counts.
@@ -385,6 +440,7 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
             ),
         )
     }
+    val uploadStartedAt = System.nanoTime()
     putSyncDocument(deviceSnapshotPath, latestBytes)
     completedDocuments += 1
     completedBytes += latestBytes.size
@@ -406,13 +462,19 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
     completedDocuments += 1
     completedBytes += latestBytes.size
     report(PortableSnapshotPublishStage.LATEST_POINTER, PortableSnapshotLatestPath)
+    val uploadMillis = (System.nanoTime() - uploadStartedAt) / 1_000_000
     report(PortableSnapshotPublishStage.PRUNING)
     var pruneSummary = SnapshotSlicePruneSummary()
-    try {
-        pruneSummary = pruneOlderPortableSnapshotSlices(currentExportedAt = snapshot.exportedAt)
-    } catch (throwable: Throwable) {
-        if (throwable is CancellationException) throw throwable
-        pruneSummary = SnapshotSlicePruneSummary(failed = true)
+    // Pruning makes room for a new slice directory; a publish that reused every slice added none.
+    if (sliceUploads.isNotEmpty()) {
+        try {
+            val pruneStartedAt = System.nanoTime()
+            pruneSummary = pruneOlderPortableSnapshotSlices(currentExportedAt = snapshot.exportedAt)
+                .copy(millis = (System.nanoTime() - pruneStartedAt) / 1_000_000)
+        } catch (throwable: Throwable) {
+            if (throwable is CancellationException) throw throwable
+            pruneSummary = SnapshotSlicePruneSummary(failed = true)
+        }
     }
     diagnosticsLogStore?.record(
         category = DiagnosticCategory.SYNC,
@@ -429,8 +491,11 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
             append(", prunedDirs=").append(pruneSummary.directoriesPruned)
             append(", prunedFiles=").append(pruneSummary.filesPruned)
             append(", pruneFailed=").append(pruneSummary.failed)
+            append(", uploadMs=").append(uploadMillis)
+            append(", pruneMs=").append(pruneSummary.millis)
         },
     )
+    return published
 }
 
 internal suspend fun GitHubContentsAssetStore.pruneOlderPortableSnapshotSlices(currentExportedAt: Long): SnapshotSlicePruneSummary {
@@ -479,6 +544,7 @@ internal data class SnapshotSlicePruneSummary(
     val directoriesPruned: Int = 0,
     val filesPruned: Int = 0,
     val failed: Boolean = false,
+    val millis: Long = 0,
 )
 
 private data class SnapshotSliceUpload(

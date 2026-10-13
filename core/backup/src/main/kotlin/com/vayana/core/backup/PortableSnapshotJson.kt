@@ -1,5 +1,6 @@
 package com.vayana.core.backup
 
+import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -301,18 +302,31 @@ fun mergePortableSnapshotSlices(baseJson: String, sliceJsonByKey: Map<String, St
 fun portableSnapshotHasSlices(jsonText: String): Boolean = portableSnapshotSlicePaths(jsonText).isNotEmpty()
 
 /**
- * True when two documents of the slice [sliceKey] carry the same records, ignoring per-export envelope fields
- * such as exportedAt and deviceLabel. Order-sensitive, so it can only err toward "different" (an extra upload).
+ * SHA-256 of the records in a document of the slice [sliceKey], ignoring per-export envelope fields such as
+ * exportedAt and deviceLabel: equal hashes mean the same records. Order-sensitive, so it can only err toward
+ * "different" (an extra upload). Null when the document can't be read.
  */
-fun portableSnapshotSliceDataEquals(sliceKey: String, first: String, second: String): Boolean {
-    val slice = PortableSnapshotSlice.entries.firstOrNull { it.key == sliceKey } ?: return false
+fun portableSnapshotSliceDataHash(sliceKey: String, jsonText: String): String? {
+    val slice = PortableSnapshotSlice.entries.firstOrNull { it.key == sliceKey } ?: return null
     return runCatching {
-        val firstArray = JSONObject(first).optJSONArray(slice.jsonArrayName) ?: JSONArray()
-        val secondArray = JSONObject(second).optJSONArray(slice.jsonArrayName) ?: JSONArray()
-        // Both sides come from the same toJson() writers, so equal records serialize identically.
-        firstArray.toString() == secondArray.toString()
-    }.getOrDefault(false)
+        // Every document comes from the same toJson() writers, so equal records serialize identically.
+        val records = (JSONObject(jsonText).optJSONArray(slice.jsonArrayName) ?: JSONArray()).toString()
+        MessageDigest.getInstance("SHA-256").digest(records.toByteArray(Charsets.UTF_8))
+            .joinToString("") { "%02x".format(it) }
+    }.getOrNull()
 }
+
+/**
+ * True when two latest-pointer manifests carry the same data (books, settings, conflicts, slice paths), ignoring
+ * the per-export exportedAt and deviceLabel. Key-order sensitive, so it can only err toward "different".
+ */
+fun portableSnapshotManifestDataEquals(first: String, second: String): Boolean = runCatching {
+    fun data(jsonText: String) = JSONObject(jsonText).apply {
+        remove("exportedAt")
+        remove("deviceLabel")
+    }.toString()
+    data(first) == data(second)
+}.getOrDefault(false)
 
 /** Points the manifest's slice entries in [pathsByKey] at other (already published) slice files. */
 fun repointPortableSnapshotSlices(manifestJson: String, pathsByKey: Map<String, String>): String {

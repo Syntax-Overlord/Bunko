@@ -7,6 +7,7 @@ import com.vayana.core.database.dao.BookAliasDao
 import com.vayana.core.database.dao.BookDao
 import com.vayana.core.database.dao.HighlightReviewDao
 import com.vayana.core.database.dao.FullSyncStateDao
+import com.vayana.core.database.dao.SyncedSnapshotSliceDao
 import com.vayana.core.database.dao.ReadingSessionDao
 import com.vayana.core.database.dao.ShelfDao
 import com.vayana.core.database.dao.TombstoneDao
@@ -20,6 +21,7 @@ import com.vayana.core.database.entity.BookFtsEntity
 import com.vayana.core.database.entity.BookShelfCrossRefEntity
 import com.vayana.core.database.entity.HighlightReviewEntity
 import com.vayana.core.database.entity.FullSyncStateEntity
+import com.vayana.core.database.entity.SyncedSnapshotSliceEntity
 import com.vayana.core.database.entity.ReadingSessionEntity
 import com.vayana.core.database.entity.ShelfEntity
 import com.vayana.core.database.entity.TombstoneEntity
@@ -29,7 +31,7 @@ import com.vayana.core.database.dao.PendingCloudDeletionDao
 import com.vayana.core.database.entity.PendingCloudDeletionEntity
 
 /** Bumping this is a real Room migration + a docs/DATABASE_CHANGELOG.md entry, from day one (docs/PRODUCT_SPEC.md §2). */
-const val DATABASE_VERSION = 35
+const val DATABASE_VERSION = 36
 
 @Database(
     entities = [
@@ -41,6 +43,7 @@ const val DATABASE_VERSION = 35
         com.vayana.core.database.entity.EpubChapterEntity::class,
         com.vayana.core.database.entity.EpubPassageEntity::class,
         com.vayana.core.database.entity.EpubPassageTextEntity::class,
+        SyncedSnapshotSliceEntity::class,
     ],
     version = DATABASE_VERSION,
     exportSchema = true,
@@ -58,4 +61,5 @@ abstract class VayanaDatabase : RoomDatabase() {
     abstract fun highlightReviewDao(): HighlightReviewDao
     abstract fun epubPassageDao(): com.vayana.core.database.dao.EpubPassageDao
     abstract fun fullSyncStateDao(): FullSyncStateDao
+    abstract fun syncedSnapshotSliceDao(): SyncedSnapshotSliceDao
 }

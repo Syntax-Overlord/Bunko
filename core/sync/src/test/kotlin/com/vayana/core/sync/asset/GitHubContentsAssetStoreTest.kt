@@ -5,6 +5,8 @@ import com.vayana.core.backup.PortableReadingSession
 import com.vayana.core.backup.PortableSnapshot
 import com.vayana.core.backup.PortableTombstone
 import com.vayana.core.backup.PortableWordLookupCounter
+import com.vayana.core.backup.portableSnapshotSliceDataHash
+import com.vayana.core.backup.toSlicedJsonDocuments
 import com.vayana.core.sync.snapshot.SnapshotSliceCache
 import com.vayana.core.sync.snapshot.getLatestPortableSnapshotDocument
 import com.vayana.core.sync.snapshot.pruneOlderPortableSnapshotSlices
@@ -13,6 +15,7 @@ import com.vayana.core.sync.snapshot.putPortableSnapshotDocuments
 import com.vayana.core.sync.snapshot.remotePortableSnapshotDocumentFrom
 import com.vayana.core.sync.snapshot.RemotePortableSnapshotDocument
 import com.vayana.core.sync.snapshot.RemotePortableSnapshotSlice
+import com.vayana.core.sync.snapshot.SyncedSnapshotSlice
 import java.util.Base64
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -782,6 +785,96 @@ class GitHubContentsAssetStoreTest {
         val manifest = Base64.getDecoder().decode(manifestJson).toString(Charsets.UTF_8)
         assertTrue(manifest.contains("vayana/snapshot-slices/1000/annotations.json"))
         assertTrue(manifest.contains("vayana/snapshot-slices/2000/shelves.json"))
+    }
+
+    @Test
+    fun alreadySyncedSliceIsNeitherDownloadedNorReuploaded() = runBlocking {
+        val snapshot = PortableSnapshot(
+            formatVersion = 1,
+            exportedAt = 2000,
+            deviceLabel = "Phone",
+            books = emptyList(),
+            annotations = emptyList(),
+            shelves = emptyList(),
+            shelfMemberships = emptyList(),
+            readingSessions = emptyList(),
+            vocabularyCards = emptyList(),
+            wordLookupCounters = emptyList(),
+            settings = emptyMap(),
+        )
+        val annotationsPath = "vayana/snapshot-slices/1000/annotations.json"
+        val previous = RemotePortableSnapshotDocument(
+            jsonText = latestManifestReferencing(1000).toString(Charsets.UTF_8),
+            sha = ExistingSha,
+            sliced = true,
+            slicePaths = mapOf("annotations" to annotationsPath),
+            loadSlice = { error("an already synced slice must not be downloaded") },
+        )
+        val emptyAnnotationsHash = portableSnapshotSliceDataHash("annotations", """{"annotations":[]}""")!!
+        previous.skipAlreadySynced(
+            listOf(
+                SyncedSnapshotSlice("annotations", annotationsPath, emptyAnnotationsHash),
+                SyncedSnapshotSlice("shelves", "vayana/snapshot-slices/999/shelves.json", "stale path, ignored"),
+            ),
+        )
+        previous.prefetch()
+        assertEquals(previous.jsonText, previous.jsonFor(RemotePortableSnapshotSlice.Annotations))
+
+        val created = GitHubHttpResponse(201, """{"content":{"sha":"x"}}""".toByteArray())
+        val client = RecordingGitHubHttpClient(
+            GitHubHttpResponse(404, """{"message":"Not Found"}""".toByteArray()), // device snapshot SHA lookup
+            created, // device snapshot
+            *Array(7) { created }, // the seven slices not already synced
+            GitHubHttpResponse(200, """{"content":{"sha":"x"}}""".toByteArray()), // latest pointer
+            GitHubHttpResponse(200, latestManifestReferencing(2000)), // prune: live pointer
+            GitHubHttpResponse(200, "[]".toByteArray()), // prune: slice root listing
+        )
+
+        val published = testStore(client)
+            .putPortableSnapshotDocuments(snapshot, "vayana/snapshots/phone.json", ExistingSha, previous = previous)
+
+        assertTrue(client.requests.filter { it.method == "PUT" }.none { it.url.contains("snapshot-slices/2000/annotations") })
+        assertEquals(SyncedSnapshotSlice("annotations", annotationsPath, emptyAnnotationsHash), published.single { it.key == "annotations" })
+        assertEquals("vayana/snapshot-slices/2000/shelves.json", published.single { it.key == "shelves" }.path)
+    }
+
+    @Test
+    fun unchangedSnapshotIsNotPublishedAgain() = runBlocking {
+        val earlier = PortableSnapshot(
+            formatVersion = 1,
+            exportedAt = 2000,
+            deviceLabel = "Tablet",
+            books = emptyList(),
+            annotations = emptyList(),
+            shelves = emptyList(),
+            shelfMemberships = emptyList(),
+            readingSessions = emptyList(),
+            vocabularyCards = emptyList(),
+            wordLookupCounters = emptyList(),
+            settings = emptyMap(),
+        )
+        val documents = earlier.toSlicedJsonDocuments()
+        val slices = documents.filter { it.sliceKey != null }
+        val previous = RemotePortableSnapshotDocument(
+            jsonText = documents.last().jsonText,
+            sha = ExistingSha,
+            sliced = true,
+            slicePaths = slices.associate { it.sliceKey!! to it.path },
+            loadSlice = { error("an already synced slice must not be downloaded") },
+        )
+        val synced = slices.map { SyncedSnapshotSlice(it.sliceKey!!, it.path, portableSnapshotSliceDataHash(it.sliceKey!!, it.jsonText)!!) }
+        previous.skipAlreadySynced(synced)
+        val client = RecordingGitHubHttpClient() // any request fails the test
+
+        val published = testStore(client).putPortableSnapshotDocuments(
+            earlier.copy(exportedAt = 3000, deviceLabel = "Phone"),
+            "vayana/snapshots/phone.json",
+            ExistingSha,
+            previous = previous,
+        )
+
+        assertTrue(client.requests.isEmpty())
+        assertEquals(synced.toSet(), published.toSet())
     }
 
     @Test

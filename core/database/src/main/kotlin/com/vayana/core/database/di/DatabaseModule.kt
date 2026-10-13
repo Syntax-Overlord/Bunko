@@ -21,6 +21,7 @@ import javax.inject.Singleton
 import com.vayana.core.database.search.BookSearchIndexCallback
 import com.vayana.core.database.dao.HighlightReviewDao
 import com.vayana.core.database.dao.FullSyncStateDao
+import com.vayana.core.database.dao.SyncedSnapshotSliceDao
 import com.vayana.core.database.dao.PendingCloudDeletionDao
 import com.vayana.core.database.sync.FullSyncChangeTrackerCallback
 
@@ -73,4 +74,7 @@ object DatabaseModule {
 
     @Provides
     fun provideFullSyncStateDao(database: VayanaDatabase): FullSyncStateDao = database.fullSyncStateDao()
+
+    @Provides
+    fun provideSyncedSnapshotSliceDao(database: VayanaDatabase): SyncedSnapshotSliceDao = database.syncedSnapshotSliceDao()
 }

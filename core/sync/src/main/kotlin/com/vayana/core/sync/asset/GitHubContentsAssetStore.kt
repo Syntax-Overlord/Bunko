@@ -45,6 +45,19 @@ class GitHubContentsAssetStore(
         require(committerEmail.isNotBlank()) { "GitHub committer email is required" }
     }
 
+    private val requestCount = java.util.concurrent.atomic.AtomicInteger()
+    private val bytesDown = java.util.concurrent.atomic.AtomicLong()
+    private val bytesUp = java.util.concurrent.atomic.AtomicLong()
+
+    /** GitHub calls made through this store and their payload bytes, for sync diagnostics. */
+    fun requestStats(): String = "githubRequests=${requestCount.get()}, downBytes=${bytesDown.get()}, upBytes=${bytesUp.get()}"
+
+    private fun execute(request: GitHubHttpRequest): GitHubHttpResponse {
+        requestCount.incrementAndGet()
+        bytesUp.addAndGet(request.body?.size?.toLong() ?: request.streamingBody?.contentLength ?: 0L)
+        return client.execute(request).also { bytesDown.addAndGet(it.body.size.toLong()) }
+    }
+
     override suspend fun put(path: String, bytes: ByteArray): Unit = withContext(dispatcher) {
         validateAssetPath(path)
         putContents(path, bytes, "Sync Vayana asset $path", replaceExisting = false)
@@ -55,7 +68,7 @@ class GitHubContentsAssetStore(
         require(file.length() in 1..MaxEncryptedAssetBytes.toLong()) { "Cloud upload is empty or too large" }
         val body = buildFilePutBody("Sync Vayana asset $path", file)
         repeat(MaxPutAttempts) { attempt ->
-            val response = client.execute(GitHubHttpRequest(
+            val response = execute(GitHubHttpRequest(
                 method = "PUT", url = contentsUrl(path), headers = jsonHeaders(), streamingBody = body,
             ))
             if (response.statusCode == HttpURLConnection.HTTP_OK || response.statusCode == HttpURLConnection.HTTP_CREATED) {
@@ -90,7 +103,7 @@ class GitHubContentsAssetStore(
             HttpURLConnection.HTTP_NOT_FOUND -> return@withContext
             else -> throw GitHubAssetStoreException("GitHub asset folder lookup failed", listing.statusCode, listing.safeBodyText())
         }
-        val response = client.execute(
+        val response = execute(
             GitHubHttpRequest(
                 method = "DELETE",
                 url = contentsUrl(path),
@@ -207,7 +220,7 @@ class GitHubContentsAssetStore(
 
     private fun deleteSyncDocumentWithKnownSha(path: String, sha: String) {
         val body = buildDeleteBody("Prune Vayana metadata $path", sha)
-        val response = client.execute(
+        val response = execute(
             GitHubHttpRequest(
                 method = "DELETE",
                 url = contentsUrl(path),
@@ -284,7 +297,7 @@ class GitHubContentsAssetStore(
         repeat(MaxPutAttempts) { attempt ->
             val existingSha = if (replaceExisting) findExistingSha(path) else null
             val body = buildPutBody(message, bytes, existingSha)
-            val response = client.execute(
+            val response = execute(
                 GitHubHttpRequest(
                     method = "PUT",
                     url = contentsUrl(path),
@@ -309,7 +322,7 @@ class GitHubContentsAssetStore(
         val maxBytes = if (path.endsWith(".json")) MaxSyncDocumentBytes else MaxEncryptedAssetBytes
         require(bytes.size <= maxBytes) { "Cloud upload is too large" }
         val body = buildPutBody(message, bytes, expectedSha)
-        val response = client.execute(
+        val response = execute(
             GitHubHttpRequest(
                 method = "PUT",
                 url = contentsUrl(path),
@@ -382,7 +395,7 @@ class GitHubContentsAssetStore(
         require(request.method == "GET") { "Only GitHub reads are safe to retry here" }
         repeat(MaxReadAttempts) { attempt ->
             try {
-                val response = client.execute(request)
+                val response = execute(request)
                 if (response.statusCode !in RetryableReadStatusCodes || attempt == MaxReadAttempts - 1) {
                     return response
                 }
@@ -654,9 +667,15 @@ private fun String.topLevelJsonObjects(): List<String> {
     return objects
 }
 
+/**
+ * The read timeout only bounds each read(), so a lossy connection trickling bytes could hold a download (and the
+ * whole sync) for many minutes. Past a grace period it must average [MinDownloadBytesPerSecond]; a slower one
+ * fails, and reads retry on a fresh connection.
+ */
 private fun java.io.InputStream.readBytesLimited(maxBytes: Int): ByteArray {
     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
     val output = java.io.ByteArrayOutputStream()
+    val startedAt = System.nanoTime()
     var total = 0
     while (true) {
         val read = read(buffer)
@@ -666,6 +685,10 @@ private fun java.io.InputStream.readBytesLimited(maxBytes: Int): ByteArray {
             throw IOException("GitHub response exceeded $maxBytes bytes")
         }
         output.write(buffer, 0, read)
+        val elapsedMillis = (System.nanoTime() - startedAt) / 1_000_000
+        if (elapsedMillis > SlowDownloadGraceMillis && total * 1000L / elapsedMillis < MinDownloadBytesPerSecond) {
+            throw java.net.SocketTimeoutException("GitHub download too slow: $total bytes in ${elapsedMillis / 1000}s")
+        }
     }
     return output.toByteArray()
 }
@@ -831,6 +854,9 @@ private val SnapshotSliceDirectoryPathRegex = Regex("^vayana/snapshot-slices/[1-
 private val AuthorizationTokenRegex = Regex(""""token"\s*:\s*"[^"]+"""")
 private val RetryableReadStatusCodes = setOf(408, 425, 429, 500, 502, 503, 504)
 private const val NetworkTimeoutMillis = 30_000
+// ponytail: fixed floor; 8 KiB/s still lets a 2.7 MB slice take ~6 min. Tune if real links trip it.
+private const val SlowDownloadGraceMillis = 20_000L
+private const val MinDownloadBytesPerSecond = 8 * 1024L
 private const val MaxPutAttempts = 3
 private const val MaxReadAttempts = 3
 private const val InitialReadRetryDelayMillis = 200L

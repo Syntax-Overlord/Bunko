@@ -8,6 +8,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import android.content.ContentResolver
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.provider.OpenableColumns
 import androidx.documentfile.provider.DocumentFile
@@ -47,10 +49,13 @@ import com.vayana.core.database.model.normalizedBookTag
 import com.vayana.core.database.dao.AnnotationDao
 import com.vayana.core.database.dao.BookAliasDao
 import com.vayana.core.database.dao.FullSyncStateDao
+import com.vayana.core.database.dao.SyncedSnapshotSliceDao
 import com.vayana.core.database.dao.ShelfDao
 import com.vayana.core.database.dao.TombstoneDao
 import com.vayana.core.database.dao.VocabularyCardDao
 import com.vayana.core.database.entity.BookAliasEntity
+import com.vayana.core.database.entity.SyncedSnapshotSliceEntity
+import com.vayana.core.database.sync.SyncMergeTransaction
 import com.vayana.core.database.entity.TombstoneEntity
 import com.vayana.core.database.model.Annotation
 import com.vayana.core.database.model.AnnotationType
@@ -103,6 +108,7 @@ import com.vayana.core.sync.snapshot.PortableSnapshotPublishProgress
 import com.vayana.core.sync.snapshot.PortableSnapshotPublishStage
 import com.vayana.core.sync.snapshot.RemotePortableSnapshotDocument
 import com.vayana.core.sync.snapshot.RemotePortableSnapshotSlice
+import com.vayana.core.sync.snapshot.SyncedSnapshotSlice
 import com.vayana.core.sync.snapshot.getLatestPortableSnapshotDocumentUnlessSha
 import com.vayana.core.sync.snapshot.getLatestPortableSnapshotDocument
 import com.vayana.core.sync.snapshot.pushPortableReadingProgress
@@ -117,6 +123,7 @@ import com.vayana.format.pdf.PdfPasswordProtectedException
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.File
+import java.util.Locale
 import java.util.UUID
 import javax.inject.Inject
 import kotlin.math.abs
@@ -509,6 +516,8 @@ class LibraryViewModel @Inject constructor(
     private val bookAliasDao: BookAliasDao,
     private val tombstoneDao: TombstoneDao,
     private val fullSyncStateDao: FullSyncStateDao,
+    private val syncedSnapshotSliceDao: SyncedSnapshotSliceDao,
+    private val syncMergeTransaction: SyncMergeTransaction,
     private val shelfDao: ShelfDao,
     private val vocabularyCardDao: VocabularyCardDao,
     private val annotationDao: AnnotationDao,
@@ -1217,7 +1226,17 @@ class LibraryViewModel @Inject constructor(
         showProgress: Boolean = true,
         launchReadingProgressBookId: Long? = null,
     ): GitHubSyncNowResult = syncOperationCoordinator.run {
-        val result = runSyncNow(allowInitialSync, mode, showProgress, launchReadingProgressBookId)
+        val log = if (mode == GitHubSyncMode.FULL) FullSyncLog().also { it.note(networkSummary()) } else null
+        fullSyncLog = log
+        val result = try {
+            runSyncNow(allowInitialSync, mode, showProgress, launchReadingProgressBookId)
+        } catch (throwable: Throwable) {
+            log?.let { recordFullSyncLog(it, "aborted (${throwable.javaClass.simpleName}: ${throwable.message})") }
+            throw throwable
+        } finally {
+            fullSyncLog = null
+        }
+        log?.let { recordFullSyncLog(it, result.fullSyncOutcome(), result) }
         if (mode == GitHubSyncMode.FULL && result.isCompleteFullSync()) {
             withContext(dispatchers.io) { fullSyncStateDao.markSatisfied() }
         }
@@ -1359,6 +1378,7 @@ class LibraryViewModel @Inject constructor(
                 )
                 return@withContext GitHubSyncNowResult.ConfigIncomplete
             }
+        fullSyncLog?.requestStats = store::requestStats
         updateSyncProgress(
             showProgress = showProgress,
             GitHubSyncProgressStep.READING_CLOUD,
@@ -1384,6 +1404,12 @@ class LibraryViewModel @Inject constructor(
             return@withContext result
         }
         val progressMerge = pullReadingProgress(store)
+        fullSyncLog?.phase(
+            "Pull latest snapshot",
+            "remoteSha=${progressMerge.remoteSnapshotSha?.take(10)}, remoteDevice=${progressMerge.remoteDeviceLabel}, " +
+                "progressApplied=${progressMerge.applied}, conflicts=${progressMerge.conflictCount}, skipped=${progressMerge.skipped}, " +
+                "failed=${progressMerge.failed}, missingRemote=${progressMerge.missingRemoteSnapshot}",
+        )
         if (progressMerge.failed) {
             finishSyncProgress(
                 showProgress = showProgress,
@@ -1474,12 +1500,18 @@ class LibraryViewModel @Inject constructor(
         val remoteSnapshot = progressMerge.remoteSnapshot
         // Every slice is merged below; download them together instead of one after another.
         remoteSnapshot?.prefetch()
+        fullSyncLog?.phase("Download slices", remoteSnapshot?.sliceStats() ?: "noRemoteSnapshot")
         // Tombstones were already merged (all of them) by pullReadingProgress above, from this same snapshot.
         val cloudLibraryMerge = if (remoteSnapshot == null) {
             CloudLibraryMergeSummary()
         } else {
             mergeCloudLibrary(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.Books), store)
         }
+        fullSyncLog?.phase(
+            "Merge books and covers",
+            "books=+${cloudLibraryMerge.created}/~${cloudLibraryMerge.updated}/=${cloudLibraryMerge.skipped}, " +
+                "coversDownloaded=${cloudLibraryMerge.coversDownloaded}, failed=${cloudLibraryMerge.failed}",
+        )
         val bookAliasMerge = if (remoteSnapshot == null) {
             GenericSyncMergeSummary()
         } else {
@@ -1512,14 +1544,27 @@ class LibraryViewModel @Inject constructor(
         } else {
             mergeCloudWordLookupCounters(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.WordLookupCounters))
         }
+        fullSyncLog?.phase(
+            "Merge shelves, vocabulary, sessions, counters",
+            "aliases=+${bookAliasMerge.created}, shelves=+${shelfMerge.created}/~${shelfMerge.updated}, " +
+                "memberships=+${shelfMembershipMerge.created}, vocabulary=+${vocabularyCardMerge.created}/~${vocabularyCardMerge.updated}, " +
+                "sessions=+${readingSessionMerge.created}, wordCounters=${wordLookupCounterMerge.merged}, " +
+                "failed=${listOf(bookAliasMerge, shelfMerge, shelfMembershipMerge, vocabularyCardMerge, readingSessionMerge, wordLookupCounterMerge).anyFailed()}",
+        )
         val annotationMerge = if (remoteSnapshot == null) {
             AnnotationMergeSummary()
         } else {
             mergeCloudAnnotations(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.Annotations))
         }
+        fullSyncLog?.phase(
+            "Merge annotations",
+            "annotations=+${annotationMerge.created}/~${annotationMerge.updated}/=${annotationMerge.skipped}/conflicts=${annotationMerge.conflicts}, " +
+                "failed=${annotationMerge.failed}",
+        )
         val booksBeforeRepair = bookRepository.observeAll().first()
         val repairedCovers = repairMissingCoversFromLocalFiles(booksBeforeRepair)
         val localBooks = if (repairedCovers > 0) bookRepository.observeAll().first() else booksBeforeRepair
+        fullSyncLog?.phase("Repair missing covers", "coversRepaired=$repairedCovers")
         val uploadCandidates = localBooks
             .filter { book ->
                 book.fileAvailability == BookFileAvailability.LOCAL &&
@@ -1632,6 +1677,10 @@ class LibraryViewModel @Inject constructor(
                 stepProgress = progress.fraction,
             )
         }
+        fullSyncLog?.phase(
+            "Upload books and covers",
+            "books=$uploaded/${uploadCandidates.size}, failedBooks=$failed, covers=$uploadedCovers/${coverUploadCandidates.size}",
+        )
         val metadataSave = saveMetadataSnapshotWithRebase(
             store = store,
             syncConfig = syncConfig,
@@ -1639,6 +1688,11 @@ class LibraryViewModel @Inject constructor(
             previousSnapshot = progressMerge.remoteSnapshot,
             conflicts = progressMerge.conflicts,
             onSnapshotProgress = snapshotProgress,
+        )
+        fullSyncLog?.phase(
+            "Publish snapshot",
+            "synced=${metadataSave.synced}, rebaseBooks=+${metadataSave.extraBooksCreated}/~${metadataSave.extraBooksUpdated}" +
+                (metadataSave.failureMessage?.let { ", failure=${it.resolve(appContext.resources)}" } ?: ""),
         )
         if (metadataSave.synced) deletePendingCloudAssets(store)
         // A rebase (409-conflict retry) may have pulled and merged additional remote data into the local DB after
@@ -1692,6 +1746,7 @@ class LibraryViewModel @Inject constructor(
                     remoteSnapshotSha = skipRemoteSnapshotSha,
                     skippedAlreadyChecked = true,
                 )
+            remoteDocument.skipAlreadySynced(syncedSnapshotSlices())
             remoteReadingProgressMerger.merge(remoteDocument, tombstones)
         }.getOrElse { throwable ->
             if (throwable.isMissingRemoteSnapshot()) {
@@ -1753,7 +1808,7 @@ class LibraryViewModel @Inject constructor(
             var created = 0
             var updated = 0
             var skipped = 0
-            for (remote in parsePortableShelves(snapshotJson)) {
+            parsePortableShelves(snapshotJson).forEachMergeChunk { remote ->
                 when (shelfRepository.mergeCloudShelf(remote.toRecord())) {
                     ShelfMergeResult.CREATED -> created += 1
                     ShelfMergeResult.UPDATED -> updated += 1
@@ -1769,7 +1824,7 @@ class LibraryViewModel @Inject constructor(
         runCatchingCancellable {
             var created = 0
             var skipped = 0
-            for (remote in parsePortableShelfMemberships(snapshotJson)) {
+            parsePortableShelfMemberships(snapshotJson).forEachMergeChunk { remote ->
                 when (shelfRepository.mergeCloudMembership(remote.toRecord())) {
                     ShelfMembershipMergeResult.CREATED -> created += 1
                     ShelfMembershipMergeResult.SKIPPED -> skipped += 1
@@ -1785,7 +1840,7 @@ class LibraryViewModel @Inject constructor(
             var created = 0
             var updated = 0
             var skipped = 0
-            for (remote in parsePortableVocabularyCards(snapshotJson)) {
+            parsePortableVocabularyCards(snapshotJson).forEachMergeChunk { remote ->
                 when (vocabularyCardRepository.mergeCloudCard(remote.toRecord())) {
                     VocabularyCardMergeResult.CREATED -> created += 1
                     VocabularyCardMergeResult.UPDATED -> updated += 1
@@ -1801,7 +1856,7 @@ class LibraryViewModel @Inject constructor(
         runCatchingCancellable {
             var created = 0
             var skipped = 0
-            for (remote in parsePortableBookAliases(snapshotJson)) {
+            parsePortableBookAliases(snapshotJson).forEachMergeChunk { remote ->
                 if (tombstoneDao.findBySyncId(remote.syncId) != null || remote.syncId.isBlank() || remote.fileHash.isBlank()) {
                     skipped += 1
                 } else {
@@ -1897,7 +1952,7 @@ class LibraryViewModel @Inject constructor(
         runCatchingCancellable {
             var created = 0
             var skipped = 0
-            for (remote in parsePortableReadingSessions(snapshotJson)) {
+            parsePortableReadingSessions(snapshotJson).forEachMergeChunk { remote ->
                 val record = remote.toRecord().copy(bookFileHash = remote.bookFileHash ?: bookFileHashes[remote.bookSyncId])
                 when (readingSessionRepository.mergeCloudSession(record)) {
                     ReadingSessionMergeResult.CREATED, ReadingSessionMergeResult.UPDATED -> created += 1
@@ -1913,7 +1968,7 @@ class LibraryViewModel @Inject constructor(
         runCatchingCancellable {
             var merged = 0
             var skipped = 0
-            for (remote in parsePortableWordLookupCounters(snapshotJson)) {
+            parsePortableWordLookupCounters(snapshotJson).forEachMergeChunk { remote ->
                 when (wordLookupStatRepository.mergeCloudCounter(remote.toRecord())) {
                     WordLookupCounterMergeResult.MERGED -> merged += 1
                     WordLookupCounterMergeResult.SKIPPED -> skipped += 1
@@ -1930,11 +1985,11 @@ class LibraryViewModel @Inject constructor(
             var updated = 0
             var skipped = 0
             var conflicts = 0
-            for (remote in parsePortableAnnotations(snapshotJson)) {
+            parsePortableAnnotations(snapshotJson).forEachMergeChunk { remote ->
                 val record = remote.toRecord()
                 if (record == null) {
                     skipped += 1
-                    continue
+                    return@forEachMergeChunk
                 }
                 when (annotationRepository.mergeCloudAnnotation(record)) {
                     AnnotationMergeResult.CREATED -> created += 1
@@ -1947,6 +2002,61 @@ class LibraryViewModel @Inject constructor(
         }.getOrElse { throwable ->
             AnnotationMergeSummary(failed = true, failureMessage = throwable.syncFailureMessage())
         }
+
+    /**
+     * Applies [merge] to each record, one transaction per chunk: a transaction per record made merging a large
+     * slice (12k Goodreads quotes) crawl, while bounded chunks keep other writers from waiting long.
+     */
+    private suspend fun <T> List<T>.forEachMergeChunk(merge: suspend (T) -> Unit) {
+        chunked(MergeTransactionChunkSize).forEach { chunk -> syncMergeTransaction.run { chunk.forEach { merge(it) } } }
+    }
+
+    private fun recordFullSyncLog(log: FullSyncLog, outcome: String, result: GitHubSyncNowResult? = null) {
+        if (result is GitHubSyncNowResult.Complete) {
+            log.note(
+                "Result: uploaded=${result.uploaded}, failed=${result.failed}, progressUpdated=${result.progressUpdated}, " +
+                    "cloudBooks=+${result.cloudBooksCreated}/~${result.cloudBooksUpdated}, conflicts=${result.conflicts}, skipped=${result.skipped}",
+            )
+        }
+        diagnosticsLogStore.record(
+            category = DiagnosticCategory.SYNC,
+            source = "FullSync",
+            message = "Full sync $outcome in ${"%.1f".format(Locale.ROOT, log.elapsedMillis / 1000.0)} s",
+            detail = log.text(),
+        )
+    }
+
+    private fun GitHubSyncNowResult.fullSyncOutcome(): String = when (this) {
+        is GitHubSyncNowResult.Complete -> if (isCompleteFullSync()) {
+            "finished"
+        } else {
+            "failed" + (failureMessage?.let { ": ${it.resolve(appContext.resources)}" } ?: "")
+        }
+        is GitHubSyncNowResult.InitialSyncConfirmationRequired -> "stopped for initial sync confirmation"
+        GitHubSyncNowResult.SyncDisabled -> "skipped (sync off)"
+        GitHubSyncNowResult.ConfigIncomplete -> "skipped (settings incomplete)"
+    }
+
+    private fun networkSummary(): String = runCatching {
+        val connectivity = appContext.getSystemService(ConnectivityManager::class.java)
+        val capabilities = connectivity.getNetworkCapabilities(connectivity.activeNetwork)
+            ?: return@runCatching "Network: none"
+        val transport = when {
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+            else -> "other"
+        }
+        "Network: $transport, downKbps=${capabilities.linkDownstreamBandwidthKbps}, " +
+            "validated=${capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)}, " +
+            "metered=${!capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)}"
+    }.getOrElse { "Network: unknown (${it.javaClass.simpleName})" }
+
+    /** The current full sync's log; [syncOperationCoordinator] runs one sync at a time. */
+    private var fullSyncLog: FullSyncLog? = null
+
+    private suspend fun syncedSnapshotSlices(): List<SyncedSnapshotSlice> =
+        syncedSnapshotSliceDao.getAll().map { SyncedSnapshotSlice(it.sliceKey, it.path, it.dataHash) }
 
     /** Removes permanently deleted books' cloud files, now that the snapshot carrying their purge tombstones is published. */
     private suspend fun deletePendingCloudAssets(store: GitHubContentsAssetStore) = withContext(dispatchers.io) {
@@ -1984,6 +2094,7 @@ class LibraryViewModel @Inject constructor(
             val saveAttempt = runCatchingCancellable {
                 val snapshot = snapshotExporter.export()
                     .copy(syncConflicts = latestConflicts)
+                fullSyncLog?.phase("Export local snapshot", "attempt=${attemptIndex + 1}")
                 store.putPortableSnapshotDocuments(
                     snapshot = snapshot,
                     deviceSnapshotPath = syncConfig.deviceSnapshotPath,
@@ -1993,7 +2104,13 @@ class LibraryViewModel @Inject constructor(
                     previous = latestPreviousSnapshot,
                 )
             }
-            saveAttempt.onSuccess { return result(synced = true) }
+            saveAttempt.onSuccess { published ->
+                // Only an optimization for the next sync: losing it just means downloading those slices again.
+                runCatchingCancellable {
+                    syncedSnapshotSliceDao.upsertAll(published.map { SyncedSnapshotSliceEntity(it.key, it.path, it.dataHash) })
+                }
+                return result(synced = true)
+            }
             val throwable = saveAttempt.exceptionOrNull()
             if (throwable?.isGitHubConflict() != true) {
                 return result(
@@ -2011,10 +2128,12 @@ class LibraryViewModel @Inject constructor(
                 )
             }
 
+            fullSyncLog?.note("Snapshot save lost a race (409), rebasing: attempt ${attemptIndex + 1}")
             val currentDocument = runCatchingCancellable { store.getLatestPortableSnapshotDocument() }
                 .getOrElse { refetchFailure ->
                     return result(synced = false, failureMessage = refetchFailure.syncFailureMessage())
                 }
+            currentDocument.skipAlreadySynced(syncedSnapshotSlices())
             currentDocument.prefetch()
             val rebase = mergeRemoteSnapshotForMetadataRebase(currentDocument, store)
             rebaseBooksCreated += rebase.booksCreated
@@ -3251,6 +3370,7 @@ private const val MaxSyncFailureMessageChars = 600
 private const val MaxProgressOnlyPushAttempts = 2
 private const val MaxSnapshotMetadataSaveAttempts = 2
 private const val MaxConcurrentCoverDownloads = 4
+private const val MergeTransactionChunkSize = 500
 private const val GitHubSyncProgressTotalSteps = 5
 private const val CloudBookDownloadProgressTotalSteps = 5
 private const val ProgressPromptPercentEpsilon = 0.001f

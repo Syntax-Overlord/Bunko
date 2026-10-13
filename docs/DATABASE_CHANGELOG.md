@@ -2,6 +2,15 @@
 
 Every bump to `DATABASE_VERSION` (`core/database/.../VayanaDatabase.kt`) gets an entry here and a real Room `Migration`.
 
+## Version 36
+
+Adds `synced_snapshot_slices` (`sliceKey` primary key, `path`, `dataHash`): per slice kind, the published
+snapshot slice file whose records this database already holds, written after a full sync publishes. While the
+latest snapshot still points at that (never rewritten) file, a full sync neither downloads nor merges it, and the
+publish reuses it when the local records still hash to `dataHash`. Migration 35→36 creates the empty table, so the
+first sync after updating downloads every slice once. Kept in the database so a restored backup carries marks
+that match its own records; excluded from portable snapshots.
+
 ## Version 35
 
 Shrinks the EPUB content index, which held each passage's plain text in `epub_passages` (overlapping chunks) plus
