@@ -3,6 +3,7 @@
 - Stop sync when a snapshot references a missing cloud slice, preserving the cloud snapshot instead of treating the missing records as empty.
 - Block scripts embedded in EPUB book resources from reaching reader controls, and ignore malformed reader bridge events.
 - Reject community-quote slices exceeding the reader's 16 MiB expansion limit before writing any cloud snapshot files.
+- Back up a consistent private database snapshot, including committed WAL changes, so concurrent reading and sync writes cannot mix database states in an archive.
 
 - Resolve saved cover paths in Stats through the shared library path resolver so reading-record covers display correctly.
 - Add reading records to Stats with covers, book details, start/finish dates and accumulated recorded time, including physical books still in progress. Tap a record to open Book details.

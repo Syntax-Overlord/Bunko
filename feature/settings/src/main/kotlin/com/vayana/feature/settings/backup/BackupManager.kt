@@ -57,19 +57,23 @@ class BackupManager @Inject constructor(
 
     suspend fun createBackup(destination: Uri): BackupOutcome = withContext(dispatchers.io) {
         operationMutex.withLock {
+            var databaseSnapshot: File? = null
             try {
-                checkpointDatabase()
+                val liveDatabase = database.openHelper.writableDatabase
                 failUnless(
                     context.getDatabasePath(DatabaseFileName).isFile,
                     R.string.settings_error_could_not_find_app_database,
                 )
+                val snapshot = File.createTempFile("vayana-backup-", ".db", context.cacheDir)
+                databaseSnapshot = snapshot
+                createDatabaseBackupSnapshot(liveDatabase, snapshot)
                 val output = context.contentResolver.openOutputStream(destination)
                     ?: return@withContext BackupOutcome.Failed(UiText.Res(R.string.settings_error_could_not_open_selected_location))
                 output.use {
                     ZipOutputStream(BufferedOutputStream(it)).use { zip ->
                         writeManifest(zip)
                         writeSettings(zip)
-                        writeFile(zip, context.getDatabasePath(DatabaseFileName), "database/$DatabaseFileName")
+                        writeFile(zip, snapshot, "database/$DatabaseFileName")
                         writeDirectory(zip, storageRoots.booksDir, "books")
                         writeDirectory(zip, storageRoots.coversDir, "covers")
                     }
@@ -81,6 +85,8 @@ class BackupManager @Inject constructor(
             } catch (throwable: Throwable) {
                 runCatchingCancellable { context.contentResolver.delete(destination, null, null) }
                 BackupOutcome.Failed(throwable.uiText(R.string.settings_error_backup_failed))
+            } finally {
+                databaseSnapshot?.delete()
             }
         }
     }
@@ -302,19 +308,6 @@ class BackupManager @Inject constructor(
     }
 
     private fun File.restoreBackupSibling(): File = File(parentFile, "$name.restore-bak")
-
-    private fun checkpointDatabase() {
-        val dbFile = context.getDatabasePath(DatabaseFileName)
-        if (!dbFile.isFile) return
-        SQLiteDatabase.openDatabase(dbFile.path, null, SQLiteDatabase.OPEN_READWRITE).use { db ->
-            db.rawQuery("PRAGMA wal_checkpoint(FULL)", null).use { cursor ->
-                failUnless(
-                    cursor.moveToFirst() && cursor.getInt(0) == 0,
-                    R.string.settings_error_could_not_save_pending_database_changes,
-                )
-            }
-        }
-    }
 
     private fun writeManifest(zip: ZipOutputStream) {
         val json = JSONObject().apply {
