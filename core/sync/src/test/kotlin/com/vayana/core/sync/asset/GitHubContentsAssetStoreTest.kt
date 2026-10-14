@@ -456,7 +456,7 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
-    fun remotePortableSnapshotSkipsMissingSlices() = runBlocking {
+    fun remotePortableSnapshotFailsWhenAReferencedSliceIsMissing() = runBlocking {
         val manifest = """
             {
               "books":[{"syncId":"book-a"}],
@@ -489,8 +489,43 @@ class GitHubContentsAssetStoreTest {
 
         assertEquals(true, document.sliced)
         assertEquals(manifest, document.jsonFor(RemotePortableSnapshotSlice.Books))
-        assertEquals(manifest, document.jsonFor(RemotePortableSnapshotSlice.Annotations))
+        val failure = assertNotNull(document.prefetch())
+        assertEquals(404, (failure as GitHubAssetStoreException).statusCode)
+        assertFailsWith<GitHubAssetStoreException> {
+            document.jsonFor(RemotePortableSnapshotSlice.Annotations)
+        }
         assertEquals(readingSessions, document.jsonFor(RemotePortableSnapshotSlice.ReadingSessions))
+    }
+
+    @Test
+    fun optionalSliceAbsentFromManifestStillFallsBackToManifest() = runBlocking {
+        val manifest = """{"books":[],"annotations":[]}"""
+        val document = remotePortableSnapshotDocumentFrom(manifest, ExistingSha, emptyMap()) {
+            error("An absent optional slice must not be downloaded")
+        }
+
+        assertEquals(null, document.prefetch())
+        assertEquals(manifest, document.jsonFor(RemotePortableSnapshotSlice.CommunityQuotes))
+    }
+
+    @Test
+    fun progressPushDoesNotWriteWhenAReferencedSessionSliceIsMissing() = runBlocking {
+        val path = "vayana/snapshot-slices/1000/reading-sessions.json"
+        val manifest = """{"books":[],"slices":{"readingSessions":"$path"}}"""
+        val document = remotePortableSnapshotDocumentFrom(manifest, ExistingSha, mapOf("readingSessions" to path)) {
+            throw GitHubAssetStoreException("Missing session slice", 404, "Not Found")
+        }
+        val client = RecordingGitHubHttpClient()
+
+        assertFailsWith<GitHubAssetStoreException> {
+            testStore(client).pushPortableReadingProgress(
+                remote = document,
+                patches = emptyList(),
+                exportedAt = 2000,
+                readingSessions = listOf(PortableReadingSession("session-1", "book-1", 1, 61, 60)),
+            )
+        }
+        assertTrue(client.requests.isEmpty())
     }
 
     @Test

@@ -17,7 +17,6 @@ import com.vayana.core.backup.toSlicedJsonDocuments
 import com.vayana.core.database.model.isCommunityQuoteLocator
 import com.vayana.core.diagnostics.DiagnosticCategory
 import com.vayana.core.diagnostics.DiagnosticsLogStore
-import com.vayana.core.sync.asset.GitHubAssetStoreException
 import com.vayana.core.sync.asset.GitHubContentsAssetStore
 import com.vayana.core.sync.asset.SyncDocumentChange
 import java.util.concurrent.ConcurrentHashMap
@@ -36,7 +35,8 @@ import kotlinx.coroutines.sync.withLock
 /**
  * The latest snapshot pointer plus lazy access to its slices. A slice is downloaded the first time someone
  * asks for it, so a caller that only needs positions (the manifest's "books") never pays for annotations or
- * sessions. A missing (404) slice falls back to the manifest text, as before.
+ * sessions. A slice absent from the manifest falls back to the manifest text; a referenced file that cannot be
+ * downloaded fails the sync, so it cannot be published as empty data.
  */
 class RemotePortableSnapshotDocument internal constructor(
     val jsonText: String,
@@ -49,7 +49,6 @@ class RemotePortableSnapshotDocument internal constructor(
     constructor(jsonText: String, sha: String, sliced: Boolean) : this(jsonText, sha, sliced, emptyMap())
 
     private val loadedSlices = ConcurrentHashMap(sliceJsonByKey)
-    private val missingSlices: MutableSet<String> = ConcurrentHashMap.newKeySet()
     private val sliceLocks = ConcurrentHashMap<String, Mutex>()
     private val alreadySyncedHashes = ConcurrentHashMap<String, String>()
 
@@ -68,13 +67,13 @@ class RemotePortableSnapshotDocument internal constructor(
     /** True when the snapshot still points at the file this device last synced for [key]. */
     fun isAlreadySynced(key: String): Boolean = alreadySyncedHashes.containsKey(key)
 
-    /** The slice's records to merge; empty (the manifest) for a missing slice or one already synced here. */
+    /** The slice's records to merge; the manifest for a slice absent from it or one already synced here. */
     suspend fun jsonFor(slice: RemotePortableSnapshotSlice): String =
         if (alreadySyncedHashes.containsKey(slice.key)) jsonText else sliceJsonOrNull(slice.key) ?: jsonText
 
     /**
      * Downloads the given slices concurrently, for callers about to read most of them, and returns the first
-     * failure (null when every slice loaded or is gone). Callers stop on a failure rather than read on: a later
+     * failure (null when every referenced slice loaded). Callers stop on a failure rather than read on: a later
      * [jsonFor] would retry the download outside their error handling, and merging only some slices before
      * publishing would push a snapshot missing what failed to arrive.
      */
@@ -97,18 +96,14 @@ class RemotePortableSnapshotDocument internal constructor(
                 .firstOrNull { it != null }
         }
 
-    /** The slice's own document, or null when this snapshot has no such slice or it is gone (404). */
+    /** The slice's own document, or null when this snapshot has no such slice. Download failures propagate. */
     internal suspend fun sliceJsonOrNull(key: String): String? {
         loadedSlices[key]?.let { return it }
-        if (key in missingSlices) return null
         val loader = loadSlice ?: return null
         val path = slicePaths[key] ?: return null
         return sliceLocks.computeIfAbsent(key) { Mutex() }.withLock {
             loadedSlices[key]?.let { return@withLock it }
-            if (key in missingSlices) return@withLock null
-            val json = loadSnapshotSliceOrNull(path, loader)
-            if (json == null) missingSlices += key else loadedSlices[key] = json
-            json
+            loader(path).also { loadedSlices[key] = it }
         }
     }
 
@@ -288,13 +283,6 @@ internal object SnapshotSliceCache {
         totalChars = 0
     }
 }
-
-private suspend fun loadSnapshotSliceOrNull(path: String, loadSlice: suspend (String) -> String): String? =
-    try {
-        loadSlice(path)
-    } catch (throwable: GitHubAssetStoreException) {
-        if (throwable.statusCode == 404) null else throw throwable
-    }
 
 data class PortableReadingProgressPushResult(
     val patched: Int = 0,

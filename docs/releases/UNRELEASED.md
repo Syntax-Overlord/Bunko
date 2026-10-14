@@ -1,5 +1,7 @@
 # Unreleased
 
+- Stop sync when a snapshot references a missing cloud slice, preserving the cloud snapshot instead of treating the missing records as empty.
+
 - Resolve saved cover paths in Stats through the shared library path resolver so reading-record covers display correctly.
 - Add reading records to Stats with covers, book details, start/finish dates and accumulated recorded time, including physical books still in progress. Tap a record to open Book details.
 - Record a finish date when a physical or other page-tracked offline book is added at its final page, so yearly books-read statistics include it. Explicit finish dates remain unchanged.
