@@ -8,6 +8,16 @@ import org.junit.jupiter.api.Test
 
 class SearchTextTest {
     @Test
+    fun longPastedQueriesKeepTheEightWordLimitAcrossPhrases() {
+        val prefix = "one two three four five six seven eight"
+        val trailing = " trailing".repeat(20_000)
+        assertEquals(prefix.split(' '), searchTokens(prefix + trailing))
+        assertEquals("one* two* three* four* five* six* seven* eight*",
+            ftsSearchMatch(prefix + " \"unused phrase\"".repeat(1_000)))
+        assertEquals("\"one two three four five six seven eight\"", ftsSearchMatch("\"$prefix$trailing\""))
+    }
+
+    @Test
     fun quotesBuildExactPhrasesAlongsideOrdinaryPrefixes() {
         assertEquals("\"river boat\" tolk*", ftsSearchMatch("\"River boat\" Tolk"))
         assertEquals("\"river boat\" \"moon light\"", ftsSearchMatch("\"river boat\" \"moon light\""))

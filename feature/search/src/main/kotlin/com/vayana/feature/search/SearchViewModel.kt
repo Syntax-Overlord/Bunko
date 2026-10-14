@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -108,9 +109,10 @@ class SearchViewModel @Inject constructor(
     init { contentIndex.start() }
     private val query = MutableStateFlow("")
     private val scope = MutableStateFlow(SearchScope())
-    private val scopeOptions = combine(resolvedBooks.all, shelfRepository.observeAll()) { books, shelves ->
-        books.sortedBy { it.title.lowercase() } to shelves
-    }
+    private val scopeOptions = combine(
+        resolvedBooks.all.map { books -> books.sortedBy { it.title.lowercase() } },
+        shelfRepository.observeAll(),
+    ) { books, shelves -> books to shelves }.flowOn(dispatchers.default)
     private val filter = MutableStateFlow(SearchFilter.ALL)
 
     // Matching runs in SQLite FTS; only the capped result rows are joined with books and checked here.
@@ -118,7 +120,8 @@ class SearchViewModel @Inject constructor(
         .debounce { (text, _) -> if (text.isEmpty()) 0L else SearchDebounceMillis }
         .distinctUntilChanged()
         .flatMapLatest { (text, scope) ->
-            if (searchTokens(text).isEmpty()) {
+            val tokens = searchTokens(text)
+            if (tokens.isEmpty()) {
                 flowOf(SearchResults(query = text, scope = scope))
             } else {
                 combine(
@@ -129,10 +132,10 @@ class SearchViewModel @Inject constructor(
                 ) { bookIds, annotations, books, content ->
                     val byId = books.associateBy { it.id }
                     val chapters = chapterTexts(content.map { it.chapterId })
-                    searchResults(text, bookIds, annotations, books).copy(scope = scope, passages = content.mapNotNull { passage ->
+                    searchResults(text, bookIds, annotations, books, tokens).copy(scope = scope, passages = content.mapNotNull { passage ->
                         val book = byId[passage.bookId] ?: return@mapNotNull null
                         val chapter = chapters[passage.chapterId] ?: return@mapNotNull null
-                        val excerpt = passageExcerpt(chapter.substring(passage.startOffset, passage.endOffset), searchTokens(text))
+                        val excerpt = passageExcerpt(chapter.substring(passage.startOffset, passage.endOffset), tokens)
                         BookContentResult(passage.id, book, passage.chapterTitle, excerpt,
                             "text:search:${android.net.Uri.encode(passage.chapterHref)}:${android.net.Uri.encode(excerpt)}")
                     })
@@ -213,8 +216,8 @@ internal fun searchResults(
     bookIds: List<Long>,
     annotations: List<Annotation>,
     books: List<Book>,
+    tokens: List<String> = searchTokens(text),
 ): SearchResults {
-    val tokens = searchTokens(text)
     val booksById = books.associateBy { it.id }
     return SearchResults(
         query = text,

@@ -634,17 +634,28 @@ private const val MaxVisibleMatchChips = 3
 private fun SearchScopeChips(state: GlobalSearchUiState, onChange: (SearchScope) -> Unit) {
     var choosingBook by remember { androidx.compose.runtime.mutableStateOf<Boolean?>(null) }
     var selectionQuery by remember { androidx.compose.runtime.mutableStateOf("") }
+    val bookTitle = remember(state.availableBooks, state.scope.bookId) {
+        state.availableBooks.find { it.id == state.scope.bookId }?.title
+    }
+    val shelfName = remember(state.availableShelves, state.scope.shelfId) {
+        state.availableShelves.find { it.id == state.scope.shelfId }?.name
+    }
     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
         FilterChip(selected = state.scope.bookId != null, onClick = { selectionQuery = ""; choosingBook = true },
-            label = { Text(state.availableBooks.find { it.id == state.scope.bookId }?.title ?: stringResource(R.string.search_all_books),
+            label = { Text(bookTitle ?: stringResource(R.string.search_all_books),
                 maxLines = 1, overflow = TextOverflow.Ellipsis) }, modifier = Modifier.weight(1f))
         FilterChip(selected = state.scope.shelfId != null, onClick = { selectionQuery = ""; choosingBook = false },
-            label = { Text(state.availableShelves.find { it.id == state.scope.shelfId }?.name ?: stringResource(R.string.search_all_shelves),
+            label = { Text(shelfName ?: stringResource(R.string.search_all_shelves),
                 maxLines = 1, overflow = TextOverflow.Ellipsis) }, modifier = Modifier.weight(1f))
     }
     choosingBook?.let { book ->
         val allLabel = stringResource(if (book) R.string.search_all_books else R.string.search_all_shelves)
-        val choices = if (book) state.availableBooks.map { it.id to it.title } else state.availableShelves.map { it.id to it.name }
+        val choices = remember(book, state.availableBooks, state.availableShelves) {
+            if (book) state.availableBooks.map { it.id to it.title } else state.availableShelves.map { it.id to it.name }
+        }
+        val visibleChoices = remember(choices, selectionQuery) {
+            choices.filter { it.second.contains(selectionQuery, ignoreCase = true) }
+        }
         fun select(id: Long?) {
             onChange(if (book) state.scope.copy(bookId = id) else state.scope.copy(shelfId = id))
             choosingBook = null
@@ -658,7 +669,7 @@ private fun SearchScopeChips(state: GlobalSearchUiState, onChange: (SearchScope)
                         label = { Text(stringResource(R.string.search_title)) })
                     LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
                         item { TextButton(onClick = { select(null) }) { Text(allLabel) } }
-                        items(choices.filter { it.second.contains(selectionQuery, ignoreCase = true) }, key = { it.first }) { (id, label) ->
+                        items(visibleChoices, key = { it.first }) { (id, label) ->
                             TextButton(onClick = { select(id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
                         }
                     }

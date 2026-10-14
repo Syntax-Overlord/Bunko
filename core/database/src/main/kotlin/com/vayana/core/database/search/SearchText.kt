@@ -2,7 +2,7 @@ package com.vayana.core.database.search
 
 /** Words typed into search, lower-cased. Punctuation - including FTS syntax like `"`, `-`, `*` - is dropped. */
 fun searchTokens(text: String): List<String> =
-    text.lowercase().split(NonWordChars).filter { it.isNotEmpty() }.take(MaxSearchTokens)
+    text.lowercase().splitToSequence(NonWordChars).filter { it.isNotEmpty() }.take(MaxSearchTokens).toList()
 
 /**
  * FTS MATCH expression: every word must appear, each as a word prefix ("tolk" finds "Tolkien"). Tokens are
@@ -15,12 +15,15 @@ fun ftsPrefixMatch(tokens: List<String>): String? =
 fun ftsSearchMatch(text: String): String? {
     val sections = text.split('"')
     var remaining = MaxSearchTokens
-    val expressions = sections.mapIndexedNotNull { index, section ->
-        val words = searchTokens(section).take(remaining)
-        remaining -= words.size
-        if (words.isEmpty()) null
-        else if (index % 2 == 1 && index < sections.lastIndex) words.joinToString(" ", "\"", "\"")
-        else ftsPrefixMatch(words)
+    val expressions = buildList {
+        for ((index, section) in sections.withIndex()) {
+            if (remaining == 0) break
+            val words = searchTokens(section).take(remaining)
+            remaining -= words.size
+            if (words.isEmpty()) continue
+            add(if (index % 2 == 1 && index < sections.lastIndex) words.joinToString(" ", "\"", "\"")
+                else requireNotNull(ftsPrefixMatch(words)))
+        }
     }
     return expressions.takeIf { it.isNotEmpty() }?.joinToString(" ")
 }

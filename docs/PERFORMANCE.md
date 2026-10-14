@@ -1,5 +1,16 @@
 # Performance experiments
 
+## Search query processing — 2026-10-14
+
+The tokenizer now stops splitting after eight useful words. A controlled JVM comparison used an eight-word
+query followed by 20,000 trailing words, ten warm-up iterations and five batches of 30 calls. The median
+batch fell from 102.37 ms to 3.03 ms (33.8×); this is parser time for a large pasted query, not phone latency.
+Phrase processing also stops when the shared word budget is exhausted.
+
+Search reuses query tokens for field matches and all 60 possible content excerpts. Scope options are sorted
+on the background dispatcher only when the book stream changes, rather than also on shelf updates.
+Selector labels, choice lists and filtered choices are remembered until their inputs change.
+
 ## Automatic notebook file comparisons — 2026-10-14
 
 Automatic refreshes cache SHA-256 hashes only after a successful file comparison or write. A controlled test
