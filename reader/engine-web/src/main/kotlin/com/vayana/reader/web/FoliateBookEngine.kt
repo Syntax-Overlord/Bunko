@@ -143,7 +143,7 @@ class FoliateBookEngine(private val webView: WebView, context: Context) : BookEn
                 null,
                 200,
                 "OK",
-                mapOf("Cache-Control" to "no-store"),
+                BookResourceHeaders,
                 bytes.inputStream(),
             )
         }
@@ -152,7 +152,7 @@ class FoliateBookEngine(private val webView: WebView, context: Context) : BookEn
             val stream = runCatching {
                 openBookZip()?.let { zip -> zip.getEntry(entryName)?.let(zip::getInputStream) }
             }.getOrNull() ?: return@addPathHandler null
-            WebResourceResponse(mimeType, null, 200, "OK", mapOf("Cache-Control" to "no-store"), stream)
+            WebResourceResponse(mimeType, null, 200, "OK", BookResourceHeaders, stream)
         }
         .addPathHandler("/fonts/") { path -> serveFont(path) }
         .build()
@@ -571,7 +571,7 @@ class FoliateBookEngine(private val webView: WebView, context: Context) : BookEn
     private inner class JsBridge {
         @JavascriptInterface
         fun onEvent(type: String, jsonPayload: String) {
-            webView.post { handleEvent(type, JSONObject(jsonPayload)) }
+            webView.post { withBridgeEventPayload(jsonPayload) { handleEvent(type, it) } }
         }
 
         /** Metadata only: bridge.js uses it to expose PDFs as a range-backed file without copying their bytes. */

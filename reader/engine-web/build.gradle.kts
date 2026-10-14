@@ -13,6 +13,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
 
     testImplementation(libs.junit5.jupiter)
+    testImplementation(libs.org.json)
     testRuntimeOnly(libs.junit5.platform.launcher)
 }
 
