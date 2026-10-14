@@ -17,6 +17,7 @@ import dagger.hilt.android.EntryPointAccessors
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.io.Reader
+import com.vayana.core.database.model.Annotation
 import com.vayana.core.database.model.Book
 import java.util.UUID
 import java.util.concurrent.TimeUnit
@@ -87,15 +88,19 @@ class AutomaticNotebookExport @Inject constructor(
             val notebooks = annotations.observeAll().first().filterNot { it.isDeleted }.groupBy { it.bookId }
             // DocumentFile.findFile lists the entire directory. Inventory it once, instead of once per book.
             val files = destination.listFiles().associateBy { it.name }
+            val activeNames = mutableSetOf<String>()
             for ((id, book) in library) {
                 currentCoroutineContext().ensureActive()
                 val notes = notebooks[id].orEmpty()
                 val identity = notebookIdentity(book.syncId)
                 val name = "book-$identity.md"
+                activeNames.add(name)
                 val marker = "<!-- Vayana generated notebook: $identity -->"
                 val existing = files[name]
                 if (existing == null) exportedHashes.forget(name)
                 if (notes.isEmpty() && existing == null) continue
+                // Only successful exports are remembered; missing files and reconciliation still regenerate.
+                if (!reconcile && existing != null && exportedHashes.inputsUnchanged(name, book, notes)) continue
                 val content = "$marker\n" + highlightsMarkdown(book, notes)
                 val contentHash = Hashing.sha256(content.toByteArray(Charsets.UTF_8))
                 val unchanged = existing?.let { file ->
@@ -106,7 +111,10 @@ class AutomaticNotebookExport @Inject constructor(
                         }
                     }
                 } ?: false
-                if (unchanged) continue
+                if (unchanged) {
+                    exportedHashes.recordInputs(name, book, notes)
+                    continue
+                }
                 val staged = requireNotNull(destination.createFile("text/markdown", ".vayana-${UUID.randomUUID()}.md"))
                 try {
                     requireNotNull(context.contentResolver.openOutputStream(staged.uri, "wt")).bufferedWriter().use { it.write(content) }
@@ -121,11 +129,13 @@ class AutomaticNotebookExport @Inject constructor(
                         existing.delete()
                     }
                     exportedHashes.record(name, contentHash)
+                    exportedHashes.recordInputs(name, book, notes)
                 } finally {
                     // After a successful rename this wrapper points at the final notebook.
                     if (staged.name != name) staged.delete()
                 }
             }
+            exportedHashes.retain(activeNames)
             _status.value = NotebookExportStatus.DONE
             true
         } catch (cancelled: CancellationException) { throw cancelled }
@@ -143,16 +153,26 @@ internal fun notebookMetadata(book: Book) = BookNotebookFields(book.id, book.syn
 /** Only successfully written or compared files are remembered; failed reconciliation invalidates old entries. */
 internal class NotebookExportHashes {
     private val hashes = mutableMapOf<String, String>()
+    private val inputs = mutableMapOf<String, Pair<BookNotebookFields, List<Annotation>>>()
+
+    fun inputsUnchanged(name: String, book: Book, notes: List<Annotation>): Boolean =
+        inputs[name]?.let { it.first == notebookMetadata(book) && it.second == notes } == true
+
+    fun recordInputs(name: String, book: Book, notes: List<Annotation>) {
+        inputs[name] = notebookMetadata(book) to notes.toList()
+    }
+
+    fun retain(names: Set<String>) { hashes.keys.retainAll(names); inputs.keys.retainAll(names) }
 
     fun isUnchanged(name: String, contentHash: String, reconcile: Boolean, matchesExisting: () -> Boolean): Boolean {
         if (!reconcile && hashes[name] == contentHash) return true
-        hashes.remove(name)
+        forget(name)
         return matchesExisting().also { matches -> if (matches) record(name, contentHash) }
     }
 
     fun record(name: String, contentHash: String) { hashes[name] = contentHash }
-    fun forget(name: String) { hashes.remove(name) }
-    fun clear() { hashes.clear() }
+    fun forget(name: String) { hashes.remove(name); inputs.remove(name) }
+    fun clear() { hashes.clear(); inputs.clear() }
 }
 
 /** Check ownership first, then compare in fixed-size buffers rather than loading another notebook-sized string. */
