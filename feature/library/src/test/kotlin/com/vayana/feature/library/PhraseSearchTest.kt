@@ -10,6 +10,7 @@ import com.vayana.core.database.repository.AnnotationRepositoryImpl
 import com.vayana.core.database.search.ftsSearchMatch
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import kotlin.test.*
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -54,6 +55,38 @@ class PhraseSearchTest {
         })
         val hits = db.epubPassageDao().search(requireNotNull(ftsSearchMatch("\"river boat\" dawn")), 10).first()
         assertEquals(listOf("0.xhtml"), hits.map { it.chapterHref })
+    }
+
+    @Test fun scopesApplyBeforeLimitsToBooksNotesAndContent() = runBlocking {
+        val outside = book("river boat outside", "EPUB")
+        val target = book("river boat target", "EPUB")
+        val shelf = db.shelfDao().insert(com.vayana.core.database.entity.ShelfEntity(name = "Favorites", createdAt = 1, updatedAt = 1))
+        db.shelfDao().addBookToShelf(com.vayana.core.database.entity.BookShelfCrossRefEntity(target, shelf))
+        val targetNote = annotation(target, "river boat")
+        repeat(5) { annotation(outside, "river boat") }
+        for (id in listOf(outside, target)) {
+            val title = if (id == outside) "river boat outside" else "river boat target"
+            db.epubPassageDao().replace(id, "hash-$title", sequenceOf(EpubChapterText("1.xhtml", "Chapter", "river boat", listOf(0..9))))
+        }
+        val match = requireNotNull(ftsSearchMatch("\"river boat\""))
+        assertEquals(listOf(outside), db.bookDao().observeSearchIds(match, 1).first())
+        for ((bookId, shelfId) in listOf(target to null, null to shelf, target to shelf)) {
+            assertEquals(listOf(target), db.bookDao().observeSearchIds(match, 1, bookId, shelfId).first())
+            assertEquals(listOf(targetNote), db.annotationDao().observeSearch(match, 1, bookId, shelfId).first().map { it.id })
+            assertEquals(listOf(target), db.epubPassageDao().search(match, 1, bookId, shelfId).first().map { it.bookId })
+        }
+        assertTrue(db.bookDao().observeSearchIds(match, 1, outside, shelf).first().isEmpty())
+        assertTrue(db.annotationDao().observeSearch(match, 1, outside, shelf).first().isEmpty())
+        assertTrue(db.epubPassageDao().search(match, 1, outside, shelf).first().isEmpty())
+        val updates = kotlinx.coroutines.channels.Channel<List<com.vayana.core.database.dao.EpubPassageHit>>()
+        val collector = launch {
+            db.epubPassageDao().search(match, 1, shelfId = shelf).collect { updates.send(it) }
+        }
+        try {
+            assertEquals(listOf(target), kotlinx.coroutines.withTimeout(10_000) { updates.receive() }.map { it.bookId })
+            db.shelfDao().removeBookFromShelf(target, shelf)
+            assertTrue(kotlinx.coroutines.withTimeout(10_000) { updates.receive() }.isEmpty())
+        } finally { collector.cancel(); updates.cancel() }
     }
 
     private suspend fun book(title: String, format: String = "PHYSICAL") = db.bookDao().insert(BookEntity(

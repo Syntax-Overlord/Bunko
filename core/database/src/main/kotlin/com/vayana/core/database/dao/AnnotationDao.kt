@@ -78,9 +78,11 @@ interface AnnotationDao {
             "JOIN annotations_fts ON annotations.id = annotations_fts.rowid " +
             "JOIN books ON books.id = annotations.bookId " +
             "WHERE annotations_fts MATCH :match AND annotations.isDeleted = 0 AND books.isDeleted = 0 " +
+            "AND (:bookId IS NULL OR books.id = :bookId) " +
+            "AND (:shelfId IS NULL OR EXISTS (SELECT 1 FROM book_shelf_cross_ref s WHERE s.bookId = books.id AND s.shelfId = :shelfId)) " +
             "ORDER BY annotations.updatedAt DESC LIMIT :limit",
     )
-    fun observeSearch(match: String, limit: Int): Flow<List<AnnotationEntity>>
+    fun observeSearch(match: String, limit: Int, bookId: Long? = null, shelfId: Long? = null): Flow<List<AnnotationEntity>>
 
     /** Personal annotations: everything but community quotes (same prefixes as isCommunityQuoteLocator). */
     @Query("SELECT * FROM annotations WHERE NOT (locator GLOB 'quote:*' OR locator GLOB 'goodreads-quote:*') ORDER BY syncId ASC")

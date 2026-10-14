@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -39,7 +40,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -94,6 +97,7 @@ fun SearchRoute(
         searchText = viewModel.searchText,
         onQueryChange = viewModel::updateQuery,
         onFilterChange = viewModel::updateFilter,
+        onScopeChange = viewModel::updateScope,
         onSubmitSearch = viewModel::recordSearch,
         onUseRecentSearch = viewModel::updateQuery,
         onClearRecentSearches = viewModel::clearRecentSearches,
@@ -121,6 +125,7 @@ private fun SearchScreen(
     onOpenBook: (Long) -> Unit,
     onOpenReader: (Long, String?) -> Unit,
     onFilterChange: (SearchFilter) -> Unit,
+    onScopeChange: (SearchScope) -> Unit,
     onSubmitSearch: () -> Unit,
     onUseRecentSearch: (String) -> Unit,
     onClearRecentSearches: () -> Unit,
@@ -192,6 +197,7 @@ private fun SearchScreen(
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { onSubmitSearch() }),
                     )
+                    SearchScopeChips(uiState, onScopeChange)
                     if (indexProgress.running) Text(stringResource(R.string.search_indexing, indexProgress.done, indexProgress.total), style = MaterialTheme.typography.bodySmall)
                     if (indexProgress.failures > 0 && !indexProgress.running) Row {
                         Text(stringResource(R.string.search_index_errors, indexProgress.failures))
@@ -623,3 +629,42 @@ private fun AnnotationType.label(): String = when (this) {
 
 private const val SearchFieldUnfocusedBorderAlpha = 0.35f
 private const val MaxVisibleMatchChips = 3
+
+@Composable
+private fun SearchScopeChips(state: GlobalSearchUiState, onChange: (SearchScope) -> Unit) {
+    var choosingBook by remember { androidx.compose.runtime.mutableStateOf<Boolean?>(null) }
+    var selectionQuery by remember { androidx.compose.runtime.mutableStateOf("") }
+    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        FilterChip(selected = state.scope.bookId != null, onClick = { selectionQuery = ""; choosingBook = true },
+            label = { Text(state.availableBooks.find { it.id == state.scope.bookId }?.title ?: stringResource(R.string.search_all_books),
+                maxLines = 1, overflow = TextOverflow.Ellipsis) }, modifier = Modifier.weight(1f))
+        FilterChip(selected = state.scope.shelfId != null, onClick = { selectionQuery = ""; choosingBook = false },
+            label = { Text(state.availableShelves.find { it.id == state.scope.shelfId }?.name ?: stringResource(R.string.search_all_shelves),
+                maxLines = 1, overflow = TextOverflow.Ellipsis) }, modifier = Modifier.weight(1f))
+    }
+    choosingBook?.let { book ->
+        val allLabel = stringResource(if (book) R.string.search_all_books else R.string.search_all_shelves)
+        val choices = if (book) state.availableBooks.map { it.id to it.title } else state.availableShelves.map { it.id to it.name }
+        fun select(id: Long?) {
+            onChange(if (book) state.scope.copy(bookId = id) else state.scope.copy(shelfId = id))
+            choosingBook = null
+        }
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { choosingBook = null },
+            title = { Text(stringResource(if (book) R.string.search_choose_book else R.string.search_choose_shelf)) },
+            text = {
+                Column {
+                    OutlinedTextField(value = selectionQuery, onValueChange = { selectionQuery = it }, singleLine = true,
+                        label = { Text(stringResource(R.string.search_title)) })
+                    LazyColumn(modifier = Modifier.heightIn(max = 320.dp)) {
+                        item { TextButton(onClick = { select(null) }) { Text(allLabel) } }
+                        items(choices.filter { it.second.contains(selectionQuery, ignoreCase = true) }, key = { it.first }) { (id, label) ->
+                            TextButton(onClick = { select(id) }, modifier = Modifier.fillMaxWidth()) { Text(label) }
+                        }
+                    }
+                }
+            },
+            confirmButton = {},
+        )
+    }
+}

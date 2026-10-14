@@ -120,6 +120,10 @@ ZIP reads, XML steps and chapters, so a canceled indexing run does not finish de
 `core/database/.../entity/SearchFtsEntities.kt`, `BookDao.observeSearchIds`, `AnnotationDao.observeSearch`,
 `core/filesystem/.../ResolvedBooks.kt`. Opened from the search icon in the Library top bar (`SearchRoute`).
 
+**Scope:** The book and shelf selectors narrow titles, notes and EPUB content in SQL before result limits.
+Both selectors together mean the selected book must belong to the selected shelf. Clear either selector with
+“All books” or “All shelves”; the selector lists can be searched. Shelf membership changes refresh results.
+
 **Matching (SQLite FTS, DB v18):**
 - `books_fts` indexes title, author, series, series number, tags and description; `annotations_fts` indexes
   highlighted text, note and chapter title (FTS4, `unicode61` tokenizer). `annotations_fts` is Room's
@@ -512,3 +516,11 @@ Everything here applies when Appearance → Display profile is E-Ink; the reader
 - Not yet for PDFs: bionic reading, overlapping highlight merging, community (Goodreads) quotes, JPEG 2000 images.
 - Code: `:format:pdf` (`PdfParser`, `PdfInfoReader`), `feature/library/BookFileMetadata.kt`, `OpenBook.fixedLayout`,
   bridge.js `fixedLayout` paths, vendored `foliate/pdf.js` + `fixed-layout.js` + `vendor/pdfjs/`.
+
+## Local backup content
+
+Backups capture the committed database and WAL under a short write lock, then checkpoint the private copy.
+Only that copy loses the disposable EPUB chapters, passage offsets, staged text and FTS index. Its empty
+index schema and Room identity remain valid; VACUUM removes unused pages before ZIP creation. Personal
+notes, reading progress, ratings, shelves and other records stay in the backup. The live EPUB index stays
+available, and a restored library rebuilds its content index when global search starts.

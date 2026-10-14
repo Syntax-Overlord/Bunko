@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_all_books">All books</string>
+    <string name="search_all_shelves">All shelves</string>
+    <string name="search_choose_book">Choose a book</string>
+    <string name="search_choose_shelf">Choose a shelf</string>
+</resources>

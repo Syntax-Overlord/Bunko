@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_all_books">அனைத்து புத்தகங்கள்</string>
+    <string name="search_all_shelves">அனைத்து அலமாரிகள்</string>
+    <string name="search_choose_book">புத்தகத்தைத் தேர்ந்தெடு</string>
+    <string name="search_choose_shelf">அலமாரியைத் தேர்ந்தெடு</string>
+</resources>

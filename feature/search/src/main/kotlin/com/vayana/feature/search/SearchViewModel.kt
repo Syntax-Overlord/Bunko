@@ -6,6 +6,8 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vayana.core.database.model.Annotation
+import com.vayana.core.database.model.Shelf
+import com.vayana.core.database.repository.ShelfRepository
 import com.vayana.core.database.model.Book
 import com.vayana.core.database.repository.AnnotationRepository
 import com.vayana.core.database.repository.BookRepository
@@ -25,7 +27,6 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import com.vayana.core.datastore.settings.SettingsRepository
@@ -43,6 +44,9 @@ data class GlobalSearchUiState(
     /** Words of the query the results were found for, to highlight in them. */
     val tokens: List<String> = emptyList(),
     val recentSearches: List<String> = emptyList(),
+    val scope: SearchScope = SearchScope(),
+    val availableBooks: List<Book> = emptyList(),
+    val availableShelves: List<Shelf> = emptyList(),
 ) {
     val hasQuery: Boolean get() = query.isNotBlank()
     val totalMatches: Int get() = books.size + annotations.size + passages.size
@@ -51,6 +55,8 @@ data class GlobalSearchUiState(
     val shownPassages: List<BookContentResult> get() = if (filter == SearchFilter.ALL || filter == SearchFilter.CONTENTS) passages else emptyList()
     val hasMatches: Boolean get() = shownBooks.isNotEmpty() || shownAnnotations.isNotEmpty() || shownPassages.isNotEmpty()
 }
+
+data class SearchScope(val bookId: Long? = null, val shelfId: Long? = null)
 
 enum class SearchFilter { ALL, BOOKS, NOTES, CONTENTS }
 
@@ -79,6 +85,7 @@ enum class SearchMatchedField {
 }
 
 internal data class SearchResults(
+    val scope: SearchScope = SearchScope(),
     val query: String = "",
     val tokens: List<String> = emptyList(),
     val books: List<BookSearchResult> = emptyList(),
@@ -92,6 +99,7 @@ class SearchViewModel @Inject constructor(
     bookRepository: BookRepository,
     annotationRepository: AnnotationRepository,
     resolvedBooks: ResolvedBooks,
+    shelfRepository: ShelfRepository,
     private val settingsRepository: SettingsRepository,
     dispatchers: DispatcherProvider,
     private val passages: com.vayana.core.database.dao.EpubPassageDao,
@@ -99,26 +107,29 @@ class SearchViewModel @Inject constructor(
 ) : ViewModel() {
     init { contentIndex.start() }
     private val query = MutableStateFlow("")
+    private val scope = MutableStateFlow(SearchScope())
+    private val scopeOptions = combine(resolvedBooks.all, shelfRepository.observeAll()) { books, shelves ->
+        books.sortedBy { it.title.lowercase() } to shelves
+    }
     private val filter = MutableStateFlow(SearchFilter.ALL)
 
     // Matching runs in SQLite FTS; only the capped result rows are joined with books and checked here.
-    private val results = query
-        .map { it.trim() }
-        .debounce { text -> if (text.isEmpty()) 0L else SearchDebounceMillis }
+    private val results = combine(query, scope) { text, scope -> text.trim() to scope }
+        .debounce { (text, _) -> if (text.isEmpty()) 0L else SearchDebounceMillis }
         .distinctUntilChanged()
-        .flatMapLatest { text ->
+        .flatMapLatest { (text, scope) ->
             if (searchTokens(text).isEmpty()) {
-                flowOf(SearchResults(query = text))
+                flowOf(SearchResults(query = text, scope = scope))
             } else {
                 combine(
-                    bookRepository.observeSearchIds(text, MaxBookResults),
-                    annotationRepository.observeSearch(text, MaxAnnotationResults),
+                    bookRepository.observeSearchIds(text, MaxBookResults, scope.bookId, scope.shelfId),
+                    annotationRepository.observeSearch(text, MaxAnnotationResults, scope.bookId, scope.shelfId),
                     resolvedBooks.all,
-                    passages.search(requireNotNull(com.vayana.core.database.search.ftsSearchMatch(text)), 60),
+                    passages.search(requireNotNull(com.vayana.core.database.search.ftsSearchMatch(text)), 60, scope.bookId, scope.shelfId),
                 ) { bookIds, annotations, books, content ->
                     val byId = books.associateBy { it.id }
                     val chapters = chapterTexts(content.map { it.chapterId })
-                    searchResults(text, bookIds, annotations, books).copy(passages = content.mapNotNull { passage ->
+                    searchResults(text, bookIds, annotations, books).copy(scope = scope, passages = content.mapNotNull { passage ->
                         val book = byId[passage.bookId] ?: return@mapNotNull null
                         val chapter = chapters[passage.chapterId] ?: return@mapNotNull null
                         val excerpt = passageExcerpt(chapter.substring(passage.startOffset, passage.endOffset), searchTokens(text))
@@ -143,24 +154,28 @@ class SearchViewModel @Inject constructor(
         return cached + loaded
     }
 
-    val uiState: StateFlow<GlobalSearchUiState> = combine(
+    private val baseUiState = combine(
         query,
         results,
         filter,
         settingsRepository.recentSearches,
-    ) { query, results, filter, recentSearches ->
+        scope,
+    ) { query, results, filter, recentSearches, scope ->
         GlobalSearchUiState(
             query = query,
-            books = results.books,
-            annotations = results.annotations,
-            passages = results.passages,
-            isSearching = query.trim() != results.query,
+            books = if (scope == results.scope) results.books else emptyList(),
+            annotations = if (scope == results.scope) results.annotations else emptyList(),
+            passages = if (scope == results.scope) results.passages else emptyList(),
+            isSearching = query.trim() != results.query || scope != results.scope,
+            scope = scope,
             filter = filter,
             tokens = results.tokens,
             recentSearches = recentSearches,
         )
     }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GlobalSearchUiState())
+    val uiState: StateFlow<GlobalSearchUiState> = combine(baseUiState, scopeOptions) { state, options ->
+        state.copy(availableBooks = options.first, availableShelves = options.second)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), GlobalSearchUiState())
 
     /**
      * The search box's text, as Compose state so the field updates in the same frame as the keystroke; waiting for
@@ -173,6 +188,8 @@ class SearchViewModel @Inject constructor(
         searchText = value
         query.update { value }
     }
+
+    fun updateScope(value: SearchScope) { scope.value = value }
 
     fun updateFilter(value: SearchFilter) {
         filter.update { value }

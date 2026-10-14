@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_all_books">Todos los libros</string>
+    <string name="search_all_shelves">Todas las estanterías</string>
+    <string name="search_choose_book">Elegir un libro</string>
+    <string name="search_choose_shelf">Elegir una estantería</string>
+</resources>

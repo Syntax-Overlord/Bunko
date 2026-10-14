@@ -588,9 +588,9 @@ class BookRepositoryImpl @Inject constructor(
 
     override suspend fun lastReadBookId(): Long? = bookDao.lastReadBookId()
 
-    override fun observeSearchIds(text: String, limit: Int): Flow<List<Long>> {
+    override fun observeSearchIds(text: String, limit: Int, bookId: Long?, shelfId: Long?): Flow<List<Long>> {
         val match = ftsSearchMatch(text) ?: return flowOf(emptyList())
-        return bookDao.observeSearchIds(match, limit)
+        return bookDao.observeSearchIds(match, limit, bookId, shelfId)
     }
 
     override suspend fun setReadNext(id: Long, queued: Boolean, capacity: Int): List<Book> =

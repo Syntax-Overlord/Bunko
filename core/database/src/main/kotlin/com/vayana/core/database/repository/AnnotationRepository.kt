@@ -45,7 +45,7 @@ interface AnnotationRepository {
         }.map { it.bookId }.toSet()
     }.distinctUntilChanged()
     /** Annotations whose text matches every word of [text] (as word prefixes), newest first. */
-    fun observeSearch(text: String, limit: Int): Flow<List<Annotation>>
+    fun observeSearch(text: String, limit: Int, bookId: Long? = null, shelfId: Long? = null): Flow<List<Annotation>>
     fun observeForBook(bookId: Long): Flow<List<Annotation>>
     fun observeCountForBook(bookId: Long): Flow<Int>
     fun observeCommunityQuoteCountForBook(bookId: Long): Flow<Int>

@@ -96,9 +96,13 @@ abstract class EpubPassageDao {
         staleBookIds().forEach { deleteForBook(it) }
     }
 
-    fun search(match: String, limit: Int): Flow<List<EpubPassageHit>> = searchRaw(RoomRawQuery(SearchSql) {
+    fun search(match: String, limit: Int, bookId: Long? = null, shelfId: Long? = null): Flow<List<EpubPassageHit>> = searchRaw(RoomRawQuery(SearchSql) {
         it.bindText(1, match)
-        it.bindLong(2, limit.toLong())
+        if (bookId == null) it.bindNull(2) else it.bindLong(2, bookId)
+        if (bookId == null) it.bindNull(3) else it.bindLong(3, bookId)
+        if (shelfId == null) it.bindNull(4) else it.bindLong(4, shelfId)
+        if (shelfId == null) it.bindNull(5) else it.bindLong(5, shelfId)
+        it.bindLong(6, limit.toLong())
     })
 
     /** Full texts of the given chapters, by id; slice them with a hit's offsets. */
@@ -142,7 +146,7 @@ abstract class EpubPassageDao {
     protected abstract suspend fun unindexStaged()
 
     // Raw so Room watches the tables it knows; it can't observe the index table it didn't declare.
-    @RawQuery(observedEntities = [EpubPassageEntity::class, EpubChapterEntity::class, BookEntity::class])
+    @RawQuery(observedEntities = [EpubPassageEntity::class, EpubChapterEntity::class, BookEntity::class, com.vayana.core.database.entity.BookShelfCrossRefEntity::class])
     protected abstract fun searchRaw(query: RoomRawQuery): Flow<List<EpubPassageHit>>
 
     private companion object {
@@ -151,6 +155,7 @@ abstract class EpubPassageDao {
             "p.startOffset, p.endOffset FROM epub_passages_fts f JOIN epub_passages p ON p.id = f.docid " +
             "JOIN epub_chapters c ON c.id = p.chapterId JOIN books b ON b.id = c.bookId " +
             "WHERE epub_passages_fts MATCH ? AND b.isDeleted = 0 AND b.fileAvailability = 'LOCAL' AND b.format = 'EPUB' " +
-            "AND b.fileHash = c.fileHash ORDER BY b.lastReadAt DESC, p.id LIMIT ?"
+            "AND b.fileHash = c.fileHash AND (? IS NULL OR b.id = ?) " +
+            "AND (? IS NULL OR EXISTS (SELECT 1 FROM book_shelf_cross_ref s WHERE s.bookId = b.id AND s.shelfId = ?)) ORDER BY b.lastReadAt DESC, p.id LIMIT ?"
     }
 }

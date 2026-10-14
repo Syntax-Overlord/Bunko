@@ -31,9 +31,9 @@ class AnnotationRepositoryImpl @Inject constructor(
     override fun observePersonalNotesBookIds(): Flow<Set<Long>> =
         annotationDao.observePersonalNotesBookIds().map { it.toSet() }.distinctUntilChanged()
 
-    override fun observeSearch(text: String, limit: Int): Flow<List<Annotation>> {
+    override fun observeSearch(text: String, limit: Int, bookId: Long?, shelfId: Long?): Flow<List<Annotation>> {
         val match = ftsSearchMatch(text) ?: return flowOf(emptyList())
-        return annotationDao.observeSearch(match, limit).map { entities -> entities.map { it.toDomain() } }
+        return annotationDao.observeSearch(match, limit, bookId, shelfId).map { entities -> entities.map { it.toDomain() } }
     }
 
     override fun observeForBook(bookId: Long): Flow<List<Annotation>> =

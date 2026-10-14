@@ -287,9 +287,11 @@ interface BookDao {
     @Query(
         "SELECT books.id FROM books JOIN books_fts ON books.id = books_fts.rowid " +
             "WHERE books_fts MATCH :match AND books.isDeleted = 0 " +
+            "AND (:bookId IS NULL OR books.id = :bookId) " +
+            "AND (:shelfId IS NULL OR EXISTS (SELECT 1 FROM book_shelf_cross_ref s WHERE s.bookId = books.id AND s.shelfId = :shelfId)) " +
             "ORDER BY COALESCE(books.lastReadAt, books.updatedAt) DESC, books.title COLLATE NOCASE LIMIT :limit",
     )
-    fun observeSearchIds(match: String, limit: Int): Flow<List<Long>>
+    fun observeSearchIds(match: String, limit: Int, bookId: Long? = null, shelfId: Long? = null): Flow<List<Long>>
 
     /** Vayana's own books; rows mirrored from Home Library are rebuilt from it and never enter a snapshot. */
     @Query("SELECT * FROM books WHERE source IS NOT 'home_library' ORDER BY syncId ASC")

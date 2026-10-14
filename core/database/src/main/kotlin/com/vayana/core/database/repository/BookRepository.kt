@@ -124,7 +124,7 @@ interface BookRepository {
     suspend fun lastReadBookId(): Long?
 
     /** Ids of books whose text matches every word of [text] (as word prefixes), most recently read first. */
-    fun observeSearchIds(text: String, limit: Int): Flow<List<Long>>
+    fun observeSearchIds(text: String, limit: Int, bookId: Long? = null, shelfId: Long? = null): Flow<List<Long>>
 
     val remoteReadingProgressApplied: Flow<RemoteReadingProgressApplied>
 
