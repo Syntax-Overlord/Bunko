@@ -1,5 +1,15 @@
 # Performance experiments
 
+## Automatic notebook file comparisons — 2026-10-14
+
+Automatic refreshes cache SHA-256 hashes only after a successful file comparison or write. A controlled test
+with 200 previously verified notebooks and one edited notebook reduced comparison callbacks from **200 to 1**.
+Unchanged automatic refreshes require zero notebook-content reads. Manual and periodic reconciliation bypass
+the cache; failed checks and missing files invalidate entries, and folder changes clear it.
+
+Decision: keep the process-local hash map. This measures avoided provider reads, not phone latency or battery
+use. Markdown generation and directory inventory still run; no notebook contents are retained in the cache.
+
 ## Reading interval subtraction — 2026-10-08
 
 Watch-session imports subtract already recorded intervals to avoid double-counting.

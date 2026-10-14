@@ -1,5 +1,7 @@
 # Unreleased
 
+- Speed up automatic notebook refreshes by remembering verified content hashes; manual and periodic exports still reconcile folder contents.
+
 - Stop sync when a snapshot references a missing cloud slice, preserving the cloud snapshot instead of treating the missing records as empty.
 - Block scripts embedded in EPUB book resources from reaching reader controls, and ignore malformed reader bridge events.
 - Reject community-quote slices exceeding the reader's 16 MiB expansion limit before writing any cloud snapshot files.

@@ -72,6 +72,9 @@ Notebooks for books removed from the library remain as archives. Disabling expor
 The folder grant is device-local and is excluded from backups. When export is disabled, its data observers
 and periodic work are stopped. Enabled exports ignore reading-progress/status/queue-only changes, inventory
 the folder once per run and compare existing files in fixed-size buffers.
+Automatic refreshes remember hashes of successfully written or compared notebooks and skip reading unchanged
+files again. Export now and periodic runs still compare every notebook, so external edits are reconciled. The
+cache is device-local, lasts only for the process, and clears when the export folder changes or is disabled.
 
 Each notebook includes Markdown/frontmatter and stable `vayana://passage` links back to the original
 annotation. Links resolve book and annotation sync IDs on this device; physical books open their details,

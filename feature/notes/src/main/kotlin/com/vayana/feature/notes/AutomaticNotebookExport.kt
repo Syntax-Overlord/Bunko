@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import androidx.work.*
 import com.vayana.core.common.ApplicationScope
+import com.vayana.core.common.Hashing
 import com.vayana.core.database.dao.BookNotebookFields
 import com.vayana.core.database.repository.AnnotationRepository
 import com.vayana.core.database.repository.BookRepository
@@ -38,6 +39,8 @@ class AutomaticNotebookExport @Inject constructor(
 ) {
     private val mutex = Mutex()
     private var job: Job? = null
+    private val exportedHashes = NotebookExportHashes()
+    private var hashFolder: String? = null
     private val _status = MutableStateFlow(NotebookExportStatus.OFF)
     val status = _status.asStateFlow()
 
@@ -46,6 +49,10 @@ class AutomaticNotebookExport @Inject constructor(
         if (job != null) return
         job = scope.launch {
             settings.observe(SettingsRegistry.NotebookExportFolder).distinctUntilChanged().collectLatest { folder ->
+                mutex.withLock {
+                    exportedHashes.clear()
+                    hashFolder = folder
+                }
                 val manager = WorkManager.getInstance(context)
                 if (folder.isBlank()) {
                     manager.cancelUniqueWork(WorkName)
@@ -57,14 +64,19 @@ class AutomaticNotebookExport @Inject constructor(
                     // status changes do not affect the Markdown and must not trigger folder scans.
                     combine(books.observeNotebookFields().distinctUntilChanged(),
                         annotations.observeAll()) { library, notes -> library to notes }
-                        .distinctUntilChanged().debounce(2000).collect { export() }
+                        .distinctUntilChanged().debounce(2000).collect { export(reconcile = false) }
                 }
             }
         }
     }
 
-    suspend fun export(): Boolean = withContext(Dispatchers.IO) { mutex.withLock {
+    /** Manual and periodic runs reconcile external edits; automatic refreshes skip files verified in this process. */
+    suspend fun export(reconcile: Boolean = true): Boolean = withContext(Dispatchers.IO) { mutex.withLock {
         val folder = settings.observe(SettingsRegistry.NotebookExportFolder).first()
+        if (hashFolder != folder) {
+            exportedHashes.clear()
+            hashFolder = folder
+        }
         if (folder.isBlank()) { _status.value = NotebookExportStatus.OFF; return@withLock true }
         try {
             val root = requireNotNull(DocumentFile.fromTreeUri(context, Uri.parse(folder)))
@@ -83,12 +95,16 @@ class AutomaticNotebookExport @Inject constructor(
                 val name = "book-$identity.md"
                 val marker = "<!-- Vayana generated notebook: $identity -->"
                 val existing = files[name]
+                if (existing == null) exportedHashes.forget(name)
                 if (notes.isEmpty() && existing == null) continue
                 val content = "$marker\n" + highlightsMarkdown(book, notes)
+                val contentHash = Hashing.sha256(content.toByteArray(Charsets.UTF_8))
                 val unchanged = existing?.let { file ->
-                    require(file.length() <= 32L * 1024 * 1024)
-                    requireNotNull(context.contentResolver.openInputStream(file.uri)).bufferedReader().use { reader ->
-                        notebookIsUnchanged(reader, content, marker)
+                    exportedHashes.isUnchanged(name, contentHash, reconcile) {
+                        require(file.length() <= 32L * 1024 * 1024)
+                        requireNotNull(context.contentResolver.openInputStream(file.uri)).bufferedReader().use { reader ->
+                            notebookIsUnchanged(reader, content, marker)
+                        }
                     }
                 } ?: false
                 if (unchanged) continue
@@ -105,6 +121,7 @@ class AutomaticNotebookExport @Inject constructor(
                         }
                         existing.delete()
                     }
+                    exportedHashes.record(name, contentHash)
                 } finally {
                     // After a successful rename this wrapper points at the final notebook.
                     if (staged.name != name) staged.delete()
@@ -124,6 +141,21 @@ internal fun automaticNotebookFileName(syncId: String): String = "book-${noteboo
 
 /** Only fields that appear in the generated notebook, including its stable identity. */
 internal fun notebookMetadata(book: Book) = BookNotebookFields(book.id, book.syncId, book.title, book.author, book.tagsCsv)
+
+/** Only successfully written or compared files are remembered; failed reconciliation invalidates old entries. */
+internal class NotebookExportHashes {
+    private val hashes = mutableMapOf<String, String>()
+
+    fun isUnchanged(name: String, contentHash: String, reconcile: Boolean, matchesExisting: () -> Boolean): Boolean {
+        if (!reconcile && hashes[name] == contentHash) return true
+        hashes.remove(name)
+        return matchesExisting().also { matches -> if (matches) record(name, contentHash) }
+    }
+
+    fun record(name: String, contentHash: String) { hashes[name] = contentHash }
+    fun forget(name: String) { hashes.remove(name) }
+    fun clear() { hashes.clear() }
+}
 
 /** Check ownership first, then compare in fixed-size buffers rather than loading another notebook-sized string. */
 internal fun notebookIsUnchanged(reader: Reader, content: String, marker: String): Boolean {
