@@ -203,7 +203,7 @@ private fun SearchScreen(
                         Text(stringResource(R.string.search_index_errors, indexProgress.failures))
                         TextButton(onClick = onRetryIndex) { Text(stringResource(R.string.search_index_retry)) }
                     }
-                    if (uiState.hasQuery && uiState.totalMatches > 0) {
+                    if (uiState.hasQuery) {
                         SearchFilterChips(uiState = uiState, onFilterChange = onFilterChange)
                     }
                 }
@@ -528,11 +528,14 @@ private fun SearchFilterChips(uiState: GlobalSearchUiState, onFilterChange: (Sea
 }
 
 @Composable
-private fun SearchFilter.label(state: GlobalSearchUiState): String = when (this) {
-    SearchFilter.ALL -> stringResource(R.string.search_filter_all, state.totalMatches)
-    SearchFilter.BOOKS -> stringResource(R.string.search_filter_books, state.books.size)
-    SearchFilter.NOTES -> stringResource(R.string.search_filter_notes, state.annotations.size)
-    SearchFilter.CONTENTS -> stringResource(R.string.search_contents) + " (${state.passages.size})"
+private fun SearchFilter.label(state: GlobalSearchUiState): String {
+    val counted = !state.isSearching && (state.filter == SearchFilter.ALL || state.filter == this)
+    return when (this) {
+        SearchFilter.ALL -> if (counted) stringResource(R.string.search_filter_all, state.totalMatches) else stringResource(R.string.library_filter_all)
+        SearchFilter.BOOKS -> if (counted) stringResource(R.string.search_filter_books, state.books.size) else stringResource(R.string.library_stats_share_books)
+        SearchFilter.NOTES -> if (counted) stringResource(R.string.search_filter_notes, state.annotations.size) else stringResource(R.string.nav_notes)
+        SearchFilter.CONTENTS -> stringResource(R.string.search_contents) + if (counted) " (${state.passages.size})" else ""
+    }
 }
 
 /** [text] with the word prefixes that matched the search emphasised. */

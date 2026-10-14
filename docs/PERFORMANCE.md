@@ -1,5 +1,21 @@
 # Performance experiments
 
+## Incremental notebook generation and search categories — 2026-10-14
+
+Successful notebook exports retain metadata and annotation inputs, in addition to their content hashes.
+A controlled 200-notebook check with one edited note generates and hashes **1 notebook instead of 200**.
+The cache retains immutable input snapshots, not generated Markdown. It is cleared on folder changes,
+invalidated before reconciliation and on missing files, and pruned when books leave the library.
+Manual and periodic reconciliation still render and compare all notebooks; failed writes are not remembered.
+Directory inventory and database reads still happen on automatic refreshes. This measures avoided work,
+not end-to-end phone export latency.
+
+Search builds one book-ID lookup per results update and shares it across titles, notes and content hits.
+A Books, Notes or Contents selection constructs and collects only that category's query, instead of all
+three. Hidden EPUB content does not load or decompress chapters. Switching categories cancels old queries;
+All queries every category again. Filters remain available with zero matches, and counts are shown only
+for queried categories after the current search lands. Existing background content indexing is unchanged.
+
 ## Notebook hash formatting — 2026-10-14
 
 The shared SHA-256 helper uses Kotlin's standard `ByteArray.toHexString()` instead of invoking a formatter

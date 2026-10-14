@@ -120,6 +120,10 @@ ZIP reads, XML steps and chapters, so a canceled indexing run does not finish de
 `core/database/.../entity/SearchFtsEntities.kt`, `BookDao.observeSearchIds`, `AnnotationDao.observeSearch`,
 `core/filesystem/.../ResolvedBooks.kt`. Opened from the search icon in the Library top bar (`SearchRoute`).
 
+**Categories:** All queries titles, notes and EPUB content. Selecting one category runs only its query;
+hidden content does not load chapter text. Counts appear only for queried categories. Filter chips remain
+available even when the selected category has no results, so users can switch back to All.
+
 **Scope:** The book and shelf selectors narrow titles, notes and EPUB content in SQL before result limits.
 Both selectors together mean the selected book must belong to the selected shelf. Clear either selector with
 “All books” or “All shelves”; the selector lists can be searched. Shelf membership changes refresh results.

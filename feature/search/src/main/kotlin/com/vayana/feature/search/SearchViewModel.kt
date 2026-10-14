@@ -87,6 +87,7 @@ enum class SearchMatchedField {
 
 internal data class SearchResults(
     val scope: SearchScope = SearchScope(),
+    val filter: SearchFilter = SearchFilter.ALL,
     val query: String = "",
     val tokens: List<String> = emptyList(),
     val books: List<BookSearchResult> = emptyList(),
@@ -116,23 +117,29 @@ class SearchViewModel @Inject constructor(
     private val filter = MutableStateFlow(SearchFilter.ALL)
 
     // Matching runs in SQLite FTS; only the capped result rows are joined with books and checked here.
-    private val results = combine(query, scope) { text, scope -> text.trim() to scope }
-        .debounce { (text, _) -> if (text.isEmpty()) 0L else SearchDebounceMillis }
+    private val results = combine(query, scope, filter) { text, scope, filter -> Triple(text.trim(), scope, filter) }
+        .debounce { (text, _, _) -> if (text.isEmpty()) 0L else SearchDebounceMillis }
         .distinctUntilChanged()
-        .flatMapLatest { (text, scope) ->
+        .flatMapLatest { (text, scope, filter) ->
             val tokens = searchTokens(text)
             if (tokens.isEmpty()) {
-                flowOf(SearchResults(query = text, scope = scope))
+                flowOf(SearchResults(query = text, scope = scope, filter = filter))
             } else {
                 combine(
-                    bookRepository.observeSearchIds(text, MaxBookResults, scope.bookId, scope.shelfId),
-                    annotationRepository.observeSearch(text, MaxAnnotationResults, scope.bookId, scope.shelfId),
+                    filter.searchFlow(SearchFilter.BOOKS) {
+                        bookRepository.observeSearchIds(text, MaxBookResults, scope.bookId, scope.shelfId)
+                    },
+                    filter.searchFlow(SearchFilter.NOTES) {
+                        annotationRepository.observeSearch(text, MaxAnnotationResults, scope.bookId, scope.shelfId)
+                    },
                     resolvedBooks.all,
-                    passages.search(requireNotNull(com.vayana.core.database.search.ftsSearchMatch(text)), 60, scope.bookId, scope.shelfId),
+                    filter.searchFlow(SearchFilter.CONTENTS) {
+                        passages.search(requireNotNull(com.vayana.core.database.search.ftsSearchMatch(text)), 60, scope.bookId, scope.shelfId)
+                    },
                 ) { bookIds, annotations, books, content ->
                     val byId = books.associateBy { it.id }
                     val chapters = chapterTexts(content.map { it.chapterId })
-                    searchResults(text, bookIds, annotations, books, tokens).copy(scope = scope, passages = content.mapNotNull { passage ->
+                    searchResults(text, bookIds, annotations, byId, tokens).copy(scope = scope, filter = filter, passages = content.mapNotNull { passage ->
                         val book = byId[passage.bookId] ?: return@mapNotNull null
                         val chapter = chapters[passage.chapterId] ?: return@mapNotNull null
                         val excerpt = passageExcerpt(chapter.substring(passage.startOffset, passage.endOffset), tokens)
@@ -151,6 +158,7 @@ class SearchViewModel @Inject constructor(
     }
 
     private suspend fun chapterTexts(ids: List<Long>): Map<Long, String> {
+        if (ids.isEmpty()) return emptyMap()
         val cached = ids.distinct().mapNotNull { id -> chapterCache.get(id)?.let { id to it } }.toMap()
         val loaded = passages.chapterTexts(ids.filterNot { it in cached })
         loaded.forEach { (id, text) -> chapterCache.put(id, text) }
@@ -166,10 +174,10 @@ class SearchViewModel @Inject constructor(
     ) { query, results, filter, recentSearches, scope ->
         GlobalSearchUiState(
             query = query,
-            books = if (scope == results.scope) results.books else emptyList(),
-            annotations = if (scope == results.scope) results.annotations else emptyList(),
-            passages = if (scope == results.scope) results.passages else emptyList(),
-            isSearching = query.trim() != results.query || scope != results.scope,
+            books = if (scope == results.scope && filter == results.filter) results.books else emptyList(),
+            annotations = if (scope == results.scope && filter == results.filter) results.annotations else emptyList(),
+            passages = if (scope == results.scope && filter == results.filter) results.passages else emptyList(),
+            isSearching = query.trim() != results.query || scope != results.scope || filter != results.filter,
             scope = scope,
             filter = filter,
             tokens = results.tokens,
@@ -215,10 +223,9 @@ internal fun searchResults(
     text: String,
     bookIds: List<Long>,
     annotations: List<Annotation>,
-    books: List<Book>,
+    booksById: Map<Long, Book>,
     tokens: List<String> = searchTokens(text),
 ): SearchResults {
-    val booksById = books.associateBy { it.id }
     return SearchResults(
         query = text,
         tokens = tokens,
@@ -263,3 +270,9 @@ internal fun passageExcerpt(text: String, tokens: List<String>): String {
     val start = if (roughStart == 0) 0 else text.indexOf(' ', roughStart).takeIf { it in roughStart..firstMatch }?.plus(1) ?: roughStart
     return text.substring(start, minOf(text.length, start + 300)).trim()
 }
+
+/** Hidden categories never construct or collect their database query. */
+internal fun <T> SearchFilter.searchFlow(
+    category: SearchFilter,
+    query: () -> kotlinx.coroutines.flow.Flow<List<T>>,
+): kotlinx.coroutines.flow.Flow<List<T>> = if (this == SearchFilter.ALL || this == category) query() else flowOf(emptyList())

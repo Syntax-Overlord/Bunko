@@ -44,7 +44,7 @@ class SearchResultsTest {
         val rings = book(1, "The Lord of the Rings", author = "J. R. R. Tolkien")
         val hobbit = book(2, "The Hobbit", author = "J. R. R. Tolkien", tags = "fantasy, classic")
 
-        val results = searchResults("tolk ring", bookIds = listOf(2, 1), annotations = emptyList(), books = listOf(rings, hobbit))
+        val results = searchResults("tolk ring", bookIds = listOf(2, 1), annotations = emptyList(), booksById = listOf(rings, hobbit).associateBy { it.id })
 
         assertEquals("tolk ring", results.query)
         assertEquals(listOf(2L, 1L), results.books.map { it.book.id })
@@ -58,7 +58,7 @@ class SearchResultsTest {
         val orphan = annotation(id = 10, bookId = 99, text = "Not all those who wander are lost")
         val kept = annotation(id = 11, bookId = 1, text = "All we have to decide", note = "Gandalf on time", chapter = "The Shadow of the Past")
 
-        val results = searchResults("gandalf", bookIds = listOf(99, 1), annotations = listOf(orphan, kept), books = listOf(rings))
+        val results = searchResults("gandalf", bookIds = listOf(99, 1), annotations = listOf(orphan, kept), booksById = mapOf(rings.id to rings))
 
         assertEquals(listOf(1L), results.books.map { it.book.id })
         assertEquals(listOf(11L), results.annotations.map { it.annotation.id })
@@ -70,7 +70,7 @@ class SearchResultsTest {
     fun matchesSeriesNumberAndTagsOnWordPrefixes() {
         val book = book(1, "Abaddon's Gate", series = "The Expanse", number = "3", tags = "space opera")
 
-        val results = searchResults("expan 3 oper", bookIds = listOf(1), annotations = emptyList(), books = listOf(book))
+        val results = searchResults("expan 3 oper", bookIds = listOf(1), annotations = emptyList(), booksById = mapOf(book.id to book))
 
         assertEquals(listOf(SearchMatchedField.SERIES, SearchMatchedField.TAGS), results.books.single().matchedFields)
     }
