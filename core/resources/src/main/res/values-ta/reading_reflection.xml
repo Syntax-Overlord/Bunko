@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_finished_reflection_label">சிந்தனைகள் (விருப்பத்தேர்வு)</string>
+    <string name="reader_finished_reflection_hint">எது உங்கள் மனதில் தங்கியது?</string>
+    <string name="reader_finished_reflection_saved">வாசிப்புக் குறிப்பேட்டில் சேமிக்கப்படும்.</string>
+</resources>

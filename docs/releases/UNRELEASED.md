@@ -2,6 +2,7 @@
 
 - Speed up automatic notebook refreshes by remembering verified content hashes; manual and periodic exports still reconcile folder contents.
 - Add exact-phrase search with straight double quotes across book metadata, notes/highlights and downloaded EPUB contents.
+- Add an optional reflection when finishing a book, saved with completion and rating as a normal reading-journal note.
 
 - Stop sync when a snapshot references a missing cloud slice, preserving the cloud snapshot instead of treating the missing records as empty.
 - Block scripts embedded in EPUB book resources from reaching reader controls, and ignore malformed reader bridge events.

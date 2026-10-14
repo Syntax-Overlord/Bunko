@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_finished_reflection_label">Reflection (optional)</string>
+    <string name="reader_finished_reflection_hint">What stayed with you?</string>
+    <string name="reader_finished_reflection_saved">Saves to your reading journal.</string>
+</resources>

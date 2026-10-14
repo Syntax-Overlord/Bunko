@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_finished_reflection_label">ചിന്തകൾ (ഐച്ഛികം)</string>
+    <string name="reader_finished_reflection_hint">എന്താണ് മനസ്സിൽ തങ്ങിനിന്നത്?</string>
+    <string name="reader_finished_reflection_saved">വായനാ ജേണലിൽ സംരക്ഷിക്കുന്നു.</string>
+</resources>

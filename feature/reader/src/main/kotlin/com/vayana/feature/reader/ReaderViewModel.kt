@@ -16,6 +16,7 @@ import com.vayana.core.database.model.BookFormat
 import com.vayana.core.common.ApplicationScope
 import com.vayana.core.common.DispatcherProvider
 import com.vayana.core.database.repository.AnnotationRepository
+import com.vayana.core.database.VayanaDatabase
 import com.vayana.core.database.repository.BookRepository
 import com.vayana.core.database.repository.ReadingSessionRepository
 import com.vayana.core.database.repository.VocabularyCardRepository
@@ -145,8 +146,8 @@ internal fun HighlightCardState.isAnchoredTo(locator: Locator): Boolean {
     }
 }
 
-/** The end-of-story question: finished? and, optionally, a rating ([rating] is the book's current one, 0 if none). */
-data class BookFinishedPrompt(val rating: Float)
+/** The end-of-story question with optional rating/reflection and retryable save state. */
+data class BookFinishedPrompt(val rating: Float, val saving: Boolean = false, val error: UiText? = null)
 
 data class PdfPasswordPrompt(val incorrect: Boolean)
 
@@ -192,6 +193,7 @@ class ReaderViewModel @Inject constructor(
     private val bookRepository: BookRepository,
     private val readAloudStatusHolder: ReadAloudStatusHolder,
     private val annotationRepository: AnnotationRepository,
+    private val database: VayanaDatabase,
     private val storageRoots: StorageRoots,
     private val settingsRepository: SettingsRepository,
     private val dictionaryRepository: DictionaryRepository,
@@ -937,25 +939,32 @@ class ReaderViewModel @Inject constructor(
         bookFinishedPromptOffered = true
         viewModelScope.launch {
             val book = bookRepository.getById(bookId) ?: return@launch
-            // Finished meanwhile (from another device, or the book's end crossing the "finished" threshold) still gets
-            // asked for a rating, unless it already has one.
-            if (book.finishedReadingAt != null && book.rating > 0f) return@launch
+            // A book unfinished when opened can still receive a reflection if reaching the end already marked it
+            // finished, or it had a rating before this reading session.
             _bookFinishedPrompt.value = BookFinishedPrompt(rating = book.rating)
         }
     }
 
-    /** Marks the book finished and, when [rating] is given (above zero) and new, saves it as the book's rating. */
-    fun confirmBookFinished(rating: Float) {
+    /** Keeps the prompt and its text available on failure; the save survives leaving the reader. */
+    fun confirmBookFinished(rating: Float, reflection: String) {
         val prompt = _bookFinishedPrompt.value ?: return
-        _bookFinishedPrompt.value = null
+        if (prompt.saving) return
+        val locator = (uiState.value as? ReaderUiState.Loaded)?.currentLocator
+        _bookFinishedPrompt.value = prompt.copy(saving = true, error = null)
         applicationScope.launch {
-            bookRepository.markFinished(bookId)
-            if (rating > 0f && rating != prompt.rating) bookRepository.updateRating(bookId, rating)
+            runCatchingCancellable {
+                finishBookWithReflection(database, bookRepository, annotationRepository, bookId,
+                    rating.takeIf { it > 0f && it != prompt.rating }, reflection, locator)
+            }.onSuccess {
+                _bookFinishedPrompt.value = null
+            }.onFailure { failure ->
+                _bookFinishedPrompt.value = prompt.copy(error = failure.uiText(R.string.tools_failed))
+            }
         }
     }
 
     fun dismissBookFinishedPrompt() {
-        _bookFinishedPrompt.value = null
+        if (_bookFinishedPrompt.value?.saving != true) _bookFinishedPrompt.value = null
     }
 
     fun dismissFootnote() {

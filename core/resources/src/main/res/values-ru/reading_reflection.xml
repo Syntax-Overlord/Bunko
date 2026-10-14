@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_finished_reflection_label">Впечатления (необязательно)</string>
+    <string name="reader_finished_reflection_hint">Что запомнилось вам?</string>
+    <string name="reader_finished_reflection_saved">Сохраняется в дневнике чтения.</string>
+</resources>

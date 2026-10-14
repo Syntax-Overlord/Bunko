@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_finished_reflection_label">Reflexão (opcional)</string>
+    <string name="reader_finished_reflection_hint">O que ficou com você?</string>
+    <string name="reader_finished_reflection_saved">Salva no seu diário de leitura.</string>
+</resources>

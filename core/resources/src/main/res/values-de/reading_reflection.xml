@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_finished_reflection_label">Gedanken (optional)</string>
+    <string name="reader_finished_reflection_hint">Was ist dir in Erinnerung geblieben?</string>
+    <string name="reader_finished_reflection_saved">Wird im Lesejournal gespeichert.</string>
+</resources>

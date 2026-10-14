@@ -1,6 +1,7 @@
 package com.vayana.feature.reader
 
 import com.vayana.core.designsystem.theme.isMonochromeEink
+import com.vayana.core.resources.UiText
 import android.widget.Toast
 import com.vayana.core.designsystem.component.asString
 import android.Manifest
@@ -534,6 +535,8 @@ fun ReaderRoute(onBack: () -> Unit, modifier: Modifier = Modifier, onReviewVocab
     bookFinishedPrompt?.let { prompt ->
         BookFinishedDialog(
             initialRating = prompt.rating,
+            saving = prompt.saving,
+            error = prompt.error,
             onConfirm = viewModel::confirmBookFinished,
             onDismiss = viewModel::dismissBookFinishedPrompt,
         )
@@ -706,16 +709,19 @@ internal fun resolvePdfPageInput(input: String, pageLabels: List<String>): Int? 
 @Composable
 private fun BookFinishedDialog(
     initialRating: Float,
-    onConfirm: (Float) -> Unit,
+    saving: Boolean,
+    error: UiText?,
+    onConfirm: (Float, String) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var rating by rememberSaveable { mutableFloatStateOf(initialRating.roundToInt().toFloat().coerceIn(0f, 5f)) }
+    var reflection by rememberSaveable { mutableStateOf("") }
     AlertDialog(
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!saving) onDismiss() },
         icon = { Icon(Icons.Outlined.TaskAlt, contentDescription = null) },
         title = { Text(stringResource(R.string.reader_book_finished_title)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Text(stringResource(R.string.reader_book_finished_body))
                 Text(
                     text = stringResource(R.string.reader_book_finished_rating_label),
@@ -725,7 +731,7 @@ private fun BookFinishedDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                     for (star in 1..5) {
                         val lit = star <= rating
-                        IconButton(onClick = { rating = if (rating == star.toFloat()) 0f else star.toFloat() }) {
+                        IconButton(enabled = !saving, onClick = { rating = if (rating == star.toFloat()) 0f else star.toFloat() }) {
                             Icon(
                                 imageVector = if (lit) Icons.Filled.Star else Icons.Outlined.StarBorder,
                                 contentDescription = stringResource(R.string.reader_book_finished_rate_star, star),
@@ -734,15 +740,27 @@ private fun BookFinishedDialog(
                         }
                     }
                 }
+                OutlinedTextField(
+                    value = reflection,
+                    onValueChange = { reflection = it.take(4000) },
+                    enabled = !saving,
+                    label = { Text(stringResource(R.string.reader_finished_reflection_label)) },
+                    placeholder = { Text(stringResource(R.string.reader_finished_reflection_hint)) },
+                    supportingText = { Text(stringResource(R.string.reader_finished_reflection_saved)) },
+                    minLines = 2,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                error?.let { Text(it.asString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
         },
         confirmButton = {
-            Button(onClick = { onConfirm(rating) }) {
+            Button(enabled = !saving, onClick = { onConfirm(rating, reflection) }) {
                 Text(stringResource(R.string.reader_book_finished_confirm))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) {
+            TextButton(enabled = !saving, onClick = onDismiss) {
                 Text(stringResource(R.string.reader_book_finished_dismiss))
             }
         },

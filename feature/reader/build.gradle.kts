@@ -11,6 +11,7 @@ dependencies {
     implementation(project(":reader:engine-api"))
     implementation(project(":reader:engine-web"))
     implementation(project(":core:database"))
+    implementation(libs.room.ktx)
     implementation(project(":core:datastore"))
     implementation(project(":core:filesystem"))
     implementation(project(":core:sync"))
@@ -18,4 +19,5 @@ dependencies {
     implementation(project(":dictionary:stardict"))
     implementation(project(":dictionary:online"))
     testImplementation(kotlin("test"))
+    testImplementation("org.robolectric:robolectric:4.13")
 }

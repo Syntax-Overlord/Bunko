@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_finished_reflection_label">Riflessione (facoltativa)</string>
+    <string name="reader_finished_reflection_hint">Cosa ti è rimasto impresso?</string>
+    <string name="reader_finished_reflection_saved">Viene salvata nel diario di lettura.</string>
+</resources>

@@ -29,6 +29,11 @@ reading one file. Keep this in step with the code when any of them changes.
   reading minutes, or a progress percentage when no pace is available. Today counts as a reading day.
 - **Reading journal:** Reader → Notes → Reading journal. Entries retain the current position as normal
   notes, can be edited/exported in Notes, and appear in the return recap after an extended absence.
+- **Finish-book reflection:** The end-of-story completion dialog offers an optional reflection alongside the
+  rating. It saves as an ordinary reading-journal note at the captured position (or the last saved position),
+  with the existing 4,000-character limit. Completion, any changed rating and the reflection save in one
+  transaction. A failure preserves the dialog text for retry; an empty reflection creates no note. Existing
+  note editing, search, Markdown export, backup and full sync carry the reflection without a new schema.
 - **Markdown notebooks:** Notes toolbar → Export Markdown notebooks. Select books and share one ZIP
   with a Markdown file per book, including title/author/tag frontmatter, chapters, quotes and notes.
 

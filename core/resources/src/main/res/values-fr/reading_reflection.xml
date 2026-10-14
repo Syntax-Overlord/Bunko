@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_finished_reflection_label">Réflexion (facultative)</string>
+    <string name="reader_finished_reflection_hint">Que retenez-vous de ce livre ?</string>
+    <string name="reader_finished_reflection_saved">Enregistrée dans votre journal de lecture.</string>
+</resources>
