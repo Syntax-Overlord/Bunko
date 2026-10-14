@@ -18,7 +18,6 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import java.io.Reader
 import com.vayana.core.database.model.Book
-import java.security.MessageDigest
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import javax.inject.Inject
@@ -135,8 +134,7 @@ class AutomaticNotebookExport @Inject constructor(
 }
 
 enum class NotebookExportStatus { OFF, DONE, FAILED }
-internal fun notebookIdentity(syncId: String): String = MessageDigest.getInstance("SHA-256")
-    .digest(syncId.toByteArray(Charsets.UTF_8)).joinToString("") { "%02x".format(it) }
+internal fun notebookIdentity(syncId: String): String = Hashing.sha256(syncId.toByteArray(Charsets.UTF_8))
 internal fun automaticNotebookFileName(syncId: String): String = "book-${notebookIdentity(syncId)}.md"
 
 /** Only fields that appear in the generated notebook, including its stable identity. */

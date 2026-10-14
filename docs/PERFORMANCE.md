@@ -1,5 +1,16 @@
 # Performance experiments
 
+## Notebook hash formatting — 2026-10-14
+
+The shared SHA-256 helper uses Kotlin's standard `ByteArray.toHexString()` instead of invoking a formatter
+for each of the 32 digest bytes. Notebook identities now reuse that helper. Digests and filenames retain
+exactly the same lowercase, zero-padded encoding; input-stream ownership stays unchanged.
+
+A controlled JVM comparison hashed 2,700 bytes per call, with 200 warm-up iterations and five batches of
+500 calls. The median batch fell from 97.27 ms to 11.96 ms (8.1×). This measures hashing and hex formatting,
+not complete notebook export time or phone performance. The encoder is stable since Kotlin 2.2; the project
+uses Kotlin 2.3.21. See [Kotlin's hex encoder](https://kotlinlang.org/api/core/kotlin-stdlib/kotlin.text/to-hex-string.html).
+
 ## Search query processing — 2026-10-14
 
 The tokenizer now stops splitting after eight useful words. A controlled JVM comparison used an eight-word

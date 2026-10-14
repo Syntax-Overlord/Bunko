@@ -15,11 +15,11 @@ object Hashing {
                 digest.update(buffer, 0, read)
             }
         }
-        return digest.digest().joinToString(separator = "") { "%02x".format(it) }
+        return digest.digest().toHexString()
     }
 
     fun sha256(bytes: ByteArray): String {
         val digest = MessageDigest.getInstance("SHA-256")
-        return digest.digest(bytes).joinToString(separator = "") { "%02x".format(it) }
+        return digest.digest(bytes).toHexString()
     }
 }

@@ -8,6 +8,11 @@ import kotlin.test.assertTrue
 
 class NotebookExportHashesTest {
     @Test
+    fun notebookFilenameKeepsItsExistingIdentity() {
+        assertEquals("book-725b8cd25aa344d314f46d402faca3500f9d6bfa44319254b55ad2be14725dd6.md", automaticNotebookFileName("book-123"))
+    }
+
+    @Test
     fun editingOneNotebookChecksOnlyThatFileDuringAutomaticRefresh() {
         val hashes = NotebookExportHashes()
         val exported = (1..200).associate { "book-$it.md" to "hash-$it" }
