@@ -32,6 +32,12 @@ fun ftsSearchMatch(text: String): String? {
 fun String?.hasWordStartingWithAny(tokens: List<String>): Boolean =
     !isNullOrBlank() && WordChars.findAll(this).any { word -> tokens.any { word.value.startsWith(it, ignoreCase = true) } }
 
+/** First matching word's offset, without scanning the remainder or allocating all highlight ranges. */
+fun firstWordPrefixMatchOffset(text: String, tokens: List<String>): Int? =
+    if (tokens.isEmpty()) null else WordChars.findAll(text).firstOrNull { word ->
+        tokens.any { word.value.startsWith(it, ignoreCase = true) }
+    }?.range?.first
+
 /** The matched prefix of every word in [text] that starts with one of [tokens], for highlighting. */
 fun wordPrefixMatchRanges(text: String, tokens: List<String>): List<IntRange> {
     if (tokens.isEmpty()) return emptyList()

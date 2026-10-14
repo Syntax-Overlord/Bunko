@@ -1,5 +1,16 @@
 # Performance experiments
 
+## Search excerpt first-match lookup — 2026-10-14
+
+Excerpt generation now stops at the first matching word instead of calculating all highlight ranges and
+using only their first offset. Full highlight generation remains available for displayed text. Seeded
+comparisons cover Unicode, case, overlapping prefixes, empty queries, missing matches and excerpt bounds.
+
+A controlled JVM comparison used a 1,800-character passage with an early match, two query tokens, 100
+warm-up iterations and five batches of 1,200 lookups (20 result sets of 60 hits). The median batch fell
+from 73.13 ms to 0.78 ms (93.7×). This measures only first-match lookup; later or missing matches require
+more scanning. It does not measure full search latency or phone performance.
+
 ## Incremental notebook generation and search categories — 2026-10-14
 
 Successful notebook exports retain metadata and annotation inputs, in addition to their content hashes.

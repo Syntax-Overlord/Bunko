@@ -8,6 +8,22 @@ import org.junit.jupiter.api.Test
 
 class SearchTextTest {
     @Test
+    fun firstMatchOffsetAgreesWithFullHighlightRangesIncludingUnicodeAndMissingMatches() {
+        val fragments = listOf("Tolkien", "riverbank", "Mountains", "മലയാളം", "Alpha2", "Ωμέγα", "...", "42")
+        val queries = listOf(emptyList(), listOf("tolk"), listOf("mount", "riv"), listOf("മല"),
+            listOf("α", "ω"), listOf("absent"), listOf("t", "tolkien"), listOf("42", "alpha"))
+        val random = kotlin.random.Random(42)
+        for (text in listOf("", "...", "RIVER", "padding മലയാളം trailing") + List(200) {
+            List(30) { fragments[random.nextInt(fragments.size)] }.joinToString(" ,\n")
+        }) {
+            for (tokens in queries) {
+                assertEquals(wordPrefixMatchRanges(text, tokens).firstOrNull()?.first,
+                    firstWordPrefixMatchOffset(text, tokens), "text=$text tokens=$tokens")
+            }
+        }
+    }
+
+    @Test
     fun longPastedQueriesKeepTheEightWordLimitAcrossPhrases() {
         val prefix = "one two three four five six seven eight"
         val trailing = " trailing".repeat(20_000)

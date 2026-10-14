@@ -265,7 +265,7 @@ private const val MaxAnnotationResults = 80
 private const val ChapterCacheChars = 2_000_000
 
 internal fun passageExcerpt(text: String, tokens: List<String>): String {
-    val firstMatch = com.vayana.core.database.search.wordPrefixMatchRanges(text, tokens).firstOrNull()?.first ?: 0
+    val firstMatch = com.vayana.core.database.search.firstWordPrefixMatchOffset(text, tokens) ?: 0
     val roughStart = (firstMatch - 60).coerceAtLeast(0)
     val start = if (roughStart == 0) 0 else text.indexOf(' ', roughStart).takeIf { it in roughStart..firstMatch }?.plus(1) ?: roughStart
     return text.substring(start, minOf(text.length, start + 300)).trim()

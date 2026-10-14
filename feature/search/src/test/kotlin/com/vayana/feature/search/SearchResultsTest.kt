@@ -9,6 +9,19 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class SearchResultsTest {
+    @Test fun excerptTextKeepsTheOriginalContextAndTruncationRules() {
+        val texts = listOf("", "No matching words", "RIVER begins here",
+            "padding ".repeat(30) + "മലയാളം river at dawn " + "trailing ".repeat(200),
+            "x".repeat(100) + " river")
+        for (text in texts) for (tokens in listOf(emptyList(), listOf("riv"), listOf("മല"), listOf("absent"))) {
+            val match = com.vayana.core.database.search.wordPrefixMatchRanges(text, tokens).firstOrNull()?.first ?: 0
+            val rough = (match - 60).coerceAtLeast(0)
+            val start = if (rough == 0) 0 else text.indexOf(' ', rough).takeIf { it in rough..match }?.plus(1) ?: rough
+            val previous = text.substring(start, minOf(text.length, start + 300)).trim()
+            assertEquals(previous, passageExcerpt(text, tokens))
+        }
+    }
+
     @Test fun chunkOverlapPreservesBoundaryPhrases() {
         val text = (1..3000).joinToString(" ") { "word$it" }
         val chunks = chunkPassage(text)
