@@ -4,6 +4,7 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import androidx.sqlite.db.SupportSQLiteOpenHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
+import kotlinx.coroutines.flow.first
 import java.io.File
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -23,6 +24,60 @@ import org.robolectric.annotation.Config
 @Config(sdk = [28], manifest = Config.NONE)
 class DatabaseBackupSnapshotTest {
     @get:Rule val temp = TemporaryFolder()
+
+    @Test
+    fun realRoomBackupOmitsIndexPreservesNotesAndCanRebuild() = kotlinx.coroutines.runBlocking {
+        val context = RuntimeEnvironment.getApplication()
+        val db = com.vayana.core.database.di.DatabaseModule.provideVayanaDatabase(context)
+        val snapshot = File(temp.newFolder(), "snapshot.db")
+        try {
+            val bookId = db.bookDao().insert(com.vayana.core.database.entity.BookEntity(
+                title = "Backup book", author = null, series = null, seriesNumber = null, description = null, coverPath = null,
+                filePath = "books/book.epub", format = "EPUB", fileHash = "hash", lastLocator = "page:2",
+                readingPercent = 0.5f, rating = 4f, groupId = null, isDeleted = false, wordCount = null,
+                pageEstimate = null, createdAt = 1, updatedAt = 1, lastReadAt = 1,
+            ))
+            val noteId = db.annotationDao().insert(com.vayana.core.database.entity.AnnotationEntity(
+                bookId = bookId, type = "NOTE", colorKey = "yellow", locator = "page:2", chapterTitle = null,
+                chapterHref = null, selectedText = "", readerNote = "My reflection", createdAt = 1, updatedAt = 1,
+            ))
+            val shelfId = db.shelfDao().insert(com.vayana.core.database.entity.ShelfEntity(name = "Keep", createdAt = 1, updatedAt = 1))
+            db.shelfDao().addBookToShelf(com.vayana.core.database.entity.BookShelfCrossRefEntity(bookId, shelfId))
+            val source = db.openHelper.writableDatabase
+            source.execSQL("INSERT INTO epub_chapters (id, bookId, fileHash, href, title, compressedText) VALUES (1, $bookId, 'hash', 'one.xhtml', 'One', zeroblob(262144))")
+            source.execSQL("INSERT INTO epub_passages VALUES (1, 1, 0, 5)")
+            source.execSQL("INSERT INTO epub_passages_fts_content VALUES (1, 'river boat')")
+            source.execSQL("INSERT INTO epub_passages_fts(docid, text) VALUES (1, 'river boat')")
+            // Personal records and Room's identity must survive.
+            val identity = source.query("SELECT identity_hash FROM room_master_table").use { it.moveToFirst(); it.getString(0) }
+            val originalBytes = source.query("PRAGMA page_count").use { it.moveToFirst(); it.getLong(0) } *
+                source.query("PRAGMA page_size").use { it.moveToFirst(); it.getLong(0) }
+            createDatabaseBackupSnapshot(source, snapshot)
+            assertTrue(snapshot.length() < originalBytes)
+            assertFalse(File(snapshot.path + "-wal").exists())
+            assertFalse(File(snapshot.path + "-shm").exists())
+            assertEquals(1, source.query("SELECT count(*) FROM epub_chapters").use { it.moveToFirst(); it.getInt(0) })
+            val restored = androidx.room.Room.databaseBuilder(context, com.vayana.core.database.VayanaDatabase::class.java, snapshot.path).build()
+            try {
+                val copy = restored.openHelper.writableDatabase
+                assertEquals(identity, copy.query("SELECT identity_hash FROM room_master_table").use { it.moveToFirst(); it.getString(0) })
+                assertEquals("My reflection", copy.query("SELECT readerNote FROM annotations WHERE id = $noteId").use { it.moveToFirst(); it.getString(0) })
+                assertEquals("page:2", copy.query("SELECT lastLocator FROM books WHERE id = $bookId").use { it.moveToFirst(); it.getString(0) })
+                assertEquals(4f, copy.query("SELECT rating FROM books WHERE id = $bookId").use { it.moveToFirst(); it.getFloat(0) })
+                assertEquals(1, copy.query("SELECT count(*) FROM book_shelf_cross_ref WHERE bookId = $bookId AND shelfId = $shelfId").use { it.moveToFirst(); it.getInt(0) })
+                for (table in listOf("epub_chapters", "epub_passages", "epub_passages_fts_content")) {
+                    assertEquals(0, copy.query("SELECT count(*) FROM $table").use { it.moveToFirst(); it.getInt(0) })
+                }
+                assertEquals(0, copy.query("SELECT count(*) FROM epub_passages_fts WHERE epub_passages_fts MATCH 'river'").use { it.moveToFirst(); it.getInt(0) })
+                restored.epubPassageDao().replace(bookId, "hash", sequenceOf(com.vayana.core.database.dao.EpubChapterText("one.xhtml", "One", "river boat", listOf(0..9))))
+                assertEquals(1, restored.epubPassageDao().search("river*", 10).first().size)
+                assertEquals("ok", copy.query("PRAGMA integrity_check").use { it.moveToFirst(); it.getString(0) })
+            } finally { restored.close() }
+        } finally {
+            db.close()
+            context.deleteDatabase("vayana.db")
+        }
+    }
 
     @Test
     fun capturesCommittedWalRowsAndRemainsStableAfterLiveChanges() {

@@ -33,6 +33,23 @@ internal fun createDatabaseBackupSnapshot(source: SupportSQLiteDatabase, destina
             }
             // The archive contains one standalone database file, with no dependence on a WAL or shared memory.
             snapshot.disableWriteAheadLogging()
+            // Remove only rebuildable content from the private copy. Keep Room's tables and identity intact.
+            val hasIndex = snapshot.rawQuery("SELECT 1 FROM sqlite_master WHERE name = 'epub_chapters'", null).use { it.moveToFirst() }
+            if (hasIndex) {
+                snapshot.beginTransaction()
+                try {
+                    snapshot.execSQL("DROP TABLE IF EXISTS epub_passages_fts")
+                    snapshot.execSQL("DELETE FROM epub_passages")
+                    snapshot.execSQL("DELETE FROM epub_chapters")
+                    snapshot.execSQL("DELETE FROM epub_passages_fts_content")
+                    snapshot.execSQL("CREATE VIRTUAL TABLE epub_passages_fts USING FTS4(text, tokenize=unicode61, content=epub_passages_fts_content)")
+                    snapshot.setTransactionSuccessful()
+                } finally {
+                    snapshot.endTransaction()
+                }
+                // Deleting rows alone leaves their pages in the archive, including old chapter text.
+                snapshot.execSQL("VACUUM")
+            }
         }
     } catch (failure: Throwable) {
         if (destination.isFile) destination.delete()
