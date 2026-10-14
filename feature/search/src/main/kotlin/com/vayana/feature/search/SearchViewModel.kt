@@ -114,7 +114,7 @@ class SearchViewModel @Inject constructor(
                     bookRepository.observeSearchIds(text, MaxBookResults),
                     annotationRepository.observeSearch(text, MaxAnnotationResults),
                     resolvedBooks.all,
-                    passages.search(requireNotNull(com.vayana.core.database.search.ftsPrefixMatch(searchTokens(text))), 60),
+                    passages.search(requireNotNull(com.vayana.core.database.search.ftsSearchMatch(text)), 60),
                 ) { bookIds, annotations, books, content ->
                     val byId = books.associateBy { it.id }
                     val chapters = chapterTexts(content.map { it.chapterId })

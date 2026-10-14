@@ -10,8 +10,7 @@ import com.vayana.core.database.dao.TombstoneDao
 import com.vayana.core.database.entity.BookAliasEntity
 import com.vayana.core.database.entity.BookEntity
 import com.vayana.core.database.entity.TombstoneEntity
-import com.vayana.core.database.search.ftsPrefixMatch
-import com.vayana.core.database.search.searchTokens
+import com.vayana.core.database.search.ftsSearchMatch
 import com.vayana.core.database.model.Book
 import com.vayana.core.database.model.BookFileAvailability
 import com.vayana.core.database.model.BookFormat
@@ -590,7 +589,7 @@ class BookRepositoryImpl @Inject constructor(
     override suspend fun lastReadBookId(): Long? = bookDao.lastReadBookId()
 
     override fun observeSearchIds(text: String, limit: Int): Flow<List<Long>> {
-        val match = ftsPrefixMatch(searchTokens(text)) ?: return flowOf(emptyList())
+        val match = ftsSearchMatch(text) ?: return flowOf(emptyList())
         return bookDao.observeSearchIds(match, limit)
     }
 

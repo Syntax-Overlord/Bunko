@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="search_phrase_hint">Use double quotes to search for an exact phrase.</string>
+</resources>

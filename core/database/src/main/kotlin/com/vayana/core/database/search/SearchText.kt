@@ -11,6 +11,20 @@ fun searchTokens(text: String): List<String> =
 fun ftsPrefixMatch(tokens: List<String>): String? =
     tokens.takeIf { it.isNotEmpty() }?.joinToString(" ") { "$it*" }
 
+/** Quoted groups are exact phrases; other words retain prefix matching. An unfinished quote stays a prefix query. */
+fun ftsSearchMatch(text: String): String? {
+    val sections = text.split('"')
+    var remaining = MaxSearchTokens
+    val expressions = sections.mapIndexedNotNull { index, section ->
+        val words = searchTokens(section).take(remaining)
+        remaining -= words.size
+        if (words.isEmpty()) null
+        else if (index % 2 == 1 && index < sections.lastIndex) words.joinToString(" ", "\"", "\"")
+        else ftsPrefixMatch(words)
+    }
+    return expressions.takeIf { it.isNotEmpty() }?.joinToString(" ")
+}
+
 /** The FTS rule applied to one field, to tell a result which of its fields matched: some word starts with a token. */
 fun String?.hasWordStartingWithAny(tokens: List<String>): Boolean =
     !isNullOrBlank() && WordChars.findAll(this).any { word -> tokens.any { word.value.startsWith(it, ignoreCase = true) } }

@@ -188,6 +188,7 @@ private fun SearchScreen(
                             null
                         },
                         placeholder = { Text(stringResource(R.string.search_placeholder)) },
+                        supportingText = { Text(stringResource(R.string.search_phrase_hint)) },
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                         keyboardActions = KeyboardActions(onSearch = { onSubmitSearch() }),
                     )

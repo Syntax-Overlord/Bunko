@@ -124,6 +124,10 @@ ZIP reads, XML steps and chapters, so a canceled indexing run does not finish de
   Combining marks count as letters, so Malayalam and other Indic words stay whole.
 - Every word must appear somewhere in the row, each as the **start of a word**: `tolk` finds "Tolkien";
   `olkien` does not.
+- Put a phrase in straight double quotes to require adjacent whole words in that order: `"river boat"` excludes
+  "river slow boat" and "river boating". Unquoted words still use prefixes, so `"river boat" dawn` combines both
+  rules. Unfinished quotes behave like ordinary search while typing. The existing eight-word limit applies to the
+  whole query, including phrase words. Books, notes/highlights and EPUB passages use the same matching rules.
 - Results: up to 30 books (most recently read first, then title) and up to 80 notes/highlights (newest first),
   excluding deleted rows and notes on deleted books.
 

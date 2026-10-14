@@ -8,6 +8,31 @@ import org.junit.jupiter.api.Test
 
 class SearchTextTest {
     @Test
+    fun quotesBuildExactPhrasesAlongsideOrdinaryPrefixes() {
+        assertEquals("\"river boat\" tolk*", ftsSearchMatch("\"River boat\" Tolk"))
+        assertEquals("\"river boat\" \"moon light\"", ftsSearchMatch("\"river boat\" \"moon light\""))
+        assertEquals("river* boat*", ftsSearchMatch("river boat"))
+    }
+
+    @Test
+    fun unmatchedQuotesRemainSearchableWhileTyping() {
+        assertEquals("river* boa*", ftsSearchMatch("\"river boa"))
+        assertEquals("\"river boat\" moon*", ftsSearchMatch("\"river boat\" \"moon"))
+    }
+
+    @Test
+    fun phraseSyntaxCannotInjectFtsOperatorsAndKeepsUnicode() {
+        assertEquals("\"or near\" and*", ftsSearchMatch("\"OR NEAR*\" AND:"))
+        assertEquals("\"രാമായണം 2\"", ftsSearchMatch("\"രാമായണം #2\""))
+        assertNull(ftsSearchMatch("\"\" ,.-"))
+    }
+
+    @Test
+    fun phrasesShareTheExistingEightWordBudget() {
+        assertEquals("one* \"two three\" four* five* six* seven* eight*",
+            ftsSearchMatch("one \"two three\" four five six seven eight nine"))
+    }
+    @Test
     fun tokensDropPunctuationAndFtsSyntax() {
         assertEquals(listOf("lord", "of", "the", "rings"), searchTokens("  \"Lord\" -of* the:Rings "))
     }

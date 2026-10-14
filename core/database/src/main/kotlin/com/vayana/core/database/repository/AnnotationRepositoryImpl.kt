@@ -8,8 +8,7 @@ import com.vayana.core.database.dao.BookDao
 import com.vayana.core.database.dao.TombstoneDao
 import com.vayana.core.database.entity.AnnotationEntity
 import com.vayana.core.database.entity.TombstoneEntity
-import com.vayana.core.database.search.ftsPrefixMatch
-import com.vayana.core.database.search.searchTokens
+import com.vayana.core.database.search.ftsSearchMatch
 import com.vayana.core.database.model.Annotation
 import com.vayana.core.database.model.AnnotationType
 import javax.inject.Inject
@@ -33,7 +32,7 @@ class AnnotationRepositoryImpl @Inject constructor(
         annotationDao.observePersonalNotesBookIds().map { it.toSet() }.distinctUntilChanged()
 
     override fun observeSearch(text: String, limit: Int): Flow<List<Annotation>> {
-        val match = ftsPrefixMatch(searchTokens(text)) ?: return flowOf(emptyList())
+        val match = ftsSearchMatch(text) ?: return flowOf(emptyList())
         return annotationDao.observeSearch(match, limit).map { entities -> entities.map { it.toDomain() } }
     }
 
