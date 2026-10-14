@@ -3,6 +3,7 @@ package com.vayana.core.sync.snapshot
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlinx.coroutines.runBlocking
 
@@ -33,6 +34,25 @@ class CompressedSnapshotSliceTest {
         assertEquals("{\"annotations\":[]}", document.jsonFor(RemotePortableSnapshotSlice.Annotations))
         assertEquals(listOf(compressedPath), loadedPaths)
         assertEquals(compressedPath, document.slicePathOrNull("annotations"))
+    }
+
+    @Test
+    fun refusesToCompressASliceTheReaderCannotExpand() {
+        val json = "x".repeat(16 * 1024 * 1024 + 1)
+        assertFailsWith<IllegalArgumentException> { zipSnapshotJson(json) }
+    }
+
+    @Test
+    fun limitAppliesToUtf8BytesRatherThanCharacters() {
+        // Fits the parser's character limit but exceeds the unzip limit once encoded as UTF-8.
+        val json = "雪".repeat(6 * 1024 * 1024)
+        assertFailsWith<IllegalArgumentException> { zipSnapshotJson(json) }
+    }
+
+    @Test
+    fun sliceAtTheExpansionLimitRoundTrips() {
+        val json = "x".repeat(16 * 1024 * 1024)
+        assertEquals(json, unzipSnapshotJson(zipSnapshotJson(json)))
     }
 
 

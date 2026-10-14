@@ -203,10 +203,13 @@ private suspend fun GitHubContentsAssetStore.getSnapshotSliceCached(path: String
 }
 
 internal fun zipSnapshotJson(json: String): ByteArray {
+    val bytes = json.toByteArray(Charsets.UTF_8)
+    // Validate expanded size before any publish writes: a small ZIP can otherwise be unreadable by every device.
+    require(bytes.size <= MaxUncompressedSliceBytes) { "Snapshot slice exceeds the 16 MiB uncompressed limit" }
     val output = ByteArrayOutputStream(json.length.coerceAtMost(MaxInitialZipBufferBytes))
     ZipOutputStream(output).use { zip ->
         zip.putNextEntry(ZipEntry(AnnotationsZipEntryName))
-        zip.write(json.toByteArray(Charsets.UTF_8))
+        zip.write(bytes)
         zip.closeEntry()
     }
     return output.toByteArray()

@@ -954,6 +954,22 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
+    fun oversizedCommunityQuotesFailBeforeAnyPublishRequest() = runBlocking {
+        val quote = PortableAnnotation(
+            syncId = "quote-1", bookSyncId = "book-a", type = "UNDERLINE", colorKey = "popular",
+            locator = "goodreads-quote:1", chapterTitle = null, chapterHref = null,
+            selectedText = "a".repeat(16_000), readerNote = null, createdAt = 1, updatedAt = 1, isDeleted = false,
+        )
+        val snapshot = emptySnapshot(2000).copy(annotations = (1..1100).map { quote.copy(syncId = "quote-$it") })
+        val client = RecordingGitHubHttpClient()
+
+        assertFailsWith<IllegalArgumentException> {
+            testStore(client).putPortableSnapshotDocuments(snapshot, "vayana/snapshots/test.json", null)
+        }
+        assertTrue(client.requests.isEmpty())
+    }
+
+    @Test
     fun singleCommitDeletesStaleFilesInTheSameCommit() = runBlocking {
         val client = RecordingGitHubHttpClient(*singleCommitResponses())
 
