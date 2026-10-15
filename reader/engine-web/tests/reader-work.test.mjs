@@ -132,6 +132,7 @@ test('fully measured chapter counts keep the same total at the beginning and fin
     })
     vm.runInContext(bridge.slice(bridge.indexOf('function bookPageStats'), bridge.indexOf('// TOC href -> section index')), context)
     assert.equal(context.bookPageStats(0).totalPages, 40)
+    assert.equal(context.bookPageStats(0).estimated, false, 'every chapter measured')
     context.view.renderer.pages = 10
     context.view.renderer.page = 8
     const final = context.bookPageStats(2)
@@ -171,6 +172,7 @@ test('cached page statistics preserve the original estimates across sampled sect
         const expectedCurrent = Math.round(estimate(0, sectionIndex)) + Math.min(pagesInSection, Math.max(1, context.view.renderer.page))
         const expectedTotal = Math.round(estimate(0, sectionIndex)) + pagesInSection + Math.round(estimate(sectionIndex + 1, sizes.length))
         const actual = vm.runInContext(`bookPageStats(${sectionIndex})`, context)
+        assert.equal(actual.estimated, true, 'unvisited chapters are still extrapolated')
         assert.equal(actual.currentPage, expectedCurrent)
         assert.equal(actual.totalPages, expectedTotal)
         for (let index = 0; index < sizes.length; index++) {

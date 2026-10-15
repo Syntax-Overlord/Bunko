@@ -1158,6 +1158,7 @@
     <string name="reader_search_no_results">ഒന്നും കണ്ടെത്തിയില്ല.</string>
     <string name="reader_progress_percent">%1$d%%</string>
     <string name="reader_progress_page_of">താൾ %1$d / %2$d</string>
+    <string name="reader_progress_page_of_estimated">താൾ %1$d / ഏകദേശം %2$d</string>
     <string name="reader_progress_pages_left">%1$d താളുകൾ ബാക്കി</string>
     <string name="reader_reading_position_page">താൾ %1$d</string>
     <string name="reader_reading_position_prompt_title">പുതിയ വായനാസ്ഥാനം കണ്ടെത്തി</string>

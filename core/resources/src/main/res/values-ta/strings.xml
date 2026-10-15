@@ -1158,6 +1158,7 @@
     <string name="reader_search_no_results">பொருத்தம் எதுவும் இல்லை.</string>
     <string name="reader_progress_percent">%1$d%%</string>
     <string name="reader_progress_page_of">பக்கம் %1$d / %2$d</string>
+    <string name="reader_progress_page_of_estimated">பக்கம் %1$d / சுமார் %2$d</string>
     <string name="reader_progress_pages_left">%1$d பக்கங்கள் மீதம்</string>
     <string name="reader_reading_position_page">பக்கம் %1$d</string>
     <string name="reader_reading_position_prompt_title">புதிய வாசிப்பு இடம் கிடைத்தது</string>

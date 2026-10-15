@@ -17,6 +17,8 @@ data class Locator(
     val chapterTitle: String?,
     val currentPage: Int? = null,
     val totalPages: Int? = null,
+    /** True while [totalPages] is extrapolated from chapter sizes rather than measured layouts. */
+    val totalPagesEstimated: Boolean = false,
     val chapterMinutesLeft: Int? = null,
     val bookMinutesLeft: Int? = null,
     /** [bookMinutesLeft] unrounded, for measuring how fast the reader goes; null when it is not known. */

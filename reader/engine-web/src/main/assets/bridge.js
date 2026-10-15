@@ -173,9 +173,11 @@ function bookPageStats(sectionIndex) {
         for (const [href, index] of tocSectionIndexes()) {
             if (index < sectionByteSizes.length) tocPages[href] = Math.round(prefixPages[index]) + 1
         }
-        pageEstimateCache = { prefixPages, tocPages, revision: ++pageEstimateRevision }
+        // Every chapter has a real layout count once the background pass (or a saved count) lands.
+        const estimated = sectionByteSizes.some((size, index) => size > 0 && !bytesPerPage.has(index))
+        pageEstimateCache = { prefixPages, tocPages, estimated, revision: ++pageEstimateRevision }
     }
-    const { prefixPages, tocPages, revision } = pageEstimateCache
+    const { prefixPages, tocPages, estimated, revision } = pageEstimateCache
     const pagesBefore = Math.round(prefixPages[sectionIndex])
     const pagesAfter = Math.round(prefixPages[sectionByteSizes.length] - prefixPages[sectionIndex + 1])
     const totalPages = pagesBefore + pagesInSection + pagesAfter
@@ -184,6 +186,7 @@ function bookPageStats(sectionIndex) {
     return {
         currentPage: pagesBefore + pageInSection,
         totalPages,
+        estimated,
         tocPages,
         tocRevision: revision,
     }
@@ -544,6 +547,7 @@ async function open(bookUrl, lastLocatorCfi, savedPageCounts) {
                 tocHref: tocItem?.href ?? null,
                 currentPage: pageStats?.currentPage ?? null,
                 totalPages: pageStats?.totalPages ?? null,
+                totalPagesEstimated: pageStats?.estimated === true,
                 ...(tocChanged ? { tocPages: pageStats.tocPages } : {}),
                 // Minutes remaining at foliate's fixed reading-speed assumption (chars/min) —
                 // text remaining to read, so unlike page count this is independent of font size.

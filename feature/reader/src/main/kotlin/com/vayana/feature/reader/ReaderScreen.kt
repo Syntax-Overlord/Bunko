@@ -1924,7 +1924,11 @@ private fun ReaderPageNumberFooter(
         },
     ) {
         Text(
-            text = stringResource(R.string.reader_progress_page_of, currentPage, totalPages),
+            text = stringResource(
+                if (locator?.totalPagesEstimated == true) R.string.reader_progress_page_of_estimated else R.string.reader_progress_page_of,
+                currentPage,
+                totalPages,
+            ),
             style = MaterialTheme.typography.labelMedium,
         )
     }
@@ -2615,7 +2619,11 @@ private fun ProgressPanel(
         val totalPages = locator?.totalPages
         if (currentPage != null && totalPages != null) {
             Text(
-                text = stringResource(R.string.reader_progress_page_of, currentPage, totalPages),
+                text = stringResource(
+                    if (locator.totalPagesEstimated) R.string.reader_progress_page_of_estimated else R.string.reader_progress_page_of,
+                    currentPage,
+                    totalPages,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(

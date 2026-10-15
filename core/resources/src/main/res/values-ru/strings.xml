@@ -1176,6 +1176,7 @@
     <string name="reader_search_no_results">Ничего не найдено.</string>
     <string name="reader_progress_percent">%1$d%%</string>
     <string name="reader_progress_page_of">Страница %1$d из %2$d</string>
+    <string name="reader_progress_page_of_estimated">Страница %1$d из примерно %2$d</string>
     <string name="reader_progress_pages_left">Осталось страниц: %1$d</string>
     <string name="reader_reading_position_page">Страница %1$d</string>
     <string name="reader_reading_position_prompt_title">Найдена новая позиция чтения</string>

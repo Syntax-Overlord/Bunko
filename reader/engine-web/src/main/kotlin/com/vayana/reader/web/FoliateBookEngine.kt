@@ -665,6 +665,7 @@ class FoliateBookEngine(private val webView: WebView, context: Context) : BookEn
                     chapterTitle = payload.optStringOrNull("tocLabel"),
                     currentPage = payload.optIntOrNull("currentPage"),
                     totalPages = payload.optIntOrNull("totalPages"),
+                    totalPagesEstimated = payload.optBoolean("totalPagesEstimated"),
                     chapterMinutesLeft = payload.optMinutesOrNull("chapterMinutesLeft"),
                     bookMinutesLeft = payload.optMinutesOrNull("bookMinutesLeft"),
                     bookMinutesLeftExact = payload.optExactMinutesOrNull("bookMinutesLeft"),

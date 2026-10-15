@@ -1276,6 +1276,7 @@
     <string name="reader_search_no_results">No matches found.</string>
     <string name="reader_progress_percent">%1$d%%</string>
     <string name="reader_progress_page_of">Page %1$d of %2$d</string>
+    <string name="reader_progress_page_of_estimated">Page %1$d of about %2$d</string>
     <string name="reader_progress_pages_left">%1$d pages left</string>
     <string name="reader_reading_position_page">Page %1$d</string>
     <string name="reader_reading_position_prompt_title">New read location found</string>

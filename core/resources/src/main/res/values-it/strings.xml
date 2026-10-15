@@ -1167,6 +1167,7 @@
     <string name="reader_search_no_results">Nessun risultato.</string>
     <string name="reader_progress_percent">%1$d%%</string>
     <string name="reader_progress_page_of">Pagina %1$d di %2$d</string>
+    <string name="reader_progress_page_of_estimated">Pagina %1$d di circa %2$d</string>
     <string name="reader_progress_pages_left">%1$d pagine rimaste</string>
     <string name="reader_reading_position_page">Pagina %1$d</string>
     <string name="reader_reading_position_prompt_title">Nuova posizione di lettura trovata</string>
