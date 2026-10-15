@@ -2340,12 +2340,22 @@ private fun ReaderChrome(
                 ReaderPanelButton(Icons.Outlined.TextFields, R.string.reader_style, selectedPanel == ReaderPanel.STYLE) {
                     onPanelSelected(ReaderPanel.STYLE)
                 }
+                // Readers who turned audio on want it one tap away rather than behind the overflow menu.
+                if (settings.readerAudioFeaturesEnabled) {
+                    ReaderPanelButton(
+                        Icons.Outlined.Headphones,
+                        R.string.settings_read_aloud_section_title,
+                        selectedPanel == ReaderPanel.READ_ALOUD,
+                    ) {
+                        onPanelSelected(ReaderPanel.READ_ALOUD)
+                    }
+                }
                 Box {
                     ReaderPanelButton(
                         Icons.Outlined.MoreHoriz,
                         R.string.reader_more_tools,
                         selectedPanel == ReaderPanel.NOTES || selectedPanel == ReaderPanel.PROGRESS ||
-                            selectedPanel == ReaderPanel.READ_ALOUD || selectedPanel == ReaderPanel.WORDS,
+                            selectedPanel == ReaderPanel.WORDS,
                     ) {
                         moreToolsVisible = true
                     }
@@ -2374,16 +2384,6 @@ private fun ReaderChrome(
                             },
                             leadingIcon = { Icon(Icons.Outlined.Translate, contentDescription = null) },
                         )
-                        if (settings.readerAudioFeaturesEnabled) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.settings_read_aloud_section_title)) },
-                                onClick = {
-                                    moreToolsVisible = false
-                                    onPanelSelected(ReaderPanel.READ_ALOUD)
-                                },
-                                leadingIcon = { Icon(Icons.Outlined.Headphones, contentDescription = null) },
-                            )
-                        }
                     }
                 }
             }
