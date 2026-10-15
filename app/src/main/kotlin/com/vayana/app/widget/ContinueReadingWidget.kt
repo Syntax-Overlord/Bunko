@@ -226,21 +226,30 @@ class ContinueReadingWidgetUpdater @Inject constructor(
         )
     }
 
-    /** The cover scaled down to the widget's size: RemoteViews bitmaps travel through a size-limited parcel. */
+    /**
+     * The cover at the height the largest layout shows it (a stacked or large-row cover, up to about 300dp at 2x), and
+     * no larger: RemoteViews bitmaps travel through a size-limited parcel. Decoded at the nearest power-of-two
+     * reduction, then scaled to exactly that height when still well above it.
+     */
     private fun loadCover(relativePath: String): Bitmap? = runCatching {
         val file = storageRoots.resolve(relativePath).takeIf { it.isFile } ?: return null
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, bounds)
         var sample = 1
         while (bounds.outHeight / (sample * 2) >= CoverHeightPx) sample *= 2
-        BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+        val decoded = BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })
+            ?: return null
+        if (decoded.height <= CoverHeightPx * CoverOversize) return decoded
+        val width = (decoded.width * CoverHeightPx.toFloat() / decoded.height).roundToInt().coerceAtLeast(1)
+        Bitmap.createScaledBitmap(decoded, width, CoverHeightPx, true).also { if (it !== decoded) decoded.recycle() }
     }.getOrNull()
 
     companion object {
         const val ActionOpenBook = "com.vayana.app.OPEN_BOOK"
         const val ExtraBookId = "com.vayana.app.extra.BOOK_ID"
         private const val OpenRequestCode = 0
-        private const val CoverHeightPx = 320
+        private const val CoverHeightPx = 640
+        private const val CoverOversize = 1.25f
         private const val CoverAspect = 1.5f
     }
 }
