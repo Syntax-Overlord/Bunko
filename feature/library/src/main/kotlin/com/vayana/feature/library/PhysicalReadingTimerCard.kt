@@ -46,6 +46,8 @@ import com.vayana.core.designsystem.dialog.ExpressiveDialogSurface
 import com.vayana.core.designsystem.tokens.Radii
 import com.vayana.core.designsystem.tokens.Spacing
 import com.vayana.core.resources.R
+import com.vayana.core.designsystem.theme.DisplayProfile
+import com.vayana.core.designsystem.theme.LocalDisplayProfile
 import com.vayana.core.designsystem.theme.VayanaCircularProgressIndicator
 import com.vayana.core.designsystem.theme.vayanaContentTransform
 import com.vayana.core.designsystem.theme.vayanaFadeIn
@@ -200,24 +202,34 @@ internal fun PhysicalReadingTimerCard(book: Book, viewModel: LibraryViewModel) {
     }
 }
 
-/** Only this display observes the tick; actions, dialogs and session history do not recompose each second. */
+/**
+ * Only this display observes the tick; actions, dialogs and session history do not recompose each second.
+ * E-Ink shows whole minutes: a per-second tick would refresh the panel every second.
+ */
 @Composable
 internal fun PhysicalTimerClock(timer: PhysicalTimerSession?, modifier: Modifier = Modifier,
     style: TextStyle = MaterialTheme.typography.displayMedium,
     color: Color = MaterialTheme.colorScheme.primary) {
     var now by remember(timer?.syncId) { mutableStateOf(SystemClock.elapsedRealtime()) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    LaunchedEffect(timer, lifecycle) {
+    val eink = LocalDisplayProfile.current == DisplayProfile.E_INK
+    val tickMillis = if (eink) 60_000L else 1_000L
+    LaunchedEffect(timer, lifecycle, tickMillis) {
         if (timer?.phase != PhysicalTimerPhase.RUNNING) return@LaunchedEffect
         lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
             while (true) {
                 now = SystemClock.elapsedRealtime()
-                delay(1000 - timer.elapsedMillis(now) % 1000)
+                delay(tickMillis - timer.elapsedMillis(now) % tickMillis)
             }
         }
     }
+    val seconds = (timer?.elapsedMillis(now) ?: 0) / 1000
     Text(
-        text = formatTimerClock((timer?.elapsedMillis(now) ?: 0) / 1000),
+        text = if (eink) {
+            stringResource(R.string.reader_duration_hours_minutes, (seconds / 3600).toInt(), (seconds / 60 % 60).toInt())
+        } else {
+            formatTimerClock(seconds)
+        },
         style = style,
         color = color,
         modifier = modifier,
