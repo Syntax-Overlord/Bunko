@@ -909,7 +909,7 @@ async function restoreAnnotationsForOverlay(doc, index) {
     if (!current || !activeAnnotationsList.length) return
     let sectionCache = annotationSectionCache.get(view)
     if (!sectionCache) {
-        sectionCache = new WeakMap()
+        sectionCache = new Map()
         annotationSectionCache.set(view, sectionCache)
     }
 
@@ -929,18 +929,18 @@ async function restoreAnnotationsForOverlay(doc, index) {
             if (source && source !== annotation.value) continue
         }
         if (!cfi || restoredCfis.has(cfi)) continue
-        let section = sectionCache.get(annotation)
-        if (section?.cfi !== cfi) {
-            section = null
+        // Keyed by CFI, not annotation object: each snapshot from Kotlin brings fresh objects.
+        let section = sectionCache.get(cfi)
+        if (section === undefined) {
             try {
                 const resolved = view.resolveCFI(cfi)
                 if (Number.isInteger(resolved?.index) && resolved.index >= 0) {
-                    section = { cfi, index: resolved.index }
-                    sectionCache.set(annotation, section)
+                    section = resolved.index
+                    sectionCache.set(cfi, section)
                 }
             } catch (_) {}
         }
-        if (section?.index !== index) continue
+        if (section !== index) continue
         restoredCfis.add(cfi)
         additions.push(Promise.resolve(view.addAnnotation({ ...annotation, value: cfi })))
     }

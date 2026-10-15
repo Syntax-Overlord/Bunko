@@ -481,6 +481,12 @@ test('chapter changes resolve annotation sections once per snapshot rather than 
     assert.equal(draws, 1000, 'all marks still draw in their own chapters')
     assert.equal(resolves, 1000, '1000 annotations across 20 chapters need 1000 resolutions, rather than 20000')
 
+    context.activeAnnotationsList = annotations.map(annotation => ({ ...annotation }))
+    doc = {}
+    index = 0
+    await context.restoreAnnotationsForOverlay(doc, index)
+    assert.equal(resolves, 1000, 'a fresh snapshot of the same marks reuses resolved sections')
+
     context.view = { ...view }
     index = 0
     await context.restoreAnnotationsForOverlay(doc, index)
