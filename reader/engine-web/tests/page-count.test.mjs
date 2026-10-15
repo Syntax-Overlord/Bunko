@@ -3,7 +3,7 @@ import { test } from 'node:test'
 import { readFile } from 'node:fs/promises'
 
 const source = await readFile(new URL('../src/main/assets/page-count.js', import.meta.url), 'utf8')
-const { measureBookPages } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)
+const { layoutPageCounts, measureBookPages, pageLayoutKey } = await import(`data:text/javascript;base64,${Buffer.from(source).toString('base64')}`)
 
 function fixture() {
     let index = -1, destroyed = false, removed = false
@@ -59,4 +59,45 @@ test('a layout invalidated while fonts load skips rendering and yielding', async
     assert.equal(renders, 0)
     assert.equal(yields, 1, 'only the initial idle wait ran')
     assert.equal(f.cleaned(), true)
+})
+
+test('a saved layout is reused without measuring, and a changed layout measures again', async () => {
+    const cache = new Map()
+    const css = 'body{color:#112233 !important;font-size:100% !important;}'
+    const layout = pageLayoutKey(css, 10, 400, 800, false)
+    let measures = 0
+    const measure = async () => { measures++; return measureBookPages(fixture().renderer, [{}, {}], () => false, async () => {}) }
+
+    const first = await layoutPageCounts(cache, layout, measure)
+    assert.equal(first.measured, true)
+    assert.deepEqual([...first.counts], [[0, 2], [1, 100]])
+
+    // Reopening (counts restored from Kotlin) or a theme change: same pagination, no measuring pass.
+    const restored = new Map([[layout, new Map(first.counts)]])
+    const sameLayout = pageLayoutKey(css.replace('#112233', '#EEEEEE'), 10, 400, 800, false)
+    const hit = await layoutPageCounts(restored, sameLayout, measure)
+    assert.equal(hit.measured, false)
+    assert.deepEqual([...hit.counts], [[0, 2], [1, 100]])
+    assert.equal(measures, 1)
+
+    // The read-aloud panel shortens the viewport: a different layout, so it is measured.
+    const shorter = pageLayoutKey(css, 10, 400, 600, false)
+    assert.equal((await layoutPageCounts(cache, shorter, measure)).measured, true)
+    assert.equal(measures, 2)
+    // Closing the panel returns to the first layout's counts.
+    assert.equal((await layoutPageCounts(cache, layout, measure)).measured, false)
+    assert.equal(measures, 2)
+
+    for (const changed of [pageLayoutKey(css.replace('100%', '110%'), 10, 400, 800, false),
+        pageLayoutKey(css, 12, 400, 800, false), pageLayoutKey(css, 10, 500, 800, false),
+        pageLayoutKey(css, 10, 400, 800, true)]) {
+        assert.notEqual(changed, layout)
+    }
+})
+
+test('a cancelled count leaves no saved layout behind', async () => {
+    const cache = new Map()
+    const result = await layoutPageCounts(cache, 'layout', async () => null)
+    assert.deepEqual(result, { counts: null, measured: false })
+    assert.equal(cache.size, 0)
 })

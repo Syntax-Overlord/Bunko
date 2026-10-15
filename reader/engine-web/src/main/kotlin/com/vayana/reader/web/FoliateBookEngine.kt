@@ -13,6 +13,7 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import androidx.webkit.WebViewAssetLoader
 import androidx.webkit.WebViewClientCompat
+import androidx.webkit.WebViewCompat
 import com.vayana.reader.api.BookEngine
 import com.vayana.reader.api.BookHyphenation
 import com.vayana.reader.api.BookSource
@@ -39,6 +40,7 @@ import java.io.InputStream
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 import java.util.zip.ZipFile
+import kotlin.concurrent.thread
 import kotlin.math.ceil
 import kotlin.math.min
 import kotlinx.coroutines.CompletableDeferred
@@ -101,7 +103,7 @@ class FoliateBookEngine(private val webView: WebView, context: Context) : BookEn
     @Volatile
     private var currentBookFile: File? = null
     private var jsReady = false
-    private var pendingOpen: Pair<String, String?>? = null
+    private var pendingOpen: Triple<String, String?, String>? = null
     private var openResult: CompletableDeferred<Result<OpenBook>>? = null
     @Volatile private var waitingForPdfPassword = false
 
@@ -112,6 +114,14 @@ class FoliateBookEngine(private val webView: WebView, context: Context) : BookEn
     private val _events = MutableSharedFlow<EngineEvent>(extraBufferCapacity = 16)
 
     private val appContext = context.applicationContext
+
+    private val pageCounts by lazy {
+        val appUpdated = runCatching {
+            appContext.packageManager.getPackageInfo(appContext.packageName, 0).lastUpdateTime
+        }.getOrDefault(0L)
+        val webView = WebViewCompat.getCurrentWebViewPackage(appContext)?.versionName
+        PageCountStore(File(appContext.cacheDir, "page-counts"), "$appUpdated|$webView")
+    }
 
     // NOT WebViewAssetLoader.AssetsPathHandler: its automatic MIME-type lookup often can't
     // resolve ".js" -> "text/javascript" on-device (MimeTypeMap has no default mapping for it),
@@ -319,8 +329,10 @@ class FoliateBookEngine(private val webView: WebView, context: Context) : BookEn
         val deferred = CompletableDeferred<Result<OpenBook>>()
         openResult = deferred
 
-        val request = BOOK_URL to resumeLocator?.cfi
-        if (jsReady) evaluateOpen(request.first, request.second) else pendingOpen = request
+        // A few KB, read here rather than after a suspension that a newer open() could interleave with.
+        val savedPageCounts = pageCounts.load(pageCounts.bookKey(bookFile)).toString()
+        val request = Triple(BOOK_URL, resumeLocator?.cfi, savedPageCounts)
+        if (jsReady) evaluateOpen(request.first, request.second, request.third) else pendingOpen = request
 
         val timedResult = withTimeoutOrNull(ReaderOpenTimeoutMillis) { deferred.await() }
         if (timedResult != null) return timedResult
@@ -553,9 +565,9 @@ class FoliateBookEngine(private val webView: WebView, context: Context) : BookEn
         }
     }
 
-    private fun evaluateOpen(bookUrl: String, lastLocatorCfi: String?) {
+    private fun evaluateOpen(bookUrl: String, lastLocatorCfi: String?, savedPageCounts: String) {
         val cfiArg = lastLocatorCfi?.let { JSONObject.quote(it) } ?: "null"
-        webView.evaluateJavascript("window.VayanaReader.open(${JSONObject.quote(bookUrl)}, $cfiArg)", null)
+        webView.evaluateJavascript("window.VayanaReader.open(${JSONObject.quote(bookUrl)}, $cfiArg, $savedPageCounts)", null)
     }
 
     private fun blockedResponse(statusCode: Int = 403, reasonPhrase: String = "Forbidden"): WebResourceResponse =
@@ -621,7 +633,7 @@ class FoliateBookEngine(private val webView: WebView, context: Context) : BookEn
         when (type) {
             "ready" -> {
                 jsReady = true
-                pendingOpen?.let { (url, cfi) -> evaluateOpen(url, cfi) }
+                pendingOpen?.let { (url, cfi, counts) -> evaluateOpen(url, cfi, counts) }
                 pendingOpen = null
             }
             "opened" -> {
@@ -638,6 +650,12 @@ class FoliateBookEngine(private val webView: WebView, context: Context) : BookEn
                 waitingForPdfPassword = false
                 openResult?.complete(Result.success(openBook))
                 openResult = null
+            }
+            "pageCounts" -> {
+                val book = payload.optString("book")
+                val layout = payload.optString("layout")
+                val counts = payload.optJSONArray("counts") ?: return
+                thread(name = "page-count-store") { pageCounts.save(book, layout, counts) }
             }
             "relocate" -> {
                 val locator = Locator(

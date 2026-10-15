@@ -30,3 +30,17 @@ export async function measureBookPages(renderer, sections, isCancelled, yieldWor
         counter.remove()
     }
 }
+
+// Everything that changes how many pages a chapter takes. Colours never do, so a theme switch keeps its counts.
+export function pageLayoutKey(css, sideMargin, width, height, bionic) {
+    return JSON.stringify([String(css ?? '').replace(/#[0-9a-f]{6}\b/gi, ''), sideMargin, width, height, Boolean(bionic)])
+}
+
+// Counts saved for this layout, or a fresh measurement that is saved under it. `measured` says which.
+export async function layoutPageCounts(cache, layout, measure) {
+    const saved = cache.get(layout)
+    if (saved) return { counts: saved, measured: false }
+    const counts = await measure()
+    if (counts) cache.set(layout, counts)
+    return { counts, measured: Boolean(counts) }
+}

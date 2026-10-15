@@ -3,7 +3,7 @@
 // `AndroidBridge` @JavascriptInterface (see FoliateBookEngine.kt).
 import './foliate/view.js'
 import { Overlayer } from './foliate/overlayer.js'
-import { measureBookPages } from './page-count.js'
+import { layoutPageCounts, measureBookPages, pageLayoutKey } from './page-count.js'
 
 const DefaultAnnotationColor = '#6366f1'
 
@@ -79,7 +79,11 @@ async function waitForReaderIdle(isCancelled) {
 // on is already a real, current measurement. Byte-size extrapolation supplies a quick initial
 // estimate; a background layout pass replaces it with measured counts for every chapter.
 // Page turns then reuse the same prefix totals for the footer, contents and page jump.
+// Measured counts are kept per layout, and Kotlin saves them per book, so reopening the book or
+// returning to an earlier layout (the read-aloud panel closing) reuses them without laying out again.
 let sectionByteSizes = null
+let measuredPageCounts = new Map()
+let pageCountBook = null
 const bytesPerPage = new Map()
 let pageEstimateCache = null
 let pageEstimateRevision = 0
@@ -102,14 +106,22 @@ function schedulePageCount() {
     pageCountStarted = true
     const generation = pageCountGeneration
     const currentView = view
+    // Captured now: a count finishing after another book opens must not land in that book's cache.
+    const cache = measuredPageCounts
+    const book = pageCountBook
+    const layout = pageLayoutKey(appliedReaderStyles.get(view.renderer), readerSideMarginPercent,
+        window.innerWidth, window.innerHeight, bionicReadingEnabled)
     pageCountTimer = setTimeout(async () => {
         const cancelled = () => generation !== pageCountGeneration || currentView !== view
         try {
-            const counts = await measureBookPages(currentView.renderer, currentView.book.sections,
-                cancelled, () => waitForReaderIdle(cancelled), applyBionicReadingToDoc)
+            const { counts, measured } = await layoutPageCounts(cache, layout, () => measureBookPages(
+                currentView.renderer, currentView.book.sections,
+                cancelled, () => waitForReaderIdle(cancelled), applyBionicReadingToDoc))
+            if (measured && book) post('pageCounts', { book, layout, counts: [...counts] })
             if (!counts || cancelled()) return
+            const sizes = bookSectionSizes()
             for (const [index, pages] of counts) {
-                bytesPerPage.set(index, sectionByteSizes[index] / pages)
+                bytesPerPage.set(index, sizes[index] / pages)
             }
             pageEstimateCache = null
             // Publish the completed total even if the reader hasn't turned a page.
@@ -119,7 +131,7 @@ function schedulePageCount() {
         } catch (error) {
             post('log', { step: 'pageCount', message: String(error) })
         }
-    }, 350)
+    }, cache.has(layout) ? 0 : 350)
 }
 
 function bookPageStats(sectionIndex) {
@@ -130,9 +142,7 @@ function bookPageStats(sectionIndex) {
     const page = renderer.page
     if (!Number.isFinite(pages) || pages <= 0 || !Number.isFinite(page)) return null
 
-    if (!sectionByteSizes) {
-        sectionByteSizes = view.book.sections.map(s => s.linear !== 'no' ? Math.max(1, s.size || 0) : 0)
-    }
+    bookSectionSizes()
     // paginator reserves one blank column at each end for the header/footer margins.
     const pagesInSection = Math.max(1, pages - 2)
     const pageInSection = Math.min(pagesInSection, Math.max(1, page))
@@ -177,6 +187,10 @@ function bookPageStats(sectionIndex) {
         tocPages,
         tocRevision: revision,
     }
+}
+
+function bookSectionSizes() {
+    return sectionByteSizes ??= view.book.sections.map(s => s.linear !== 'no' ? Math.max(1, s.size || 0) : 0)
 }
 
 // A fixed-layout section is one page. Its contents entries resolve asynchronously (PDF destinations), so their page
@@ -445,7 +459,8 @@ function nativePdfFile(bookUrl) {
     }
 }
 
-async function open(bookUrl, lastLocatorCfi) {
+// savedPageCounts: { book, layouts: [{ layout, counts: [[sectionIndex, pages], ...] }] } from Kotlin's per-book store.
+async function open(bookUrl, lastLocatorCfi, savedPageCounts) {
     speech.pdfMarginPages.clear()
     let phase = 'starting'
     const watchdog = setInterval(() => {
@@ -506,6 +521,8 @@ async function open(bookUrl, lastLocatorCfi) {
         fixedLayoutTocPages = null
         resetFixedLayoutState()
         resetPageEstimate()
+        pageCountBook = savedPageCounts?.book ?? null
+        measuredPageCounts = new Map((savedPageCounts?.layouts ?? []).map(({ layout, counts }) => [layout, new Map(counts)]))
         pageJumpSnapshot = null
         view.addEventListener('relocate', e => {
             if (publishedSelectionDocument && !view.renderer.getContents()
