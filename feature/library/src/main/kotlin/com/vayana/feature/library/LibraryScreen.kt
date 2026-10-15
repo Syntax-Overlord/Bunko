@@ -179,6 +179,7 @@ fun LibraryRoute(
     val viewModel: LibraryViewModel = hiltViewModel()
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val physicalTimer by viewModel.physicalReadingTimer.session.collectAsStateWithLifecycle()
+    val todayCardEnabled by hiltViewModel<ReadingDashboardViewModel>().enabled.collectAsStateWithLifecycle()
     val importSummary by viewModel.importSummary.collectAsStateWithLifecycle()
     val importProgress by viewModel.importProgress.collectAsStateWithLifecycle()
     val syncProgress by viewModel.syncProgress.collectAsStateWithLifecycle()
@@ -230,7 +231,10 @@ fun LibraryRoute(
         onFilterChange = viewModel::updateFilter,
         onGroupByChange = viewModel::updateGroupBy,
         onViewModeChange = viewModel::updateViewMode,
-        todayCard = { TodayCard(onContinue = { onContinueReading(it.id, null) }, onWords = onReviewWords, onHighlights = onReviewHighlights) },
+        // Decided here, not inside TodayCard: an empty list item would still take the list's item spacing.
+        todayCard = if (todayCardEnabled) {
+            { TodayCard(onContinue = { onContinueReading(it.id, null) }, onWords = onReviewWords, onHighlights = onReviewHighlights) }
+        } else null,
         tools = { tool, dismiss, open ->
             when (tool) {
                 LibraryTool.SMART_SHELVES -> {
@@ -251,7 +255,7 @@ private fun LibraryScreen(
     physicalTimer: PhysicalTimerSession?,
     physicalTimerController: PhysicalReadingTimerController,
     tools: @Composable (LibraryTool, () -> Unit, (Book) -> Unit) -> Unit,
-    todayCard: @Composable () -> Unit,
+    todayCard: (@Composable () -> Unit)?,
     modifier: Modifier = Modifier,
     uiState: LibraryUiState,
     searchText: String,
@@ -585,7 +589,7 @@ private fun LibraryScreen(
             when (uiState.controls.viewMode) {
                 LibraryViewMode.THUMBNAILS -> LibraryGrid(
                     physicalShelf = physicalShelf,
-                    todayCard = todayCard.takeIf { uiState.controls.query.isBlank() && uiState.controls.filter == LibraryFilter.ALL },
+                    todayCard = todayCard?.takeIf { uiState.controls.query.isBlank() && uiState.controls.filter == LibraryFilter.ALL },
                     books = uiState.books,
                     readNextQueue = activeReadNextQueue,
                     showReadNextSuggestions = showReadNextSuggestions,
@@ -604,7 +608,7 @@ private fun LibraryScreen(
                 )
                 LibraryViewMode.LIST -> LibraryList(
                     physicalShelf = physicalShelf,
-                    todayCard = todayCard.takeIf { uiState.controls.query.isBlank() && uiState.controls.filter == LibraryFilter.ALL },
+                    todayCard = todayCard?.takeIf { uiState.controls.query.isBlank() && uiState.controls.filter == LibraryFilter.ALL },
                     books = uiState.books,
                     readNextQueue = activeReadNextQueue,
                     showReadNextSuggestions = showReadNextSuggestions,
