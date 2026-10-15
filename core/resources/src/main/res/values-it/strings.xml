@@ -1008,6 +1008,8 @@
     <string name="settings_reader_show_headers_subtitle">Mostra orologio, minuti della sessione e tempo rimanente durante la lettura.</string>
     <string name="settings_reader_show_footer_title">Mostra piè di pagina</string>
     <string name="settings_reader_show_footer_subtitle">Mostra numero di pagina e progressi del libro durante la lettura.</string>
+    <string name="settings_reader_auto_hide_indicators_title">Nascondi automaticamente gli indicatori</string>
+    <string name="settings_reader_auto_hide_indicators_subtitle">Nasconde orologio, numero di pagina e progressi pochi secondi dopo il tocco. Disattiva per tenerli sempre visibili.</string>
     <string name="settings_reader_tap_zone_title">Gesti per voltare pagina</string>
     <string name="settings_reader_tap_zone_subtitle">Scegli se toccare i bordi della pagina volta pagina. Lo scorrimento funziona sempre.</string>
     <string name="settings_reader_tap_zone_three_zone">Tocca e scorri</string>
@@ -1316,6 +1318,7 @@
     <string name="settings_search_keywords_reader_keep_awake">schermo acceso standby lettura</string>
     <string name="settings_search_keywords_reader_show_headers">lettore mostra nascondi intestazione orologio sessione tempo rimanente</string>
     <string name="settings_search_keywords_reader_show_footer">lettore mostra nascondi piè di pagina pagina progressi</string>
+    <string name="settings_search_keywords_reader_auto_hide_indicators">lettore nascondi automaticamente indicatori intestazione piè di pagina orologio sempre</string>
     <string name="settings_search_keywords_reader_auto_mark_selection">evidenzia seleziona selezione automatica segna colore</string>
     <string name="settings_search_keywords_reader_bionic_reading">bionica grassetto parola inizio focus testo</string>
     <string name="settings_search_keywords_reader_bolder_text">testo marcato grassetto spessore contrasto nitido eink e-ink sottile</string>

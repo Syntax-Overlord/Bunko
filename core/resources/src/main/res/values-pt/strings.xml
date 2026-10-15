@@ -1008,6 +1008,8 @@
     <string name="settings_reader_show_headers_subtitle">Mostra o relógio, os minutos da sessão e o tempo restante durante a leitura.</string>
     <string name="settings_reader_show_footer_title">Mostrar rodapé</string>
     <string name="settings_reader_show_footer_subtitle">Mostra a contagem de páginas e o progresso do livro durante a leitura.</string>
+    <string name="settings_reader_auto_hide_indicators_title">Ocultar indicadores automaticamente</string>
+    <string name="settings_reader_auto_hide_indicators_subtitle">Oculta o relógio, o número da página e o progresso alguns segundos após tocar. Desative para mantê-los visíveis.</string>
     <string name="settings_reader_tap_zone_title">Gestos para virar a página</string>
     <string name="settings_reader_tap_zone_subtitle">Escolha se tocar nas bordas da página vira a página. Deslizar sempre funciona.</string>
     <string name="settings_reader_tap_zone_three_zone">Tocar e deslizar</string>
@@ -1316,6 +1318,7 @@
     <string name="settings_search_keywords_reader_keep_awake">manter ligada tela suspensão leitura</string>
     <string name="settings_search_keywords_reader_show_headers">leitor mostrar ocultar cabeçalho relógio sessão tempo restante</string>
     <string name="settings_search_keywords_reader_show_footer">leitor mostrar ocultar rodapé página progresso</string>
+    <string name="settings_search_keywords_reader_auto_hide_indicators">leitor ocultar automaticamente indicadores cabeçalho rodapé relógio sempre</string>
     <string name="settings_search_keywords_reader_auto_mark_selection">destacar selecionar seleção automático marcar cor</string>
     <string name="settings_search_keywords_reader_bionic_reading">biônica negrito palavra início foco texto</string>
     <string name="settings_search_keywords_reader_bolder_text">texto grosso negrito peso contraste nítido eink e-ink fino</string>

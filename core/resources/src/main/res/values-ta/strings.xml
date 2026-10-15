@@ -999,6 +999,8 @@
     <string name="settings_reader_show_headers_subtitle">வாசிக்கும்போது கடிகாரம், அமர்வு நிமிடங்கள், மீதமுள்ள நேரம் ஆகியவற்றைக் காட்டு.</string>
     <string name="settings_reader_show_footer_title">அடிப்பட்டையைக் காட்டு</string>
     <string name="settings_reader_show_footer_subtitle">வாசிக்கும்போது பக்க எண்ணிக்கையையும் நூல் முன்னேற்றத்தையும் காட்டு.</string>
+    <string name="settings_reader_auto_hide_indicators_title">குறிகாட்டிகளைத் தானாக மறை</string>
+    <string name="settings_reader_auto_hide_indicators_subtitle">தொட்ட சில விநாடிகளுக்குப் பின் கடிகாரம், பக்க எண், முன்னேற்றம் ஆகியவற்றை மறை. எப்போதும் காட்ட இதை அணை.</string>
     <string name="settings_reader_tap_zone_title">பக்கம் புரட்டும் சைகைகள்</string>
     <string name="settings_reader_tap_zone_subtitle">பக்க ஓரங்களைத் தொட்டால் பக்கம் புரள வேண்டுமா எனத் தேர்ந்தெடுங்கள். தேய்த்தல் எப்போதும் செயல்படும்.</string>
     <string name="settings_reader_tap_zone_three_zone">தொடலும் தேய்த்தலும்</string>
@@ -1307,6 +1309,7 @@
     <string name="settings_search_keywords_reader_keep_awake">விழித்திரு திரை உறக்கம் வாசிப்பு</string>
     <string name="settings_search_keywords_reader_show_headers">வாசிப்பு காட்டு மறை தலைப்புப் பட்டை கடிகாரம் மீத நேரம்</string>
     <string name="settings_search_keywords_reader_show_footer">வாசிப்பு காட்டு மறை அடிப்பட்டை பக்கம் முன்னேற்றம்</string>
+    <string name="settings_search_keywords_reader_auto_hide_indicators">வாசிப்பு தானாக மறை குறிகாட்டிகள் கடிகாரம் எப்போதும்</string>
     <string name="settings_search_keywords_reader_auto_mark_selection">குறியிடு தேர்வு தானாக வண்ணம்</string>
     <string name="settings_search_keywords_reader_bionic_reading">பயோனிக் தடிப்பு சொல் தொடக்கம் கவனம் உரை</string>
     <string name="settings_search_keywords_reader_bolder_text">தடித்த உரை தடிப்பு வேறுபாடு தெளிவு இ-இங்க் மெல்லிய</string>

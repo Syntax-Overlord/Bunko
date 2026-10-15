@@ -999,6 +999,8 @@
     <string name="settings_reader_show_headers_subtitle">വായിക്കുമ്പോൾ ഘടികാരം, വായനാവേളയുടെ മിനിറ്റുകൾ, ബാക്കി സമയം എന്നിവ കാണിക്കുക.</string>
     <string name="settings_reader_show_footer_title">കീഴ്‌വരി കാണിക്കുക</string>
     <string name="settings_reader_show_footer_subtitle">വായിക്കുമ്പോൾ താൾ എണ്ണവും പുസ്തക പുരോഗതിയും കാണിക്കുക.</string>
+    <string name="settings_reader_auto_hide_indicators_title">സൂചകങ്ങൾ സ്വയം മറയ്ക്കുക</string>
+    <string name="settings_reader_auto_hide_indicators_subtitle">തൊട്ട് കുറച്ച് നിമിഷങ്ങൾക്ക് ശേഷം സമയം, താൾ നമ്പർ, പുരോഗതി എന്നിവ മറയ്ക്കുക. എപ്പോഴും കാണിക്കാൻ ഓഫാക്കുക.</string>
     <string name="settings_reader_tap_zone_title">താൾ മറിക്കാനുള്ള ആംഗ്യങ്ങൾ</string>
     <string name="settings_reader_tap_zone_subtitle">താളിന്റെ അരികുകളിൽ തൊട്ടാൽ താൾ മറിയണോ എന്ന് തിരഞ്ഞെടുക്കുക. വിരലോടിക്കൽ എപ്പോഴും പ്രവർത്തിക്കും.</string>
     <string name="settings_reader_tap_zone_three_zone">തൊടലും വിരലോടിക്കലും</string>
@@ -1307,6 +1309,7 @@
     <string name="settings_search_keywords_reader_keep_awake">ഉണർന്നിരിക്കുക സ്ക്രീൻ ഉറക്കം വായന</string>
     <string name="settings_search_keywords_reader_show_headers">വായന കാണിക്കുക മറയ്ക്കുക മേൽവരി ഘടികാരം ബാക്കി സമയം</string>
     <string name="settings_search_keywords_reader_show_footer">വായന കാണിക്കുക മറയ്ക്കുക കീഴ്‌വരി താൾ പുരോഗതി</string>
+    <string name="settings_search_keywords_reader_auto_hide_indicators">വായന സ്വയം മറയ്ക്കുക സൂചകങ്ങൾ സമയം എപ്പോഴും</string>
     <string name="settings_search_keywords_reader_auto_mark_selection">അടയാളം തിരഞ്ഞെടുക്കൽ തനിയെ നിറം ഹൈലൈറ്റ്</string>
     <string name="settings_search_keywords_reader_bionic_reading">ബയോണിക് കടുപ്പം വാക്ക് തുടക്കം ശ്രദ്ധ എഴുത്ത്</string>
     <string name="settings_search_keywords_reader_bolder_text">കടുപ്പമുള്ള എഴുത്ത് കട്ടി തെളിമ വ്യക്തം ഇ-ഇങ്ക് നേർത്ത</string>

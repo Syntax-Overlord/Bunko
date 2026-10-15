@@ -1017,6 +1017,8 @@
     <string name="settings_reader_show_headers_subtitle">Показывать часы, минуты сеанса и оставшееся время при чтении.</string>
     <string name="settings_reader_show_footer_title">Нижний колонтитул</string>
     <string name="settings_reader_show_footer_subtitle">Показывать номер страницы и прогресс книги при чтении.</string>
+    <string name="settings_reader_auto_hide_indicators_title">Автоматически скрывать индикаторы</string>
+    <string name="settings_reader_auto_hide_indicators_subtitle">Скрывать часы, номер страницы и прогресс через несколько секунд после касания. Выключите, чтобы они оставались на экране.</string>
     <string name="settings_reader_tap_zone_title">Жесты перелистывания</string>
     <string name="settings_reader_tap_zone_subtitle">Листать ли касанием краёв страницы. Свайпы работают всегда.</string>
     <string name="settings_reader_tap_zone_three_zone">Касание и свайп</string>
@@ -1325,6 +1327,7 @@
     <string name="settings_search_keywords_reader_keep_awake">не отключать экран сон чтение</string>
     <string name="settings_search_keywords_reader_show_headers">читалка показать скрыть колонтитул часы сеанс оставшееся время</string>
     <string name="settings_search_keywords_reader_show_footer">читалка показать скрыть нижний колонтитул страница прогресс</string>
+    <string name="settings_search_keywords_reader_auto_hide_indicators">читалка автоматически скрыть индикаторы колонтитул часы всегда</string>
     <string name="settings_search_keywords_reader_auto_mark_selection">выделение выбрать выбор автоматически отметить цвет</string>
     <string name="settings_search_keywords_reader_bionic_reading">бионическое жирный слово начало фокус текст</string>
     <string name="settings_search_keywords_reader_bolder_text">жирный текст толщина контраст чёткий eink e-ink тонкий</string>

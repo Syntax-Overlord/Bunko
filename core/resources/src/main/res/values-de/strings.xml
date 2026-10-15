@@ -999,6 +999,8 @@
     <string name="settings_reader_show_headers_subtitle">Uhr, Sitzungsminuten und verbleibende Zeit beim Lesen anzeigen.</string>
     <string name="settings_reader_show_footer_title">Fußzeile anzeigen</string>
     <string name="settings_reader_show_footer_subtitle">Seitenzahl und Buchfortschritt beim Lesen anzeigen.</string>
+    <string name="settings_reader_auto_hide_indicators_title">Anzeigen automatisch ausblenden</string>
+    <string name="settings_reader_auto_hide_indicators_subtitle">Uhr, Seitenzahl und Fortschritt einige Sekunden nach dem Tippen ausblenden. Ausschalten, um sie dauerhaft anzuzeigen.</string>
     <string name="settings_reader_tap_zone_title">Blätter-Gesten</string>
     <string name="settings_reader_tap_zone_subtitle">Wähle, ob Tippen an den Seitenrändern umblättert. Wischen funktioniert immer.</string>
     <string name="settings_reader_tap_zone_three_zone">Tippen und Wischen</string>
@@ -1307,6 +1309,7 @@
     <string name="settings_search_keywords_reader_keep_awake">aktiv bildschirm ruhezustand lesen wach</string>
     <string name="settings_search_keywords_reader_show_headers">reader anzeigen ausblenden kopfzeile uhr sitzung restzeit</string>
     <string name="settings_search_keywords_reader_show_footer">reader anzeigen ausblenden fußzeile seite fortschritt</string>
+    <string name="settings_search_keywords_reader_auto_hide_indicators">reader automatisch ausblenden anzeigen kopfzeile fußzeile uhr immer</string>
     <string name="settings_search_keywords_reader_auto_mark_selection">markieren auswählen auswahl automatisch farbe</string>
     <string name="settings_search_keywords_reader_bionic_reading">bionisch fett wort anfang fokus text</string>
     <string name="settings_search_keywords_reader_bolder_text">kräftiger text fett stärke dicker kontrast klar eink e-ink dünn</string>

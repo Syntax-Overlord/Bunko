@@ -1113,6 +1113,8 @@
     <string name="settings_reader_show_headers_subtitle">Show the clock, session minutes, and time left while reading.</string>
     <string name="settings_reader_show_footer_title">Show footer</string>
     <string name="settings_reader_show_footer_subtitle">Show page count and book progress while reading.</string>
+    <string name="settings_reader_auto_hide_indicators_title">Auto-hide indicators</string>
+    <string name="settings_reader_auto_hide_indicators_subtitle">Hide the clock, page number, and progress a few seconds after you tap. Turn off to keep them on screen.</string>
     <string name="settings_reader_tap_zone_title">Page-turn gestures</string>
     <string name="settings_reader_tap_zone_subtitle">Choose whether taps at the page edges turn pages. Swiping always works.</string>
     <string name="settings_reader_tap_zone_three_zone">Tap and swipe</string>
@@ -1467,6 +1469,7 @@
     <string name="settings_search_keywords_reader_keep_awake">keep awake screen sleep reading</string>
     <string name="settings_search_keywords_reader_show_headers">reader show hide headers clock session time left</string>
     <string name="settings_search_keywords_reader_show_footer">reader show hide footer page progress</string>
+    <string name="settings_search_keywords_reader_auto_hide_indicators">reader auto hide indicators header footer clock always show distraction free</string>
     <string name="settings_search_keywords_reader_auto_mark_selection">highlight select selection auto mark color</string>
     <string name="settings_search_keywords_reader_bionic_reading">bionic bold word lead focus text</string>
     <string name="settings_search_keywords_reader_bolder_text">bolder text bold weight thicker heavier contrast crisp eink e ink thin</string>

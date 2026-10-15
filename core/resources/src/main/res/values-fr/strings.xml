@@ -1008,6 +1008,8 @@
     <string name="settings_reader_show_headers_subtitle">Afficher l\'heure, les minutes de session et le temps restant pendant la lecture.</string>
     <string name="settings_reader_show_footer_title">Afficher le pied de page</string>
     <string name="settings_reader_show_footer_subtitle">Afficher le numéro de page et la progression pendant la lecture.</string>
+    <string name="settings_reader_auto_hide_indicators_title">Masquer automatiquement les indicateurs</string>
+    <string name="settings_reader_auto_hide_indicators_subtitle">Masque l\'horloge, le numéro de page et la progression quelques secondes après un appui. Désactivez pour les garder affichés.</string>
     <string name="settings_reader_tap_zone_title">Gestes pour tourner les pages</string>
     <string name="settings_reader_tap_zone_subtitle">Choisissez si toucher les bords de la page tourne la page. Le balayage fonctionne toujours.</string>
     <string name="settings_reader_tap_zone_three_zone">Toucher et balayer</string>
@@ -1316,6 +1318,7 @@
     <string name="settings_search_keywords_reader_keep_awake">garder allumé écran veille lecture</string>
     <string name="settings_search_keywords_reader_show_headers">liseuse afficher masquer en-tête horloge session temps restant</string>
     <string name="settings_search_keywords_reader_show_footer">liseuse afficher masquer pied de page page progression</string>
+    <string name="settings_search_keywords_reader_auto_hide_indicators">liseuse masquer automatiquement indicateurs en-tête pied de page horloge toujours</string>
     <string name="settings_search_keywords_reader_auto_mark_selection">surligner sélectionner sélection automatique marquer couleur</string>
     <string name="settings_search_keywords_reader_bionic_reading">bionique gras mot début focus texte</string>
     <string name="settings_search_keywords_reader_bolder_text">texte épais gras graisse contraste net eink e-ink fin</string>

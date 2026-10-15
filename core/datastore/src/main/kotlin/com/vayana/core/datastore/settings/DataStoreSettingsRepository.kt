@@ -222,6 +222,7 @@ internal fun Preferences.toSnapshot(): SettingsSnapshot {
         readerPaceEstimatedSeconds = read(SettingsRegistry.ReaderPaceEstimatedSeconds),
         readerShowHeaders = read(SettingsRegistry.ReaderShowHeaders),
         readerShowFooter = read(SettingsRegistry.ReaderShowFooter),
+        readerAutoHideIndicators = read(SettingsRegistry.ReaderAutoHideIndicators),
         readerAutoMarkSelection = read(SettingsRegistry.ReaderAutoMarkSelection),
         readerBionicReading = read(SettingsRegistry.ReaderBionicReading),
         readerBolderText = read(SettingsRegistry.ReaderBolderText),

@@ -1008,6 +1008,8 @@
     <string name="settings_reader_show_headers_subtitle">Muestra el reloj, los minutos de la sesión y el tiempo restante al leer.</string>
     <string name="settings_reader_show_footer_title">Mostrar pie</string>
     <string name="settings_reader_show_footer_subtitle">Muestra el número de página y el progreso del libro al leer.</string>
+    <string name="settings_reader_auto_hide_indicators_title">Ocultar indicadores automáticamente</string>
+    <string name="settings_reader_auto_hide_indicators_subtitle">Oculta el reloj, el número de página y el progreso unos segundos después de tocar. Desactívalo para mantenerlos visibles.</string>
     <string name="settings_reader_tap_zone_title">Gestos para pasar página</string>
     <string name="settings_reader_tap_zone_subtitle">Elige si al tocar los bordes de la página se pasa de página. Deslizar siempre funciona.</string>
     <string name="settings_reader_tap_zone_three_zone">Tocar y deslizar</string>
@@ -1316,6 +1318,7 @@
     <string name="settings_search_keywords_reader_keep_awake">mantener encendida pantalla suspensión leer</string>
     <string name="settings_search_keywords_reader_show_headers">lector mostrar ocultar encabezado reloj sesión tiempo restante</string>
     <string name="settings_search_keywords_reader_show_footer">lector mostrar ocultar pie página progreso</string>
+    <string name="settings_search_keywords_reader_auto_hide_indicators">lector ocultar automáticamente indicadores encabezado pie reloj siempre</string>
     <string name="settings_search_keywords_reader_auto_mark_selection">subrayar seleccionar selección automático marcar color</string>
     <string name="settings_search_keywords_reader_bionic_reading">biónica negrita palabra inicio enfoque texto</string>
     <string name="settings_search_keywords_reader_bolder_text">texto grueso negrita peso contraste nítido eink tinta electrónica fino</string>

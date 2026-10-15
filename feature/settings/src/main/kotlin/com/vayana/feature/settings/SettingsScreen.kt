@@ -1285,6 +1285,7 @@ private fun SettingsSnapshot.valueFor(setting: Setting<out Any>): Any = when (se
     SettingsRegistry.ReaderPersonalPace -> readerPersonalPace
     SettingsRegistry.ReaderShowHeaders -> readerShowHeaders
     SettingsRegistry.ReaderShowFooter -> readerShowFooter
+    SettingsRegistry.ReaderAutoHideIndicators -> readerAutoHideIndicators
     SettingsRegistry.ReaderAutoMarkSelection -> readerAutoMarkSelection
     SettingsRegistry.ReaderBionicReading -> readerBionicReading
     SettingsRegistry.ReaderBolderText -> readerBolderText
@@ -1358,6 +1359,7 @@ private fun Setting<out Any>.searchTokens(resources: Resources): String {
         SettingsRegistry.ReaderKeepAwake -> R.string.settings_search_keywords_reader_keep_awake
         SettingsRegistry.ReaderShowHeaders -> R.string.settings_search_keywords_reader_show_headers
         SettingsRegistry.ReaderShowFooter -> R.string.settings_search_keywords_reader_show_footer
+        SettingsRegistry.ReaderAutoHideIndicators -> R.string.settings_search_keywords_reader_auto_hide_indicators
         SettingsRegistry.ReaderAutoMarkSelection -> R.string.settings_search_keywords_reader_auto_mark_selection
         SettingsRegistry.ReaderBionicReading -> R.string.settings_search_keywords_reader_bionic_reading
         SettingsRegistry.ReaderBolderText -> R.string.settings_search_keywords_reader_bolder_text

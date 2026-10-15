@@ -948,13 +948,14 @@ private fun ReaderScreen(
     LaunchedEffect(readerDocumentReady, readingInfoRequest) {
         readingInfoVisible = readerDocumentReady
     }
-    LaunchedEffect(readingInfoVisible, readingInfoRequest, readingInfoInteracting, chromeVisible, readingInfoTimeout) {
-        if (readingInfoVisible && !readingInfoInteracting && !chromeVisible) {
+    val autoHideReadingInfo = settings.readerAutoHideIndicators
+    LaunchedEffect(readingInfoVisible, readingInfoRequest, readingInfoInteracting, chromeVisible, readingInfoTimeout, autoHideReadingInfo) {
+        if (autoHideReadingInfo && readingInfoVisible && !readingInfoInteracting && !chromeVisible) {
             delay(readingInfoTimeout)
             readingInfoVisible = false
         }
     }
-    val showReadingInfo = readingInfoVisible && !chromeVisible &&
+    val showReadingInfo = (readingInfoVisible || !autoHideReadingInfo) && readerDocumentReady && !chromeVisible &&
         (uiState as? ReaderUiState.Loaded)?.selection == null && activeHighlightCard == null &&
         dictionaryLookup.wordOrNull() == null
     LaunchedEffect(

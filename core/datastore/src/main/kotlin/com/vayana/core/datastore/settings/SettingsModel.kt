@@ -119,6 +119,8 @@ data class SettingsSnapshot(
     val readerPaceEstimatedSeconds: Float = 0f,
     val readerShowHeaders: Boolean = true,
     val readerShowFooter: Boolean = true,
+    /** Hide the clock, page and progress indicators a few seconds after they appear. */
+    val readerAutoHideIndicators: Boolean = true,
     val readerAutoMarkSelection: Boolean = false,
     val readerBionicReading: Boolean = false,
     val readerBolderText: Boolean = false,
@@ -444,6 +446,13 @@ object SettingsRegistry {
         defaultValue = true,
         titleRes = R.string.settings_reader_show_footer_title,
         subtitleRes = R.string.settings_reader_show_footer_subtitle,
+        group = SettingsGroup.READER_PAGE,
+    )
+    val ReaderAutoHideIndicators: BooleanSetting = BooleanSetting(
+        key = "reader.auto_hide_indicators",
+        defaultValue = true,
+        titleRes = R.string.settings_reader_auto_hide_indicators_title,
+        subtitleRes = R.string.settings_reader_auto_hide_indicators_subtitle,
         group = SettingsGroup.READER_PAGE,
     )
     val ReaderAutoMarkSelection: BooleanSetting = BooleanSetting(
@@ -869,6 +878,7 @@ object SettingsRegistry {
         ReaderHeaderGap,
         ReaderShowFooter,
         ReaderFooterGap,
+        ReaderAutoHideIndicators,
         ReaderTapZoneMode,
         ReaderControlsTapMode,
         ReaderPageTurnAnimation,
