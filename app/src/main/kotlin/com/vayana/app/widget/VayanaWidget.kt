@@ -60,6 +60,10 @@ data class WidgetAppearance(
     @DrawableRes
     fun backgroundRes(): Int = if (matchesLauncher) R.drawable.widget_background else CornerBackgrounds.getValue(cornerRadiusDp)
 
+    /** The outline matching [backgroundRes]. */
+    @DrawableRes
+    fun borderRes(): Int = if (matchesLauncher) R.drawable.widget_border else CornerBorders.getValue(cornerRadiusDp)
+
     private companion object {
         val CornerBackgrounds = mapOf(
             0 to R.drawable.widget_background_r0,
@@ -71,6 +75,17 @@ data class WidgetAppearance(
             24 to R.drawable.widget_background_r24,
             28 to R.drawable.widget_background_r28,
             32 to R.drawable.widget_background_r32,
+        )
+        val CornerBorders = mapOf(
+            0 to R.drawable.widget_border_r0,
+            4 to R.drawable.widget_border_r4,
+            8 to R.drawable.widget_border_r8,
+            12 to R.drawable.widget_border_r12,
+            16 to R.drawable.widget_border_r16,
+            20 to R.drawable.widget_border_r20,
+            24 to R.drawable.widget_border_r24,
+            28 to R.drawable.widget_border_r28,
+            32 to R.drawable.widget_border_r32,
         )
     }
 }

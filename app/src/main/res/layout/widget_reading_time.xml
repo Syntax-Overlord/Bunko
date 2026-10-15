@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
     Responsive reading-time widget. RemoteViews cannot use Compose, so the updater applies the app's resolved M3
-    colours and size class at render time. The bitmap background preserves adaptive/custom corners on every Android
-    version; the chart (grid, axis, line, day labels) is one bitmap drawn for the widget's real size.
+    colours and size class at render time: the background and border are the shared corner shapes, tinted to the
+    theme; the chart (grid, axis, line, day labels) is one bitmap drawn for the widget's real size.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
@@ -16,6 +16,15 @@
         android:contentDescription="@null"
         android:scaleType="fitXY"
         android:src="@drawable/widget_background" />
+
+    <ImageView
+        android:id="@+id/reading_border"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0.25"
+        android:contentDescription="@null"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_border" />
 
     <LinearLayout
         android:id="@+id/reading_content"

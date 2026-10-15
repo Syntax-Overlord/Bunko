@@ -8,10 +8,6 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.Paint
-import android.graphics.RectF
 import android.os.Build
 import android.os.Bundle
 import android.util.TypedValue
@@ -19,7 +15,6 @@ import android.view.View
 import android.widget.RemoteViews
 import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.toArgb
-import androidx.core.graphics.createBitmap
 import com.vayana.app.MainActivity
 import com.vayana.app.R
 import com.vayana.core.common.ApplicationScope
@@ -184,7 +179,12 @@ class ReadingTimeWidgetUpdater @Inject constructor(
             val fill = theme.appearance.chartFillsWidget
             val layout = ReadingWidgetLayout.forSize(widthDp, heightDp, theme.appearance.chartHeader, fill)
             val palette = resolvePalette(theme)
-            setImageViewBitmap(R.id.reading_background, drawBackground(widthDp, heightDp, density, theme.appearance, palette))
+            // The shared corner shapes, tinted to the app's theme: no full-size bitmap to send on every redraw.
+            setImageViewResource(R.id.reading_background, theme.appearance.backgroundRes())
+            setInt(R.id.reading_background, "setColorFilter", palette.surface)
+            setImageViewResource(R.id.reading_border, theme.appearance.borderRes())
+            setInt(R.id.reading_border, "setColorFilter", palette.outline)
+            setFloat(R.id.reading_border, "setAlpha", if (palette.eInk) 1f else StandardBorderAlpha)
             setOnClickPendingIntent(android.R.id.background, openStatistics())
             setTextViewText(R.id.reading_today, duration(week.todayMinutes))
             setTextViewText(
@@ -285,40 +285,10 @@ class ReadingTimeWidgetUpdater @Inject constructor(
         return scheme.toWidgetPalette(theme.displayProfile == DisplayProfile.E_INK)
     }
 
-    private fun drawBackground(
-        widthDp: Int,
-        heightDp: Int,
-        density: Float,
-        appearance: WidgetAppearance,
-        palette: ReadingWidgetPalette,
-    ): Bitmap {
-        val width = (widthDp * density).roundToInt().coerceAtLeast(1)
-        val height = (heightDp * density).roundToInt().coerceAtLeast(1)
-        val radius = backgroundRadiusPx(appearance, density)
-        return createBitmap(width, height).also { bitmap ->
-            val canvas = Canvas(bitmap)
-            canvas.drawRoundRect(RectF(0f, 0f, width.toFloat(), height.toFloat()), radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = palette.surface
-            })
-            val stroke = if (palette.eInk) EinkBorderDp * density else StandardBorderDp * density
-            val inset = stroke / 2
-            canvas.drawRoundRect(
-                RectF(inset, inset, width - inset, height - inset),
-                (radius - inset).coerceAtLeast(0f),
-                (radius - inset).coerceAtLeast(0f),
-                Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                    color = palette.outline
-                    alpha = if (palette.eInk) 255 else StandardBorderAlpha
-                    style = Paint.Style.STROKE
-                    strokeWidth = stroke
-                },
-            )
-        }
-    }
-
+    /** The widget's corner radius in the chart bitmap's pixels ([density]), whose dp the launcher's radius is given in. */
     private fun backgroundRadiusPx(appearance: WidgetAppearance, density: Float): Float =
         if (appearance.matchesLauncher) {
-            context.resources.getDimension(R.dimen.widget_radius)
+            context.resources.getDimension(R.dimen.widget_radius) / context.resources.displayMetrics.density * density
         } else {
             appearance.cornerRadiusDp * density
         }
@@ -343,9 +313,7 @@ class ReadingTimeWidgetUpdater @Inject constructor(
         const val DefaultHeightDp = 160
         const val MinChartPx = 32
         const val MaxBitmapDensity = 2f
-        const val StandardBorderDp = 1f
-        const val EinkBorderDp = 1.5f
-        const val StandardBorderAlpha = 64
+        const val StandardBorderAlpha = 0.25f
         const val MinutesPerHour = 60
         const val MidnightSlackMillis = 1_000L
         const val StatisticsRequestCode = 2
