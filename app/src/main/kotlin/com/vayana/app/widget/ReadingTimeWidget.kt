@@ -10,6 +10,7 @@ import android.content.Intent
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
@@ -139,10 +140,18 @@ class ReadingTimeWidgetUpdater @Inject constructor(
         }
     }
 
+    // The configure screen redraws its preview on every slider step: a month of days is read once and sliced for
+    // each Days value tried, kept only briefly so a later visit sees fresh reading.
+    @Volatile private var previewMonth: Pair<Long, ReadingWeek>? = null
+
     override suspend fun preview(appearance: WidgetAppearance): RemoteViews = withContext(dispatchers.io) {
         val theme = settingsRepository.snapshot.map(::readingWidgetTheme).first()
+        val today = LocalDate.now(zone)
+        val now = SystemClock.elapsedRealtime()
+        val month = previewMonth?.takeIf { (at, week) -> week.today == today && now - at < PreviewCacheMillis }?.second
+            ?: weekOf(today, ReadingWeek.MaxDays).first().also { previewMonth = now to it }
         // The days being previewed may not be saved yet.
-        val week = weekOf(LocalDate.now(zone), appearance.chartDays).first()
+        val week = ReadingWeek(today, month.minutesByDay.takeLast(appearance.chartDays))
         views(week, theme.copy(appearance = appearance), DefaultWidthDp, DefaultHeightDp)
     }
 
@@ -315,6 +324,7 @@ class ReadingTimeWidgetUpdater @Inject constructor(
         const val MinChartPx = 32
         const val MaxBitmapDensity = 2f
         const val StandardBorderAlpha = 0.25f
+        const val PreviewCacheMillis = 30_000L
         const val MinutesPerHour = 60
         const val MidnightSlackMillis = 1_000L
         const val StatisticsRequestCode = 2
