@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Continue reading, narrow and tall or medium square: the cover on top, the title and author under it, and the
+    progress bar beside the read-aloud button at the foot. Same view ids as widget_continue_reading.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:clipToOutline="true"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:id="@+id/widget_book"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical">
+
+        <ImageView
+            android:id="@+id/widget_cover"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_weight="1"
+            android:adjustViewBounds="true"
+            android:background="@drawable/widget_cover_background"
+            android:clipToOutline="true"
+            android:contentDescription="@null"
+            android:padding="@dimen/widget_placeholder_inset"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_widget_book" />
+
+        <TextView
+            android:id="@+id/widget_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:lineSpacingMultiplier="0.95"
+            android:maxLines="2"
+            android:text="@string/widget_preview_title"
+            android:textColor="@color/widget_on_surface"
+            android:textSize="15sp" />
+
+        <TextView
+            android:id="@+id/widget_author"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:text="@string/widget_preview_author"
+            android:textColor="@color/widget_on_surface_variant"
+            android:textSize="12sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ProgressBar
+                android:id="@+id/widget_progress"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="0dp"
+                android:layout_height="8dp"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="42"
+                android:progressDrawable="@drawable/widget_progress" />
+
+            <ProgressBar
+                android:id="@+id/widget_progress_wavy"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="0dp"
+                android:layout_height="12dp"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="42"
+                android:progressDrawable="@drawable/widget_progress_wavy"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/widget_resume"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="10dp"
+                android:background="@drawable/widget_button"
+                android:contentDescription="@string/widget_read_aloud"
+                android:padding="11dp"
+                android:src="@drawable/ic_widget_resume" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/widget_empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/widget_icon_background"
+            android:contentDescription="@null"
+            android:padding="12dp"
+            android:src="@drawable/ic_widget_book" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:gravity="center"
+            android:maxLines="3"
+            android:text="@string/widget_empty"
+            android:textColor="@color/widget_on_surface_variant"
+            android:textSize="13sp" />
+    </LinearLayout>
+</FrameLayout>

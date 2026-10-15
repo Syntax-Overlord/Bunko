@@ -2,8 +2,9 @@
 <!--
     Continue reading home-screen widget, M3 Expressive: a tonal surface on the launcher's own corners, the cover as a
     rounded card, the progress as a primary-container pill, an emphasised title, a thick round progress bar, and a
-    filled rounded-square read-aloud play/pause button. Narrow widgets drop the button, short ones the pill and the title's second
-    line (see ContinueReadingWidgetUpdater). RemoteViews-safe views only.
+    filled rounded-square read-aloud play/pause button. The row sizes: narrow ones drop the button, short ones the pill
+    and the title's second line, large ones grow the cover and title; small and tall sizes use their own layouts (see
+    ContinueReadingLayout). RemoteViews-safe views only.
     The sample texts are what the widget picker's preview shows; the app replaces them when it draws the widget.
 -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"

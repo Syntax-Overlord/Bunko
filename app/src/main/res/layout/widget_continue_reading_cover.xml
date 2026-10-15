@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Continue reading, small square size (about 2x2): just the cover and the progress bar under it. Same view ids as
+    widget_continue_reading so ContinueReadingWidgetUpdater binds every size alike.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_background"
+    android:clipToOutline="true"
+    android:padding="10dp">
+
+    <LinearLayout
+        android:id="@+id/widget_book"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_horizontal"
+        android:orientation="vertical">
+
+        <ImageView
+            android:id="@+id/widget_cover"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:adjustViewBounds="true"
+            android:background="@drawable/widget_cover_background"
+            android:clipToOutline="true"
+            android:contentDescription="@null"
+            android:padding="@dimen/widget_placeholder_inset"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_widget_book" />
+
+        <ProgressBar
+            android:id="@+id/widget_progress"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="8dp"
+            android:max="100"
+            android:progress="42"
+            android:progressDrawable="@drawable/widget_progress" />
+
+        <ProgressBar
+            android:id="@+id/widget_progress_wavy"
+            style="@android:style/Widget.ProgressBar.Horizontal"
+            android:layout_width="match_parent"
+            android:layout_height="10dp"
+            android:layout_marginTop="6dp"
+            android:max="100"
+            android:progress="42"
+            android:progressDrawable="@drawable/widget_progress_wavy"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/widget_empty"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_gravity="center"
+        android:background="@drawable/widget_icon_background"
+        android:contentDescription="@string/widget_empty"
+        android:padding="12dp"
+        android:src="@drawable/ic_widget_book"
+        android:visibility="gone" />
+</FrameLayout>

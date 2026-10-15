@@ -125,7 +125,7 @@ class MainActivity : ComponentActivity() {
             ContinueReadingWidgetUpdater.ActionOpenBook ->
                 intent.getLongExtra(ContinueReadingWidgetUpdater.ExtraBookId, NoBook).takeIf { it != NoBook }?.let { bookId ->
                     openBookRequests.offer(
-                        OpenBookRequest(bookId, readAloud = intent.getBooleanExtra(ContinueReadingWidgetUpdater.ExtraReadAloud, false)),
+                        OpenBookRequest(bookId),
                     )
                 }
             AppShortcuts.ActionFreeBooks -> shortcutRequests.offer(ShortcutDestination.FREE_BOOKS)
