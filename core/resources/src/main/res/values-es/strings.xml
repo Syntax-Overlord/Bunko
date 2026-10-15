@@ -1561,6 +1561,8 @@
     <string name="widget_configure_title">Estilo del widget</string>
     <string name="widget_configure_done">Listo</string>
     <string name="widget_configure_applies_to_all">Se aplica a todos los widgets de Vayana de tu pantalla de inicio.</string>
+    <string name="widget_section_layout">Diseño</string>
+    <string name="widget_section_all">Todos los widgets</string>
     <string name="widget_corners">Esquinas</string>
     <string name="widget_corners_match">Igual que la pantalla de inicio</string>
     <string name="widget_corners_match_subtitle">Usar las esquinas de widget de tu pantalla de inicio</string>

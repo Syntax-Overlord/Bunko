@@ -23,6 +23,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
+import androidx.annotation.StringRes
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -216,52 +217,16 @@ private fun WidgetConfigureScreen(
             verticalArrangement = Arrangement.spacedBy(Spacing.lg),
         ) {
             WidgetPreview(appearance, preview)
-            Text(
-                stringResource(R.string.widget_configure_applies_to_all),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
 
-            SectionTitle(stringResource(R.string.widget_corners))
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.widget_corners_match)) },
-                supportingContent = { Text(stringResource(R.string.widget_corners_match_subtitle)) },
-                trailingContent = {
-                    Switch(
-                        checked = cornerRadius == WidgetCornerRadiusMatchLauncher,
-                        onCheckedChange = { match -> cornerRadius = if (match) WidgetCornerRadiusMatchLauncher else customRadius },
-                    )
-                },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
-            )
-            if (cornerRadius != WidgetCornerRadiusMatchLauncher) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                    Slider(
-                        value = cornerRadius.toFloat(),
-                        onValueChange = { value ->
-                            val stepped = (value / WidgetCornerRadiusStep).toInt().coerceIn(0, WidgetCornerRadiusMax / WidgetCornerRadiusStep) * WidgetCornerRadiusStep
-                            cornerRadius = stepped
-                            customRadius = stepped
-                        },
-                        valueRange = 0f..WidgetCornerRadiusMax.toFloat(),
-                        steps = WidgetCornerRadiusMax / WidgetCornerRadiusStep - 1,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        stringResource(R.string.widget_corners_value, cornerRadius),
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.widthIn(min = Sizes.touchTarget),
-                    )
-                }
-            }
-            ListItem(
-                headlineContent = { Text(stringResource(R.string.widget_border)) },
-                supportingContent = { Text(stringResource(R.string.widget_border_subtitle)) },
-                trailingContent = { Switch(checked = border, onCheckedChange = { border = it }) },
-                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
-            )
-
+            // This widget's own options first; the style every Vayana widget shares comes last.
             if (readingTime) {
+                SectionTitle(stringResource(R.string.widget_section_layout))
+                SwitchRow(R.string.widget_chart_header, R.string.widget_chart_header_subtitle, chartHeader) { chartHeader = it }
+                // Filling the widget takes the header's room, so it is offered only without one.
+                if (!chartHeader) {
+                    SwitchRow(R.string.widget_chart_fill, R.string.widget_chart_fill_subtitle, chartFill) { chartFill = it }
+                }
+
                 SectionTitle(stringResource(R.string.widget_chart_style))
                 ChoiceRow(
                     options = listOf(
@@ -272,59 +237,28 @@ private fun WidgetConfigureScreen(
                     selected = chartStyle,
                     onSelect = { chartStyle = it },
                 )
-                ListItem(
-                    headlineContent = { Text(stringResource(R.string.widget_chart_header)) },
-                    supportingContent = { Text(stringResource(R.string.widget_chart_header_subtitle)) },
-                    trailingContent = { Switch(checked = chartHeader, onCheckedChange = { chartHeader = it }) },
-                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                SliderRow(
+                    label = stringResource(R.string.widget_chart_days),
+                    valueText = pluralStringResource(R.plurals.widget_chart_days_value, chartDays, chartDays),
+                    value = chartDays,
+                    range = WidgetChartDaysMin..WidgetChartDaysMax,
+                    step = 1,
+                    onChange = { chartDays = it },
                 )
-                if (!chartHeader) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.widget_chart_fill)) },
-                        supportingContent = { Text(stringResource(R.string.widget_chart_fill_subtitle)) },
-                        trailingContent = { Switch(checked = chartFill, onCheckedChange = { chartFill = it }) },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
-                    )
-                }
                 // A filled graph has no room for labels, so the choice is hidden rather than ignored.
                 if (!appearance.chartFillsWidget) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.widget_chart_axis_labels)) },
-                        supportingContent = { Text(stringResource(R.string.widget_chart_axis_labels_subtitle)) },
-                        trailingContent = { Switch(checked = chartAxisLabels, onCheckedChange = { chartAxisLabels = it }) },
-                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
-                    )
+                    SwitchRow(R.string.widget_chart_axis_labels, R.string.widget_chart_axis_labels_subtitle, chartAxisLabels) {
+                        chartAxisLabels = it
+                    }
                 }
-                SectionTitle(stringResource(R.string.widget_chart_days))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                    Slider(
-                        value = chartDays.toFloat(),
-                        onValueChange = { chartDays = it.roundToInt().coerceIn(WidgetChartDaysMin, WidgetChartDaysMax) },
-                        valueRange = WidgetChartDaysMin.toFloat()..WidgetChartDaysMax.toFloat(),
-                        steps = WidgetChartDaysMax - WidgetChartDaysMin - 1,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        pluralStringResource(R.plurals.widget_chart_days_value, chartDays, chartDays),
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.widthIn(min = Sizes.touchTarget),
-                    )
-                }
-                SectionTitle(stringResource(R.string.widget_chart_grid))
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
-                    Slider(
-                        value = chartGridOpacity.toFloat(),
-                        onValueChange = { chartGridOpacity = (it / WidgetChartGridOpacityStep).roundToInt() * WidgetChartGridOpacityStep },
-                        valueRange = 0f..100f,
-                        steps = 100 / WidgetChartGridOpacityStep - 1,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        stringResource(R.string.percent_value, chartGridOpacity),
-                        style = MaterialTheme.typography.labelLarge,
-                        modifier = Modifier.widthIn(min = Sizes.touchTarget),
-                    )
-                }
+                SliderRow(
+                    label = stringResource(R.string.widget_chart_grid),
+                    valueText = stringResource(R.string.percent_value, chartGridOpacity),
+                    value = chartGridOpacity,
+                    range = 0..100,
+                    step = WidgetChartGridOpacityStep,
+                    onChange = { chartGridOpacity = it },
+                )
             } else {
                 SectionTitle(stringResource(R.string.widget_progress_style))
                 ChoiceRow(
@@ -336,6 +270,30 @@ private fun WidgetConfigureScreen(
                     onSelect = { progressStyle = it },
                 )
             }
+
+            SectionTitle(stringResource(R.string.widget_section_all))
+            Text(
+                stringResource(R.string.widget_configure_applies_to_all),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SwitchRow(R.string.widget_corners_match, R.string.widget_corners_match_subtitle, cornerRadius == WidgetCornerRadiusMatchLauncher) {
+                match -> cornerRadius = if (match) WidgetCornerRadiusMatchLauncher else customRadius
+            }
+            if (cornerRadius != WidgetCornerRadiusMatchLauncher) {
+                SliderRow(
+                    label = stringResource(R.string.widget_corners),
+                    valueText = stringResource(R.string.widget_corners_value, cornerRadius),
+                    value = cornerRadius,
+                    range = 0..WidgetCornerRadiusMax,
+                    step = WidgetCornerRadiusStep,
+                    onChange = {
+                        cornerRadius = it
+                        customRadius = it
+                    },
+                )
+            }
+            SwitchRow(R.string.widget_border, R.string.widget_border_subtitle, border) { border = it }
         }
     }
 }
@@ -376,6 +334,36 @@ private fun <T> ChoiceRow(options: List<Pair<T, String>>, selected: T, onSelect:
                 shape = SegmentedButtonDefaults.itemShape(index, options.size),
                 label = { Text(label) },
             )
+        }
+    }
+}
+
+@Composable
+private fun SwitchRow(@StringRes title: Int, @StringRes subtitle: Int, checked: Boolean, onChange: (Boolean) -> Unit) {
+    ListItem(
+        headlineContent = { Text(stringResource(title)) },
+        supportingContent = { Text(stringResource(subtitle)) },
+        trailingContent = { Switch(checked = checked, onCheckedChange = onChange) },
+        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+    )
+}
+
+/** A labelled slider over whole [step]s of [range], its label in line with the switch rows' text. */
+@Composable
+private fun SliderRow(label: String, valueText: String, value: Int, range: IntRange, step: Int, onChange: (Int) -> Unit) {
+    Column(modifier = Modifier.padding(horizontal = Spacing.lg)) {
+        Text(label, style = MaterialTheme.typography.bodyLarge)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Slider(
+                value = value.toFloat(),
+                onValueChange = { raw ->
+                    onChange((range.first + ((raw - range.first) / step).roundToInt() * step).coerceIn(range))
+                },
+                valueRange = range.first.toFloat()..range.last.toFloat(),
+                steps = (range.last - range.first) / step - 1,
+                modifier = Modifier.weight(1f),
+            )
+            Text(valueText, style = MaterialTheme.typography.labelLarge, modifier = Modifier.widthIn(min = Sizes.touchTarget))
         }
     }
 }

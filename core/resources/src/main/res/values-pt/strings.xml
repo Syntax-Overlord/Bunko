@@ -1561,6 +1561,8 @@
     <string name="widget_configure_title">Estilo do widget</string>
     <string name="widget_configure_done">Concluído</string>
     <string name="widget_configure_applies_to_all">Vale para todos os widgets do Vayana na sua tela inicial.</string>
+    <string name="widget_section_layout">Layout</string>
+    <string name="widget_section_all">Todos os widgets</string>
     <string name="widget_corners">Cantos</string>
     <string name="widget_corners_match">Igual à tela inicial</string>
     <string name="widget_corners_match_subtitle">Usar os cantos de widget da sua tela inicial</string>

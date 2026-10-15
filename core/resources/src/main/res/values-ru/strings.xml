@@ -1577,6 +1577,8 @@
     <string name="widget_configure_title">Стиль виджета</string>
     <string name="widget_configure_done">Готово</string>
     <string name="widget_configure_applies_to_all">Применяется ко всем виджетам Vayana на главном экране.</string>
+    <string name="widget_section_layout">Макет</string>
+    <string name="widget_section_all">Все виджеты</string>
     <string name="widget_corners">Углы</string>
     <string name="widget_corners_match">Как на главном экране</string>
     <string name="widget_corners_match_subtitle">Использовать углы виджетов главного экрана</string>

@@ -1545,6 +1545,8 @@
     <string name="widget_configure_title">Widget-Stil</string>
     <string name="widget_configure_done">Fertig</string>
     <string name="widget_configure_applies_to_all">Gilt für alle Vayana-Widgets auf deinem Startbildschirm.</string>
+    <string name="widget_section_layout">Aufbau</string>
+    <string name="widget_section_all">Alle Widgets</string>
     <string name="widget_corners">Ecken</string>
     <string name="widget_corners_match">Wie Startbildschirm</string>
     <string name="widget_corners_match_subtitle">Die Widget-Ecken deines Startbildschirms verwenden</string>

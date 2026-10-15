@@ -1545,6 +1545,8 @@
     <string name="widget_configure_title">വിജറ്റ് ശൈലി</string>
     <string name="widget_configure_done">പൂർത്തിയായി</string>
     <string name="widget_configure_applies_to_all">ഹോം സ്ക്രീനിലെ എല്ലാ Vayana വിജറ്റുകൾക്കും ബാധകം.</string>
+    <string name="widget_section_layout">ലേഔട്ട്</string>
+    <string name="widget_section_all">എല്ലാ വിജറ്റുകളും</string>
     <string name="widget_corners">മൂലകൾ</string>
     <string name="widget_corners_match">ഹോം സ്ക്രീൻ പോലെ</string>
     <string name="widget_corners_match_subtitle">ഹോം സ്ക്രീനിന്റെ സ്വന്തം വിജറ്റ് മൂലകൾ ഉപയോഗിക്കുക</string>

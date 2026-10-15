@@ -1561,6 +1561,8 @@
     <string name="widget_configure_title">Stile del widget</string>
     <string name="widget_configure_done">Fine</string>
     <string name="widget_configure_applies_to_all">Vale per tutti i widget di Vayana nella schermata Home.</string>
+    <string name="widget_section_layout">Layout</string>
+    <string name="widget_section_all">Tutti i widget</string>
     <string name="widget_corners">Angoli</string>
     <string name="widget_corners_match">Come la schermata Home</string>
     <string name="widget_corners_match_subtitle">Usa gli angoli dei widget della schermata Home</string>

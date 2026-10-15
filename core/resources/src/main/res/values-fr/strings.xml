@@ -1561,6 +1561,8 @@
     <string name="widget_configure_title">Style du widget</string>
     <string name="widget_configure_done">OK</string>
     <string name="widget_configure_applies_to_all">S’applique à tous les widgets Vayana de votre écran d’accueil.</string>
+    <string name="widget_section_layout">Disposition</string>
+    <string name="widget_section_all">Tous les widgets</string>
     <string name="widget_corners">Coins</string>
     <string name="widget_corners_match">Comme l’écran d’accueil</string>
     <string name="widget_corners_match_subtitle">Utiliser les coins de widget de votre écran d’accueil</string>

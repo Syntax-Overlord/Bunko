@@ -1705,6 +1705,8 @@
     <string name="widget_configure_title">Widget style</string>
     <string name="widget_configure_done">Done</string>
     <string name="widget_configure_applies_to_all">Applies to all Vayana widgets on your home screen.</string>
+    <string name="widget_section_layout">Layout</string>
+    <string name="widget_section_all">All widgets</string>
     <string name="widget_corners">Corners</string>
     <string name="widget_corners_match">Match home screen</string>
     <string name="widget_corners_match_subtitle">Use your home screen’s own widget corners</string>
