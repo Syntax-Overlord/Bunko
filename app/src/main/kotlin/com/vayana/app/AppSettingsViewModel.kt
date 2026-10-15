@@ -10,7 +10,6 @@ import com.vayana.core.datastore.settings.SettingsRegistry
 import com.vayana.core.datastore.settings.SettingsSnapshot
 import com.vayana.app.widget.OpenBookRequest
 import com.vayana.app.widget.OpenBookRequests
-import com.vayana.feature.reader.ReadAloudStatusHolder
 import com.vayana.app.widget.ShortcutDestination
 import com.vayana.app.widget.ShortcutRequests
 import com.vayana.core.common.IncomingBookFiles
@@ -36,7 +35,6 @@ class AppSettingsViewModel @Inject constructor(
     incomingBookFiles: IncomingBookFiles,
     private val openBookRequests: OpenBookRequests,
     private val shortcutRequests: ShortcutRequests,
-    private val readAloudStatusHolder: ReadAloudStatusHolder,
 ) : ViewModel() {
     /** A screen a launcher shortcut asked for, until navigation has shown it. */
     val shortcutRequest: StateFlow<ShortcutDestination?> = shortcutRequests.pending
@@ -55,9 +53,6 @@ class AppSettingsViewModel @Inject constructor(
     }
 
     fun consumeOpenBookRequest(request: OpenBookRequest) = openBookRequests.consume(request)
-
-    /** The widget's play button for a book the reader already shows: that reader starts reading it aloud. */
-    fun requestReadAloud(bookId: Long) = readAloudStatusHolder.requestStart(bookId)
 
     /** True while book files from another app wait to be imported, so the app can bring the library forward. */
     val hasIncomingBooks: StateFlow<Boolean> = incomingBookFiles.pending

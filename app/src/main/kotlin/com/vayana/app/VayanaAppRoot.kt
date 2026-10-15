@@ -100,10 +100,9 @@ fun VayanaAppRoot() {
             }
             val top = navController.currentBackStackEntry
             val alreadyOpen = top?.destination?.hasRoute(ReaderRoute::class) == true && top.toRoute<ReaderRoute>().bookId == request.bookId
-            if (alreadyOpen && request.locator == null) {
-                if (request.readAloud) settingsViewModel.requestReadAloud(request.bookId)
-            } else {
-                navController.navigate(ReaderRoute(request.bookId, targetLocator = request.locator, readAloud = request.readAloud)) { launchSingleTop = true }
+            // Already showing this book, with nowhere new in it to go: nothing to do.
+            if (!alreadyOpen || request.locator != null) {
+                navController.navigate(ReaderRoute(request.bookId, targetLocator = request.locator)) { launchSingleTop = true }
             }
             settingsViewModel.consumeOpenBookRequest(pending)
         }
