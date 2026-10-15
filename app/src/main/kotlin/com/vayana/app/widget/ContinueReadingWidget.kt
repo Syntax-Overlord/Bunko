@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.res.ColorStateList
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.os.Build
@@ -63,6 +64,7 @@ private data class WidgetState(
     val book: WidgetBook?,
     val readAloud: ReadAloudStatus?,
     val appearance: WidgetAppearance,
+    val colors: WidgetTheme,
 )
 
 /** What the widget shows: the most recently read book whose file is on this device, as the library's hero card does. */
@@ -95,10 +97,10 @@ class ContinueReadingWidgetUpdater @Inject constructor(
         bookRepository.observeContinueReading().map { it?.toWidgetBook() },
         readAloudStatusHolder.status,
         settingsRepository.snapshot.map {
-            WidgetAppearance(it.widgetCornerRadius, it.widgetProgressStyle, border = it.widgetBorder)
+            WidgetAppearance(it.widgetCornerRadius, it.widgetProgressStyle, border = it.widgetBorder) to it.widgetTheme()
         },
-    ) { book, readAloud, appearance ->
-        WidgetState(book, readAloud?.takeIf { it.bookId == book?.id }, appearance)
+    ) { book, readAloud, (appearance, colors) ->
+        WidgetState(book, readAloud?.takeIf { it.bookId == book?.id }, appearance, colors)
     }
         .distinctUntilChanged()
 
@@ -127,7 +129,7 @@ class ContinueReadingWidgetUpdater @Inject constructor(
 
     override suspend fun preview(appearance: WidgetAppearance): RemoteViews = withContext(dispatchers.io) {
         val state = state.first().copy(appearance = appearance)
-        views(state, coverFor(state.book), ContinueReadingLayout.ROW)
+        views(state, coverFor(state.book), ContinueReadingLayout.ROW, state.colors.palette(context))
     }
 
     private fun coverFor(book: WidgetBook?): Bitmap? = book?.coverPath?.let { path ->
@@ -139,11 +141,12 @@ class ContinueReadingWidgetUpdater @Inject constructor(
         val ids = manager.getAppWidgetIds(ComponentName(context, ContinueReadingWidget::class.java))
         if (ids.isEmpty()) return@withContext
         val cover = coverFor(state.book)
+        val palette = state.colors.palette(context)
         // From Android 12 the launcher picks, for the widget's current size, the largest of these that fits.
         val views = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            RemoteViews(ContinueReadingLayout.bySize.mapValues { (_, layout) -> views(state, cover, layout) })
+            RemoteViews(ContinueReadingLayout.bySize.mapValues { (_, layout) -> views(state, cover, layout, palette) })
         } else {
-            views(state, cover, ContinueReadingLayout.ROW)
+            views(state, cover, ContinueReadingLayout.ROW, palette)
         }
         manager.updateAppWidget(ids, views)
     }
@@ -152,11 +155,11 @@ class ContinueReadingWidgetUpdater @Inject constructor(
         .getAppWidgetIds(ComponentName(context, ContinueReadingWidget::class.java))
         .isNotEmpty()
 
-    private fun views(state: WidgetState, cover: Bitmap?, layout: ContinueReadingLayout): RemoteViews =
+    private fun views(state: WidgetState, cover: Bitmap?, layout: ContinueReadingLayout, palette: WidgetPalette): RemoteViews =
         RemoteViews(context.packageName, layout.res).apply {
-            state.appearance.applyTo(this)
-            setViewVisibility(R.id.widget_border, if (state.appearance.border) View.VISIBLE else View.GONE)
-            setImageViewResource(R.id.widget_border, state.appearance.borderRes())
+            // The reading-time widget's colours, from the app's theme, so the two widgets match.
+            applySurface(R.id.widget_bg, R.id.widget_border, state.appearance, palette)
+            applyColors(palette)
             val book = state.book
             val hasBook = book != null
             setViewVisibility(R.id.widget_book, if (hasBook) View.VISIBLE else View.GONE)
@@ -215,6 +218,26 @@ class ContinueReadingWidgetUpdater @Inject constructor(
                 setViewPadding(R.id.widget_cover, inset, inset, inset, inset)
             }
         }
+
+    private fun RemoteViews.applyColors(palette: WidgetPalette) {
+        setTextColor(R.id.widget_title, palette.onSurface)
+        setTextColor(R.id.widget_author, palette.onSurfaceVariant)
+        setTextColor(R.id.widget_progress_text, palette.onPrimaryContainer)
+        setTextColor(R.id.widget_empty_text, palette.onSurfaceVariant)
+        tintBackground(R.id.widget_progress_text, palette.primaryContainer)
+        tintBackground(R.id.widget_cover, palette.secondaryContainer)
+        tintBackground(R.id.widget_resume, palette.primary)
+        tintBackground(R.id.widget_empty_icon, palette.primaryContainer)
+        // The cover-only layout's empty state is the icon itself.
+        tintBackground(R.id.widget_empty, palette.primaryContainer)
+        setInt(R.id.widget_resume, "setColorFilter", palette.onPrimary)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            for (bar in intArrayOf(R.id.widget_progress, R.id.widget_progress_wavy)) {
+                setColorStateList(bar, "setProgressTintList", ColorStateList.valueOf(palette.primary))
+                setColorStateList(bar, "setProgressBackgroundTintList", ColorStateList.valueOf(palette.secondaryContainer))
+            }
+        }
+    }
 
     /** Opens the book in the reader; with no book yet, just the app. */
     private fun openIntent(bookId: Long?): PendingIntent {

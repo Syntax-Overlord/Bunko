@@ -6,9 +6,16 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@android:id/background"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_background"
-    android:clipToOutline="true">
+    android:layout_height="match_parent">
+
+    <!-- The background, tinted to the app's theme by the widget. -->
+    <ImageView
+        android:id="@+id/widget_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_background" />
 
     <!-- The widget's outline, as the reading-time widget has; the content keeps the old padding as its margin. -->
     <ImageView

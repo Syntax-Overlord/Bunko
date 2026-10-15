@@ -1,6 +1,5 @@
 package com.vayana.app.widget
 
-import com.vayana.core.designsystem.theme.isMonochrome
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -14,8 +13,6 @@ import android.os.SystemClock
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
-import androidx.compose.material3.ColorScheme
-import androidx.compose.ui.graphics.toArgb
 import com.vayana.app.MainActivity
 import com.vayana.app.R
 import com.vayana.core.common.ApplicationScope
@@ -23,11 +20,6 @@ import com.vayana.core.common.DispatcherProvider
 import com.vayana.core.database.repository.ReadingSessionRepository
 import com.vayana.core.datastore.settings.SettingsSnapshot
 import com.vayana.core.datastore.settings.SettingsRepository
-import com.vayana.core.designsystem.theme.ColorSchemes
-import com.vayana.core.designsystem.theme.DarkVariant
-import com.vayana.core.designsystem.theme.DisplayProfile
-import com.vayana.core.designsystem.theme.EinkPalette
-import com.vayana.core.designsystem.theme.ThemeMode
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalDate
@@ -187,14 +179,9 @@ class ReadingTimeWidgetUpdater @Inject constructor(
             val scaledDensity = density * context.resources.configuration.fontScale
             val fill = theme.appearance.chartFillsWidget
             val layout = ReadingWidgetLayout.forSize(widthDp, heightDp, theme.appearance.chartHeader, fill, theme.appearance.border)
-            val palette = resolvePalette(theme)
+            val palette = theme.colors.palette(context)
             // The shared corner shapes, tinted to the app's theme: no full-size bitmap to send on every redraw.
-            setImageViewResource(R.id.reading_background, theme.appearance.backgroundRes())
-            setInt(R.id.reading_background, "setColorFilter", palette.surface)
-            setViewVisibility(R.id.reading_border, if (theme.appearance.border) View.VISIBLE else View.GONE)
-            setImageViewResource(R.id.reading_border, theme.appearance.borderRes())
-            setInt(R.id.reading_border, "setColorFilter", palette.outline)
-            setFloat(R.id.reading_border, "setAlpha", if (palette.eInk) 1f else StandardBorderAlpha)
+            applySurface(R.id.reading_background, R.id.reading_border, theme.appearance, palette)
             setOnClickPendingIntent(android.R.id.background, openStatistics())
             setTextViewText(R.id.reading_today, duration(week.todayMinutes))
             setTextViewText(
@@ -253,7 +240,7 @@ class ReadingTimeWidgetUpdater @Inject constructor(
         setViewVisibility(R.id.reading_average_legend, if (layout.showAverageWords) View.VISIBLE else View.GONE)
     }
 
-    private fun RemoteViews.applyPalette(palette: ReadingWidgetPalette) {
+    private fun RemoteViews.applyPalette(palette: WidgetPalette) {
         setTextColor(R.id.reading_today, palette.onSurface)
         setTextColor(R.id.reading_average_label, palette.onSurfaceVariant)
         setTextColor(R.id.reading_average, palette.tertiary)
@@ -276,24 +263,6 @@ class ReadingTimeWidgetUpdater @Inject constructor(
     private fun dpToPx(dp: Int): Int = dpToPx(dp.toFloat())
 
     private fun dpToPx(dp: Float): Int = (dp * context.resources.displayMetrics.density).roundToInt()
-
-    private fun resolvePalette(theme: ReadingWidgetTheme): ReadingWidgetPalette {
-        val isDark = when (theme.themeMode) {
-            ThemeMode.LIGHT -> false
-            ThemeMode.DARK -> true
-            ThemeMode.SYSTEM -> context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK ==
-                Configuration.UI_MODE_NIGHT_YES
-        }
-        val scheme = if (
-            // Wallpaper colours on colour E-Ink too; only the monochrome palette replaces them.
-            theme.dynamicColor && !theme.displayProfile.isMonochrome(theme.einkPalette) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-        ) {
-            ColorSchemes.dynamic(context, isDark, theme.darkVariant)
-        } else {
-            ColorSchemes.forProfile(theme.displayProfile, isDark, theme.darkVariant, theme.einkPalette)
-        }
-        return scheme.toWidgetPalette(theme.displayProfile == DisplayProfile.E_INK)
-    }
 
     /** The widget's corner radius in the chart bitmap's pixels ([density]), whose dp the launcher's radius is given in. */
     private fun backgroundRadiusPx(appearance: WidgetAppearance, density: Float): Float =
@@ -323,7 +292,6 @@ class ReadingTimeWidgetUpdater @Inject constructor(
         const val DefaultHeightDp = 160
         const val MinChartPx = 32
         const val MaxBitmapDensity = 2f
-        const val StandardBorderAlpha = 0.25f
         const val PreviewCacheMillis = 30_000L
         const val MinutesPerHour = 60
         const val MidnightSlackMillis = 1_000L
@@ -331,49 +299,11 @@ class ReadingTimeWidgetUpdater @Inject constructor(
     }
 }
 
-private data class ReadingWidgetTheme(
-    val appearance: WidgetAppearance,
-    val themeMode: ThemeMode,
-    val displayProfile: DisplayProfile,
-    val einkPalette: EinkPalette,
-    val darkVariant: DarkVariant,
-    val dynamicColor: Boolean,
-)
+private data class ReadingWidgetTheme(val appearance: WidgetAppearance, val colors: WidgetTheme)
 
-private fun readingWidgetTheme(settings: SettingsSnapshot) = ReadingWidgetTheme(
-    appearance = settings.widgetAppearance(),
-    themeMode = settings.themeMode,
-    displayProfile = settings.displayProfile,
-    einkPalette = settings.einkPalette,
-    darkVariant = settings.darkVariant,
-    dynamicColor = settings.dynamicColor,
-)
+private fun readingWidgetTheme(settings: SettingsSnapshot) = ReadingWidgetTheme(settings.widgetAppearance(), settings.widgetTheme())
 
-private data class ReadingWidgetPalette(
-    val surface: Int,
-    val surfaceHigh: Int,
-    val onSurface: Int,
-    val onSurfaceVariant: Int,
-    val primary: Int,
-    val tertiary: Int,
-    val outline: Int,
-    val outlineVariant: Int,
-    val eInk: Boolean,
-)
-
-private fun ColorScheme.toWidgetPalette(eInk: Boolean) = ReadingWidgetPalette(
-    surface = surfaceContainer.toArgb(),
-    surfaceHigh = surfaceContainerHigh.toArgb(),
-    onSurface = onSurface.toArgb(),
-    onSurfaceVariant = onSurfaceVariant.toArgb(),
-    primary = primary.toArgb(),
-    tertiary = tertiary.toArgb(),
-    outline = outline.toArgb(),
-    outlineVariant = outlineVariant.toArgb(),
-    eInk = eInk,
-)
-
-private fun ReadingWidgetPalette.chartColors() = ReadingChartColors(
+private fun WidgetPalette.chartColors() = ReadingChartColors(
     plotBackground = surfaceHigh,
     grid = outlineVariant,
     frame = outline,

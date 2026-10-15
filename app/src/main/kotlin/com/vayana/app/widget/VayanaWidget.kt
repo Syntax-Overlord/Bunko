@@ -41,11 +41,6 @@ data class WidgetAppearance(
 
     val matchesLauncher: Boolean get() = cornerRadiusDp == WidgetCornerRadiusMatchLauncher
 
-    /** Styles a widget's root: [rootId] must be the view carrying the widget's background. */
-    fun applyTo(views: RemoteViews, rootId: Int = android.R.id.background) {
-        views.setInt(rootId, "setBackgroundResource", backgroundRes())
-    }
-
     /**
      * Shows progress in the chosen style: a widget with a progress bar has a flat one ([flatId]) and a squiggly one
      * ([wavyId]) in its layout, and this sets whichever shows.
