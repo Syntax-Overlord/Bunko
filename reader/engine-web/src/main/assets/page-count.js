@@ -18,9 +18,8 @@ export async function measureBookPages(renderer, sections, isCancelled, yieldWor
             if (isCancelled()) return null
             await yieldWork()
             if (isCancelled()) return null
+            // render() lays out synchronously, so pages is current without another yield.
             counter.render()
-            await yieldWork()
-            if (isCancelled()) return null
             const pages = counter.pages - 2
             if (!Number.isFinite(pages) || pages < 1) return null
             counts.set(index, pages)
