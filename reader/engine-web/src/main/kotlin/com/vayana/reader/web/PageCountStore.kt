@@ -1,7 +1,7 @@
 package com.vayana.reader.web
 
+import com.vayana.core.common.Hashing
 import java.io.File
-import java.security.MessageDigest
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -15,9 +15,8 @@ internal class PageCountStore(private val dir: File, private val stamp: String) 
     private val lock = Any()
 
     /** Stable for a book file, and changes when the file is replaced. */
-    fun bookKey(file: File): String = MessageDigest.getInstance("SHA-256")
-        .digest("${file.absolutePath}|${file.length()}|${file.lastModified()}".toByteArray())
-        .joinToString("") { "%02x".format(it) }
+    fun bookKey(file: File): String =
+        Hashing.sha256("${file.absolutePath}|${file.length()}|${file.lastModified()}".toByteArray())
 
     /** The `savedPageCounts` argument of bridge.js's open(): `{ book, layouts: [{ layout, counts }] }`. */
     fun load(book: String): JSONObject = JSONObject().put("book", book).put("layouts", synchronized(lock) { read(book) })
