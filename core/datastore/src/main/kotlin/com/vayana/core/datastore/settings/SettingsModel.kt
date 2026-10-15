@@ -121,6 +121,7 @@ data class SettingsSnapshot(
     val readerShowFooter: Boolean = true,
     /** Hide the clock, page and progress indicators a few seconds after they appear. */
     val readerAutoHideIndicators: Boolean = true,
+    val todayCardEnabled: Boolean = true,
     val readerAutoMarkSelection: Boolean = false,
     val readerBionicReading: Boolean = false,
     val readerBolderText: Boolean = false,

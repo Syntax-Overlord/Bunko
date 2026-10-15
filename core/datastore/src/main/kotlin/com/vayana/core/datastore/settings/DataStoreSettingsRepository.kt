@@ -223,6 +223,7 @@ internal fun Preferences.toSnapshot(): SettingsSnapshot {
         readerShowHeaders = read(SettingsRegistry.ReaderShowHeaders),
         readerShowFooter = read(SettingsRegistry.ReaderShowFooter),
         readerAutoHideIndicators = read(SettingsRegistry.ReaderAutoHideIndicators),
+        todayCardEnabled = read(SettingsRegistry.TodayCardEnabled),
         readerAutoMarkSelection = read(SettingsRegistry.ReaderAutoMarkSelection),
         readerBionicReading = read(SettingsRegistry.ReaderBionicReading),
         readerBolderText = read(SettingsRegistry.ReaderBolderText),
