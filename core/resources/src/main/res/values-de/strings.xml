@@ -1548,6 +1548,8 @@
     <string name="widget_corners">Ecken</string>
     <string name="widget_corners_match">Wie Startbildschirm</string>
     <string name="widget_corners_match_subtitle">Die Widget-Ecken deines Startbildschirms verwenden</string>
+    <string name="widget_border">Widget-Rahmen</string>
+    <string name="widget_border_subtitle">Eine dünne Linie um das Widget</string>
     <string name="widget_corners_value">%1$d dp</string>
     <string name="widget_progress_style">Fortschrittsbalken</string>
     <string name="widget_progress_flat">Gerade</string>

@@ -94,7 +94,9 @@ class ContinueReadingWidgetUpdater @Inject constructor(
     private val state: Flow<WidgetState> = combine(
         bookRepository.observeContinueReading().map { it?.toWidgetBook() },
         readAloudStatusHolder.status,
-        settingsRepository.snapshot.map { WidgetAppearance(it.widgetCornerRadius, it.widgetProgressStyle) },
+        settingsRepository.snapshot.map {
+            WidgetAppearance(it.widgetCornerRadius, it.widgetProgressStyle, border = it.widgetBorder)
+        },
     ) { book, readAloud, appearance ->
         WidgetState(book, readAloud?.takeIf { it.bookId == book?.id }, appearance)
     }
@@ -153,6 +155,8 @@ class ContinueReadingWidgetUpdater @Inject constructor(
     private fun views(state: WidgetState, cover: Bitmap?, layout: ContinueReadingLayout): RemoteViews =
         RemoteViews(context.packageName, layout.res).apply {
             state.appearance.applyTo(this)
+            setViewVisibility(R.id.widget_border, if (state.appearance.border) View.VISIBLE else View.GONE)
+            setImageViewResource(R.id.widget_border, state.appearance.borderRes())
             val book = state.book
             val hasBook = book != null
             setViewVisibility(R.id.widget_book, if (hasBook) View.VISIBLE else View.GONE)

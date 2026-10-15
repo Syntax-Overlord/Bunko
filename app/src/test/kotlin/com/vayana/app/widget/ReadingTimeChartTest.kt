@@ -129,6 +129,8 @@ class ReadingTimeChartTest {
         val filled = ReadingWidgetLayout.forSize(320, 160, header = false, fill = true)
         assertTrue(filled.paddingHorizontalDp < without.paddingHorizontalDp)
         assertEquals(filled.paddingTopDp * 2, filled.chromeHeightDp)
+        // Without a border to keep clear of, a filled graph reaches the very edge.
+        assertEquals(0, ReadingWidgetLayout.forSize(320, 160, header = false, fill = true, border = false).paddingTopDp)
         // Fill needs the header off.
         assertEquals(withHeader, ReadingWidgetLayout.forSize(320, 160, header = true, fill = true))
     }

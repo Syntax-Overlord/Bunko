@@ -1564,6 +1564,8 @@
     <string name="widget_corners">Angoli</string>
     <string name="widget_corners_match">Come la schermata Home</string>
     <string name="widget_corners_match_subtitle">Usa gli angoli dei widget della schermata Home</string>
+    <string name="widget_border">Bordo del widget</string>
+    <string name="widget_border_subtitle">Un contorno sottile intorno al widget</string>
     <string name="widget_corners_value">%1$d dp</string>
     <string name="widget_progress_style">Barra di avanzamento</string>
     <string name="widget_progress_flat">Piatta</string>

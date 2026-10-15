@@ -1564,6 +1564,8 @@
     <string name="widget_corners">Esquinas</string>
     <string name="widget_corners_match">Igual que la pantalla de inicio</string>
     <string name="widget_corners_match_subtitle">Usar las esquinas de widget de tu pantalla de inicio</string>
+    <string name="widget_border">Borde del widget</string>
+    <string name="widget_border_subtitle">Un contorno fino alrededor del widget</string>
     <string name="widget_corners_value">%1$d dp</string>
     <string name="widget_progress_style">Barra de progreso</string>
     <string name="widget_progress_flat">Plana</string>

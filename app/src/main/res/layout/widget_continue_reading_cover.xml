@@ -8,11 +8,21 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_background"
-    android:clipToOutline="true"
-    android:padding="10dp">
+    android:clipToOutline="true">
+
+    <!-- The widget's outline, as the reading-time widget has; the content keeps the old padding as its margin. -->
+    <ImageView
+        android:id="@+id/widget_border"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:alpha="0.25"
+        android:contentDescription="@null"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_border" />
 
     <LinearLayout
         android:id="@+id/widget_book"
+        android:layout_margin="10dp"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:gravity="center_horizontal"
@@ -55,6 +65,7 @@
 
     <ImageView
         android:id="@+id/widget_empty"
+        android:layout_margin="10dp"
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:layout_gravity="center"

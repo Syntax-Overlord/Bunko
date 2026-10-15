@@ -142,6 +142,8 @@ data class SettingsSnapshot(
     /** Home-screen widgets' corner radius in dp, or [WidgetCornerRadiusMatchLauncher]. */
     val widgetCornerRadius: Int = WidgetCornerRadiusMatchLauncher,
     val widgetProgressStyle: WidgetProgressStyle = WidgetProgressStyle.FLAT,
+    /** Every widget's thin outline. */
+    val widgetBorder: Boolean = true,
     val widgetChartStyle: WidgetChartStyle = WidgetChartStyle.LINE,
     val widgetChartAxisLabels: Boolean = true,
     /** The reading-time widget's grid lines, as a percentage of their full strength. */
@@ -751,6 +753,14 @@ object SettingsRegistry {
             ChoiceOption(WidgetProgressStyle.SQUIGGLY, R.string.widget_progress_squiggly),
         ),
     )
+    /** Every widget's thin outline. Set on the widget configure screen. */
+    val WidgetBorder: BooleanSetting = BooleanSetting(
+        key = "widgets.border",
+        defaultValue = true,
+        titleRes = R.string.widget_border,
+        subtitleRes = R.string.widget_border_subtitle,
+        group = SettingsGroup.APPEARANCE,
+    )
     /** The reading-time widget's graph. Set on the widget configure screen. */
     val WidgetChart: ChoiceSetting<WidgetChartStyle> = ChoiceSetting(
         key = "widgets.chart_style",
@@ -990,6 +1000,7 @@ object SettingsRegistry {
         ReaderPdfFitWidth,
         WidgetCornerRadius,
         WidgetProgressBar,
+        WidgetBorder,
         WidgetChart,
         WidgetChartAxisLabels,
         WidgetChartGridOpacity,

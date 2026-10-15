@@ -241,6 +241,7 @@ internal fun Preferences.toSnapshot(): SettingsSnapshot {
         borrowRemindersEnabled = read(SettingsRegistry.BorrowReminders),
         widgetCornerRadius = read(SettingsRegistry.WidgetCornerRadius),
         widgetProgressStyle = read(SettingsRegistry.WidgetProgressBar),
+        widgetBorder = read(SettingsRegistry.WidgetBorder),
         widgetChartStyle = read(SettingsRegistry.WidgetChart),
         widgetChartAxisLabels = read(SettingsRegistry.WidgetChartAxisLabels),
         widgetChartGridOpacity = read(SettingsRegistry.WidgetChartGridOpacity),

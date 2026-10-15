@@ -152,6 +152,7 @@ class WidgetConfigureViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.update(SettingsRegistry.WidgetCornerRadius, appearance.cornerRadiusDp)
             settingsRepository.update(SettingsRegistry.WidgetProgressBar, appearance.progressStyle)
+            settingsRepository.update(SettingsRegistry.WidgetBorder, appearance.border)
             settingsRepository.update(SettingsRegistry.WidgetChart, appearance.chartStyle)
             settingsRepository.update(SettingsRegistry.WidgetChartAxisLabels, appearance.chartAxisLabels)
             settingsRepository.update(SettingsRegistry.WidgetChartGridOpacity, appearance.chartGridOpacity)
@@ -184,8 +185,9 @@ private fun WidgetConfigureScreen(
     var chartDays by rememberSaveable { mutableIntStateOf(initial.chartDays) }
     var chartHeader by rememberSaveable { mutableStateOf(initial.chartHeader) }
     var chartFill by rememberSaveable { mutableStateOf(initial.chartFill) }
+    var border by rememberSaveable { mutableStateOf(initial.border) }
     val appearance = WidgetAppearance(
-        cornerRadius, progressStyle, chartStyle, chartAxisLabels, chartGridOpacity, chartDays, chartHeader, chartFill,
+        cornerRadius, progressStyle, chartStyle, chartAxisLabels, chartGridOpacity, chartDays, chartHeader, chartFill, border,
     )
 
     Scaffold(
@@ -252,6 +254,12 @@ private fun WidgetConfigureScreen(
                     )
                 }
             }
+            ListItem(
+                headlineContent = { Text(stringResource(R.string.widget_border)) },
+                supportingContent = { Text(stringResource(R.string.widget_border_subtitle)) },
+                trailingContent = { Switch(checked = border, onCheckedChange = { border = it }) },
+                colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+            )
 
             if (readingTime) {
                 SectionTitle(stringResource(R.string.widget_chart_style))
@@ -387,5 +395,5 @@ private const val DefaultCustomRadius = 24
 internal fun SettingsSnapshot.widgetAppearance() =
     WidgetAppearance(
         widgetCornerRadius, widgetProgressStyle, widgetChartStyle, widgetChartAxisLabels, widgetChartGridOpacity, widgetChartDays,
-        widgetChartHeader, widgetChartFill,
+        widgetChartHeader, widgetChartFill, widgetBorder,
     )

@@ -1548,6 +1548,8 @@
     <string name="widget_corners">மூலைகள்</string>
     <string name="widget_corners_match">முகப்புத் திரைபோல</string>
     <string name="widget_corners_match_subtitle">முகப்புத் திரையின் விட்ஜெட் மூலைகளைப் பயன்படுத்து</string>
+    <string name="widget_border">விட்ஜெட் ஓரம்</string>
+    <string name="widget_border_subtitle">விட்ஜெட்டைச் சுற்றி மெல்லிய கோடு</string>
     <string name="widget_corners_value">%1$d dp</string>
     <string name="widget_progress_style">முன்னேற்றப் பட்டை</string>
     <string name="widget_progress_flat">நேர்</string>

@@ -1580,6 +1580,8 @@
     <string name="widget_corners">Углы</string>
     <string name="widget_corners_match">Как на главном экране</string>
     <string name="widget_corners_match_subtitle">Использовать углы виджетов главного экрана</string>
+    <string name="widget_border">Рамка виджета</string>
+    <string name="widget_border_subtitle">Тонкая обводка вокруг виджета</string>
     <string name="widget_corners_value">%1$d dp</string>
     <string name="widget_progress_style">Индикатор прогресса</string>
     <string name="widget_progress_flat">Прямой</string>

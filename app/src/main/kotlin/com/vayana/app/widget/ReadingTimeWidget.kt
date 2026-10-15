@@ -177,11 +177,12 @@ class ReadingTimeWidgetUpdater @Inject constructor(
             val density = minOf(context.resources.displayMetrics.density, MaxBitmapDensity)
             val scaledDensity = density * context.resources.configuration.fontScale
             val fill = theme.appearance.chartFillsWidget
-            val layout = ReadingWidgetLayout.forSize(widthDp, heightDp, theme.appearance.chartHeader, fill)
+            val layout = ReadingWidgetLayout.forSize(widthDp, heightDp, theme.appearance.chartHeader, fill, theme.appearance.border)
             val palette = resolvePalette(theme)
             // The shared corner shapes, tinted to the app's theme: no full-size bitmap to send on every redraw.
             setImageViewResource(R.id.reading_background, theme.appearance.backgroundRes())
             setInt(R.id.reading_background, "setColorFilter", palette.surface)
+            setViewVisibility(R.id.reading_border, if (theme.appearance.border) View.VISIBLE else View.GONE)
             setImageViewResource(R.id.reading_border, theme.appearance.borderRes())
             setInt(R.id.reading_border, "setColorFilter", palette.outline)
             setFloat(R.id.reading_border, "setAlpha", if (palette.eInk) 1f else StandardBorderAlpha)
@@ -390,11 +391,18 @@ internal data class ReadingWidgetLayout(
          * Without a [header] the chart rises to the top margin; with [fill] too, it reaches the widget's edges, inset
          * only enough to leave the widget's border showing.
          */
-        fun forSize(widthDp: Int, heightDp: Int, header: Boolean = true, fill: Boolean = false): ReadingWidgetLayout {
+        fun forSize(
+            widthDp: Int,
+            heightDp: Int,
+            header: Boolean = true,
+            fill: Boolean = false,
+            border: Boolean = true,
+        ): ReadingWidgetLayout {
             val compact = widthDp < AverageMinWidthDp || heightDp < CompactHeightDp
             // One margin on all four sides.
             val margin = when {
-                fill && !header -> FillInsetDp
+                // Filled, the graph stops short of the border so it shows; with no border it reaches the edge.
+                fill && !header -> if (border) FillInsetDp else 0
                 compact -> 10
                 else -> 16
             }

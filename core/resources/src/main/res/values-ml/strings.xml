@@ -1548,6 +1548,8 @@
     <string name="widget_corners">മൂലകൾ</string>
     <string name="widget_corners_match">ഹോം സ്ക്രീൻ പോലെ</string>
     <string name="widget_corners_match_subtitle">ഹോം സ്ക്രീനിന്റെ സ്വന്തം വിജറ്റ് മൂലകൾ ഉപയോഗിക്കുക</string>
+    <string name="widget_border">വിജറ്റ് അതിര്</string>
+    <string name="widget_border_subtitle">വിജറ്റിന് ചുറ്റും നേർത്ത വര</string>
     <string name="widget_corners_value">%1$d dp</string>
     <string name="widget_progress_style">പുരോഗതി ബാർ</string>
     <string name="widget_progress_flat">നേർ</string>

@@ -33,6 +33,8 @@ data class WidgetAppearance(
     val chartHeader: Boolean = true,
     /** With no header, the graph fills the widget and the widget's own edge frames it. */
     val chartFill: Boolean = false,
+    /** A thin outline around every widget. */
+    val border: Boolean = true,
 ) {
     /** Fill applies only without a header; it always hides the axis labels, which need room outside the graph. */
     val chartFillsWidget: Boolean get() = chartFill && !chartHeader

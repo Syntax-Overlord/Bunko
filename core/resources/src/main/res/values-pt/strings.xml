@@ -1564,6 +1564,8 @@
     <string name="widget_corners">Cantos</string>
     <string name="widget_corners_match">Igual à tela inicial</string>
     <string name="widget_corners_match_subtitle">Usar os cantos de widget da sua tela inicial</string>
+    <string name="widget_border">Borda do widget</string>
+    <string name="widget_border_subtitle">Um contorno fino em volta do widget</string>
     <string name="widget_corners_value">%1$d dp</string>
     <string name="widget_progress_style">Barra de progresso</string>
     <string name="widget_progress_flat">Reta</string>

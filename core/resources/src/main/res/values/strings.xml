@@ -1708,6 +1708,8 @@
     <string name="widget_corners">Corners</string>
     <string name="widget_corners_match">Match home screen</string>
     <string name="widget_corners_match_subtitle">Use your home screen’s own widget corners</string>
+    <string name="widget_border">Widget border</string>
+    <string name="widget_border_subtitle">A thin outline around the widget</string>
     <string name="widget_corners_value">%1$d dp</string>
     <string name="widget_progress_style">Progress bar</string>
     <string name="widget_progress_flat">Flat</string>
