@@ -688,6 +688,7 @@ class FoliateBookEngine(private val webView: WebView, context: Context) : BookEn
                 _events.tryEmit(EngineEvent.PdfPasswordRequired(payload.optBoolean("incorrect")))
             }
             "controlsRequested" -> _events.tryEmit(EngineEvent.ControlsRequested)
+            "readingInfoRequested" -> _events.tryEmit(EngineEvent.ReadingInfoRequested)
             "reply" -> bridgeRequests.remove(payload.optLong("requestId"))?.complete(payload)
             "log" -> if (Log.isLoggable(LogTag, Log.DEBUG)) Log.d(LogTag, "bridge: $payload")
             "error" -> {

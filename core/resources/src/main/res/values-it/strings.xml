@@ -1099,6 +1099,8 @@
     <string name="settings_week_start_monday">Lunedì</string>
 
     <string name="reader_contents">Indice</string>
+    <string name="reader_more_tools">Altri strumenti</string>
+    <string name="reader_close_controls">Torna alla lettura</string>
     <string name="reader_notes">Note</string>
     <string name="reader_notes_empty">Ancora nessuna nota o evidenziazione in questo libro.</string>
     <string name="reader_selection_highlight_yellow">Giallo</string>

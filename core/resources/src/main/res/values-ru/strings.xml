@@ -1108,6 +1108,8 @@
     <string name="settings_week_start_monday">Понедельник</string>
 
     <string name="reader_contents">Содержание</string>
+    <string name="reader_more_tools">Другие инструменты</string>
+    <string name="reader_close_controls">Вернуться к чтению</string>
     <string name="reader_notes">Заметки</string>
     <string name="reader_notes_empty">В этой книге пока нет заметок и выделений.</string>
     <string name="reader_selection_highlight_yellow">Жёлтый</string>

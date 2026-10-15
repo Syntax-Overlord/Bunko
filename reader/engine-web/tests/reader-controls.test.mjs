@@ -13,6 +13,7 @@ function harness({ word = false, fixed = false, selected = false } = {}) {
     const timers = new Map()
     let timerId = 0
     let clicks
+    const handlers = new Map()
     let lookups = 0
     let zooms = 0
     const context = vm.createContext({
@@ -20,13 +21,15 @@ function harness({ word = false, fixed = false, selected = false } = {}) {
         Number,
         WeakMap,
         fixedLayout: fixed,
-        window: { innerWidth: 900 },
+        publishedAnnotationId: null,
+        window: { innerWidth: 900, innerHeight: 900 },
         post: (type, payload) => posted.push({ type, payload }),
         selectWordAt: () => {
             lookups++
             return word
         },
         toggleFixedZoom: () => { zooms++ },
+        wireReaderActivity: () => {},
         setTimeout: callback => {
             const id = ++timerId
             timers.set(id, callback)
@@ -36,8 +39,8 @@ function harness({ word = false, fixed = false, selected = false } = {}) {
     })
     vm.runInContext(bridge.slice(start, end), context)
     const doc = {
-        defaultView: { top: { innerWidth: 900 } },
-        addEventListener: (type, handler) => { if (type === 'click') clicks = handler },
+        defaultView: { top: { innerWidth: 900, innerHeight: 900 } },
+        addEventListener: (type, handler) => { handlers.set(type, handler); if (type === 'click') clicks = handler },
         getSelection: () => ({ type: selected ? 'Range' : 'Caret', isCollapsed: !selected }),
     }
     context.wireDoubleTapLookup(doc)
@@ -55,25 +58,87 @@ function harness({ word = false, fixed = false, selected = false } = {}) {
     }
     return {
         context,
+        doc,
         posted,
         click,
+        pointerDown: (time, x = 450, y = 300) => handlers.get('pointerdown')({ timeStamp: time, clientX: x, clientY: y }),
         flush,
         lookups: () => lookups,
         zooms: () => zooms,
     }
 }
 
-test('double center tap is the default and a single tap does nothing', () => {
+test('single center tap reveals indicators, while double tap opens controls', () => {
     const h = harness()
     h.click(0)
     assert.equal(h.posted.length, 0)
     h.flush()
-    assert.equal(h.posted.length, 0)
+    assert.deepEqual(h.posted.map(event => event.type), ['readingInfoRequested'])
 
     const double = harness()
     double.click(0)
     double.click(100)
     assert.deepEqual(double.posted.map(event => event.type), ['controlsRequested'])
+})
+
+test('single taps anywhere in the center strip consistently reveal indicators', () => {
+    for (const y of [100, 800]) {
+        const h = harness()
+        h.click(0, 450, y)
+        h.flush()
+        assert.deepEqual(h.posted.map(event => event.type), ['readingInfoRequested'])
+    }
+})
+
+test('center hit testing accounts for the scrolled chapter iframe position', () => {
+    const h = harness()
+    h.doc.defaultView.frameElement = { getBoundingClientRect: () => ({ left: -1800, top: 100 }) }
+    h.click(0, 2250, 350)
+    h.flush()
+    assert.deepEqual(h.posted.map(event => event.type), ['readingInfoRequested'])
+})
+
+test('the single-tap controls preference applies throughout the center strip', () => {
+    for (const y of [100, 450, 800]) {
+        const h = harness()
+        h.context.setReaderControlsGesture(1, false, false)
+        h.click(0, 450, y)
+        h.flush()
+        assert.deepEqual(h.posted.map(event => event.type), ['controlsRequested'])
+    }
+})
+
+test('a selection tap never reveals indicators', () => {
+    const h = harness({ selected: true })
+    h.click(0)
+    h.flush()
+    assert.equal(h.posted.length, 0)
+})
+
+test('highlight taps suppress the pending indicator reveal', () => {
+    const h = harness()
+    h.click(0)
+    h.context.publishedAnnotationId = 'highlight-42'
+    h.flush()
+    assert.equal(h.posted.length, 0)
+})
+
+test('a selection started during the single-tap delay suppresses the reveal', () => {
+    const h = harness()
+    h.click(0)
+    h.doc.getSelection = () => ({ type: 'Range', isCollapsed: false })
+    h.flush()
+    assert.equal(h.posted.length, 0)
+})
+
+test('long presses and dragged selections are not center taps', () => {
+    for (const [time, x] of [[600, 450], [100, 480]]) {
+        const h = harness()
+        h.pointerDown(0)
+        h.click(time, x)
+        h.flush()
+        assert.equal(h.posted.length, 0)
+    }
 })
 
 test('double-tap controls preserve dictionary lookup on a word', () => {

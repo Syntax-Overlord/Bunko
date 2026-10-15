@@ -40,7 +40,7 @@ This guide describes the features available in Vayana 0.90 and explains the most
 3. Open **Books** and tap **Add books**.
 4. Import an EPUB/PDF, scan a folder, or choose **Free books** to browse Project Gutenberg.
 5. Tap a cover to open **Book details**, then choose **Continue reading**.
-6. Tap the center of an EPUB page to show reader tools and appearance controls.
+6. Tap the middle third of an EPUB page to briefly show reading information. Double-tap blank space there to open reader tools; the controls gesture can be changed in Settings.
 
 Vayana stores the library locally by default. An account is not required. Backup, GitHub sync, Goodreads, Project Gutenberg, OPDS, Wikimedia lookup, and translation are optional.
 
@@ -186,6 +186,10 @@ Vayana's EPUB reader remembers the position for each book and supports reflowabl
 ### Reader navigation
 
 - Tap or swipe through pages according to the configured tap zones and page-turn behavior.
+- By default, one tap anywhere in the middle third shows reading indicators for seven seconds. Accessibility timeout preferences extend this interval, and touching the indicators pauses the countdown.
+- Double-tap a word for dictionary lookup. Double-tap blank space in the middle third to open tools. If you select single- or triple-tap controls in Settings, that preference applies throughout the middle third.
+- The tools row keeps **Contents**, **Search**, **Bookmarks**, and **Style** within one tap. **More tools** contains Notes, Progress, Words, and Read aloud when enabled.
+- Opening tools preserves the text viewport. Page-jump dialogs remain open when reading indicators disappear.
 - Use hardware volume/page keys when enabled.
 - Open **Contents** to jump to a chapter.
 - Add and revisit bookmarks.

@@ -283,6 +283,8 @@ class ReaderViewModel @Inject constructor(
     /** Monotonic signal from the book document; the screen owns the actual controls visibility. */
     private val _readerControlsRequest = MutableStateFlow(0L)
     val readerControlsRequest: StateFlow<Long> = _readerControlsRequest
+    private val _readingInfoRequest = MutableStateFlow(0L)
+    val readingInfoRequest: StateFlow<Long> = _readingInfoRequest
 
     val recentLookups: StateFlow<List<String>> = wordLookupStatRepository.observeRecent(RecentLookupsLimit)
         .map { stats -> stats.map { it.word } }
@@ -556,6 +558,7 @@ class ReaderViewModel @Inject constructor(
                         _pdfPasswordPrompt.value = PdfPasswordPrompt(event.incorrect)
                     }
                     com.vayana.reader.api.EngineEvent.ControlsRequested -> _readerControlsRequest.update { it + 1L }
+                    com.vayana.reader.api.EngineEvent.ReadingInfoRequested -> _readingInfoRequest.update { it + 1L }
                     is com.vayana.reader.api.EngineEvent.Relocated -> {
                         learnPace(event.locator.bookMinutesLeftExact)
                         _uiState.update { current ->

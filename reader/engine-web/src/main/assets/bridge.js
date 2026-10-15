@@ -33,6 +33,47 @@ addEventListener('vayana-pdf-password', event => {
     post('pdfPasswordRequired', { incorrect: Boolean(event.detail?.incorrect) })
 })
 
+const ReaderIdleMillis = 250
+let readerBusyUntil = 0
+let readerActiveDocument = null
+
+function noteReaderActivity() {
+    readerBusyUntil = Date.now() + ReaderIdleMillis
+}
+
+function readerWorkDelay() {
+    if (readerActiveDocument?.defaultView?.frameElement?.isConnected) return ReaderIdleMillis
+    return Math.max(0, readerBusyUntil - Date.now())
+}
+
+function wireReaderActivity(doc) {
+    const pointers = new Set()
+    doc.addEventListener('pointerdown', event => {
+        pointers.add(event.pointerId)
+        readerActiveDocument = doc
+        noteReaderActivity()
+    }, { passive: true })
+    const release = () => {
+        pointers.clear()
+        if (readerActiveDocument === doc) readerActiveDocument = null
+        noteReaderActivity()
+    }
+    const endPointer = event => {
+        pointers.delete(event.pointerId)
+        if (!pointers.size) release()
+    }
+    doc.addEventListener('pointerup', endPointer, { passive: true })
+    doc.addEventListener('pointercancel', endPointer, { passive: true })
+    doc.defaultView?.addEventListener('blur', release)
+}
+
+async function waitForReaderIdle(isCancelled) {
+    do {
+        if (isCancelled()) return
+        await new Promise(resolve => setTimeout(resolve, Math.max(16, readerWorkDelay())))
+    } while (!isCancelled() && readerWorkDelay() > 0)
+}
+
 // Dynamic page-count estimate: foliate's paginator lays out each chapter into CSS columns
 // sized by the live font-size/line-height/margin, so `renderer.pages` for the chapter you're
 // on is already a real, current measurement. Byte-size extrapolation supplies a quick initial
@@ -65,7 +106,7 @@ function schedulePageCount() {
         const cancelled = () => generation !== pageCountGeneration || currentView !== view
         try {
             const counts = await measureBookPages(currentView.renderer, currentView.book.sections,
-                cancelled, () => new Promise(resolve => setTimeout(resolve, 16)), applyBionicReadingToDoc)
+                cancelled, () => waitForReaderIdle(cancelled), applyBionicReadingToDoc)
             if (!counts || cancelled()) return
             for (const [index, pages] of counts) {
                 bytesPerPage.set(index, sectionByteSizes[index] / pages)
@@ -854,6 +895,8 @@ function layoutPopularBadges() {
 window.addEventListener('resize', scheduleBadgeLayout)
 window.addEventListener('vayana-ink-marks', scheduleBadgeLayout)
 
+const annotationSectionCache = new WeakMap()
+
 /**
  * A Foliate overlayer belongs to one loaded document and is discarded with it.
  * The annotation caches below are book-wide, so a cached CFI is not proof that
@@ -864,6 +907,11 @@ async function restoreAnnotationsForOverlay(doc, index) {
     const current = view?.renderer?.getContents?.()
         ?.some(content => content?.doc === doc && content.index === index && content.overlayer)
     if (!current || !activeAnnotationsList.length) return
+    let sectionCache = annotationSectionCache.get(view)
+    if (!sectionCache) {
+        sectionCache = new WeakMap()
+        annotationSectionCache.set(view, sectionCache)
+    }
 
     const additions = []
     const restoredCfis = new Set()
@@ -881,11 +929,18 @@ async function restoreAnnotationsForOverlay(doc, index) {
             if (source && source !== annotation.value) continue
         }
         if (!cfi || restoredCfis.has(cfi)) continue
-        let resolved = null
-        try {
-            resolved = view.resolveCFI(cfi)
-        } catch (_) {}
-        if (resolved?.index !== index) continue
+        let section = sectionCache.get(annotation)
+        if (section?.cfi !== cfi) {
+            section = null
+            try {
+                const resolved = view.resolveCFI(cfi)
+                if (Number.isInteger(resolved?.index) && resolved.index >= 0) {
+                    section = { cfi, index: resolved.index }
+                    sectionCache.set(annotation, section)
+                }
+            } catch (_) {}
+        }
+        if (section?.index !== index) continue
         restoredCfis.add(cfi)
         additions.push(Promise.resolve(view.addAnnotation({ ...annotation, value: cfi })))
     }
@@ -919,15 +974,17 @@ function queueDocumentEnhancements(doc, index, restoreOverlay = false) {
 }
 
 function next() {
+    noteReaderActivity()
     if (fixedLayout && scrollFixedPage(1)) return
     view?.next()
 }
 function prev() {
+    noteReaderActivity()
     if (fixedLayout && scrollFixedPage(-1)) return
     view?.prev()
 }
-function goLeft() { view?.goLeft() }
-function goRight() { view?.goRight() }
+function goLeft() { noteReaderActivity(); view?.goLeft() }
+function goRight() { noteReaderActivity(); view?.goRight() }
 function goToFraction(fraction) {
     if (fixedLayout) {
         const index = fixedLayoutIndexOfFraction(fraction, view?.book?.sections?.length ?? 0)
@@ -1161,12 +1218,21 @@ function applyReaderMargin(percent) {
     }
 }
 
+const appliedReaderStyles = new WeakMap()
+
 function applyStyle(css, sideMarginPercent) {
+    const renderer = view?.renderer
+    const cssChanged = renderer?.setStyles && appliedReaderStyles.get(renderer) !== css
+    const margin = Math.max(0, Math.min(24, Number(sideMarginPercent) || 0))
+    if (!cssChanged && readerSideMarginPercent === margin) return
     // Font/line-height changes invalidate every sampled bytes-per-page density: a chapter
     // measured under the old layout no longer reflects how many pages it takes now.
     resetPageEstimate()
-    if (view?.renderer?.setStyles) view.renderer.setStyles(css)
-    applyReaderMargin(sideMarginPercent)
+    if (cssChanged) {
+        renderer.setStyles(css)
+        appliedReaderStyles.set(renderer, css)
+    }
+    applyReaderMargin(margin)
     schedulePageCount()
 }
 
@@ -1542,11 +1608,29 @@ function lookupOrZoomAt(doc, x, y) {
 // meaning; otherwise the configured count opens controls. Triple-tap mode delays double-tap lookup by one tap window
 // so a third tap can win without briefly opening the dictionary first.
 function wireDoubleTapLookup(doc) {
+    wireReaderActivity(doc)
+    let pointerDown = null
+    doc.addEventListener('pointerdown', e => {
+        pointerDown = { x: e.clientX, y: e.clientY, time: e.timeStamp, selected: hasReaderSelection(doc) }
+        const last = readerTapState.get(doc)
+        if (last?.timer) clearTimeout(last.timer)
+    })
+    doc.addEventListener('pointercancel', () => {
+        pointerDown = null
+        clearReaderTapState(doc)
+    })
     doc.addEventListener('click', e => {
         if (e.target?.closest?.('a[href]')) return
         if (readerControlsVisible || readerControlsBlocked) return
-        const width = (doc.defaultView?.top ?? window).innerWidth || 1
-        const horizontal = e.screenX / width
+        if (hasReaderSelection(doc) || (pointerDown && (pointerDown.selected ||
+            e.timeStamp - pointerDown.time >= 500 ||
+            Math.hypot(e.clientX - pointerDown.x, e.clientY - pointerDown.y) > 12))) {
+            clearReaderTapState(doc)
+            return
+        }
+        const viewport = doc.defaultView?.top ?? window
+        const frame = doc.defaultView?.frameElement?.getBoundingClientRect()
+        const horizontal = (e.clientX + (frame?.left ?? 0)) / (viewport.innerWidth || 1)
         if (horizontal < 1 / 3 || horizontal > 2 / 3) return
         const last = readerTapState.get(doc)
         const continues = last &&
@@ -1561,6 +1645,17 @@ function wireDoubleTapLookup(doc) {
             timer: null,
         }
         readerTapState.set(doc, state)
+
+        // Wait out the double-tap window: a word lookup or highlight must never
+        // also reveal the reading indicators. An open annotation card suppresses it.
+        if (state.count === 1 && readerControlsTapCount !== 1) {
+            state.timer = setTimeout(() => {
+                clearReaderTapState(doc)
+                if (!readerControlsVisible && !readerControlsBlocked && publishedAnnotationId == null && !hasReaderSelection(doc))
+                    post('readingInfoRequested', {})
+            }, DoubleTapWindowMillis)
+            return
+        }
 
         if (readerControlsTapCount === 1) {
             if (state.count >= 2) lookupOrZoomAt(doc, e.clientX, e.clientY)
@@ -2329,6 +2424,7 @@ let activeAnnotationsList = []
 let pendingAnnotations = undefined
 let annotationApplyRunning = false
 let annotationApplyGeneration = 0
+const quoteMatchTimers = new WeakMap()
 
 /** Keep one annotation application in flight and retain only the newest waiting snapshot. */
 function renderAnnotations(annotations) {
@@ -2462,6 +2558,17 @@ function annotationFingerprint(annotation) {
 function matchTextAnnotationsForDoc(doc, index) {
     if (!activeAnnotationsList || !activeAnnotationsList.length || !view) return
     if (completedMatchingRevision.get(doc) === annotationRevision) return
+    const delay = readerWorkDelay()
+    if (delay > 0) {
+        if (!quoteMatchTimers.has(doc)) {
+            quoteMatchTimers.set(doc, setTimeout(() => {
+                quoteMatchTimers.delete(doc)
+                if (view?.renderer?.getContents().some(content => content.doc === doc))
+                    matchTextAnnotationsForDoc(doc, index)
+            }, delay))
+        }
+        return
+    }
     let missing = unmatchedInDoc.get(doc)
     if (!missing) {
         // Remember the exact failed passage, not just its value. A later
@@ -2471,6 +2578,7 @@ function matchTextAnnotationsForDoc(doc, index) {
         unmatchedInDoc.set(doc, missing)
     }
     const matches = []
+    const passageRanges = new Map()
     const generation = annotationApplyGeneration
     for (const ann of activeAnnotationsList) {
         // CFI-backed user highlights already render directly above. Running the
@@ -2486,7 +2594,11 @@ function matchTextAnnotationsForDoc(doc, index) {
         if (missing.get(ann.value) === matchFingerprint) continue
         // Community marks need a unique passage in this edition; approximate matches
         // are useful for personal imports but can put public counts beside unrelated prose.
-        const range = findTextRangeInDoc(doc, textToFind, { exactOnly: Boolean(ann.popular), unique: Boolean(ann.popular) })
+        if (!passageRanges.has(matchFingerprint)) {
+            passageRanges.set(matchFingerprint,
+                findTextRangeInDoc(doc, textToFind, { exactOnly: Boolean(ann.popular), unique: Boolean(ann.popular) }))
+        }
+        const range = passageRanges.get(matchFingerprint)
         if (range) {
             missing.delete(ann.value)
             try {

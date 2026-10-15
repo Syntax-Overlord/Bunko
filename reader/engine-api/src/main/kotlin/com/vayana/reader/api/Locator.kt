@@ -109,6 +109,8 @@ sealed interface EngineEvent {
 
     /** The configured tap gesture on the book page requested the reader controls. */
     data object ControlsRequested : EngineEvent
+    /** An isolated center tap requested the temporary reading indicators. */
+    data object ReadingInfoRequested : EngineEvent
 }
 
 data class SearchResult(

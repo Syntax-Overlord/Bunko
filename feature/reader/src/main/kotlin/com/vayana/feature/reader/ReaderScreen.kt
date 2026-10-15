@@ -39,6 +39,7 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -54,6 +55,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.systemBarsIgnoringVisibility
+import androidx.compose.foundation.layout.union
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.only
@@ -80,6 +83,7 @@ import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.TextFields
@@ -137,10 +141,13 @@ import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.nativeKeyCode
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalAccessibilityManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -164,6 +171,7 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import kotlinx.coroutines.flow.StateFlow
 import com.vayana.core.common.QuoteCitation
 import com.vayana.core.designsystem.sharecard.QuoteShareDialog
 import com.vayana.core.database.model.Annotation
@@ -231,7 +239,7 @@ fun ReaderRoute(onBack: () -> Unit, modifier: Modifier = Modifier, onReviewVocab
     val readingPositionPrompt by viewModel.readingPositionPrompt.collectAsStateWithLifecycle()
     val recentLookups by viewModel.recentLookups.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
-    val activeReadingSessionSeconds by viewModel.activeReadingSessionSeconds.collectAsStateWithLifecycle()
+    val activeReadingSessionSeconds = viewModel.activeReadingSessionSeconds
     val paceFactor by viewModel.paceFactor.collectAsStateWithLifecycle()
     val engineGeneration by viewModel.engineGeneration.collectAsStateWithLifecycle()
     val readAloudVoices by viewModel.readAloudVoices.collectAsStateWithLifecycle()
@@ -241,6 +249,7 @@ fun ReaderRoute(onBack: () -> Unit, modifier: Modifier = Modifier, onReviewVocab
     val pdfPasswordPrompt by viewModel.pdfPasswordPrompt.collectAsStateWithLifecycle()
     val pdfThumbnails by viewModel.pdfThumbnails.collectAsStateWithLifecycle()
     val readerControlsRequest by viewModel.readerControlsRequest.collectAsStateWithLifecycle()
+    val readingInfoRequest by viewModel.readingInfoRequest.collectAsStateWithLifecycle()
     var showPdfPageBrowser by rememberSaveable { mutableStateOf(false) }
     val pdfPageControls = remember(viewModel, pdfBookPreferences?.rotationDegrees) {
         PdfPageControls(
@@ -332,6 +341,7 @@ fun ReaderRoute(onBack: () -> Unit, modifier: Modifier = Modifier, onReviewVocab
                 onDismissReadingPositionPrompt = viewModel::dismissReadingPositionPrompt,
                 engineGeneration = engineGeneration,
                 readerControlsRequest = readerControlsRequest,
+                readingInfoRequest = readingInfoRequest,
                 onEngineReady = viewModel::bindEngine,
                 onEngineReleased = viewModel::releaseEngine,
                 activeReadingSessionSeconds = activeReadingSessionSeconds,
@@ -457,6 +467,7 @@ fun ReaderRoute(onBack: () -> Unit, modifier: Modifier = Modifier, onReviewVocab
         onDismissReadingPositionPrompt = viewModel::dismissReadingPositionPrompt,
         engineGeneration = engineGeneration,
         readerControlsRequest = readerControlsRequest,
+        readingInfoRequest = readingInfoRequest,
         onEngineReady = viewModel::bindEngine,
         onEngineReleased = viewModel::releaseEngine,
         activeReadingSessionSeconds = activeReadingSessionSeconds,
@@ -788,6 +799,7 @@ internal enum class HighlightColor(val key: String, val labelRes: Int, val swatc
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun ReaderScreen(
     modifier: Modifier = Modifier,
     uiState: ReaderUiState,
@@ -811,9 +823,10 @@ private fun ReaderScreen(
     onDismissReadingPositionPrompt: () -> Unit,
     engineGeneration: Int,
     readerControlsRequest: Long,
+    readingInfoRequest: Long,
     onEngineReady: (BookEngine) -> Unit,
     onEngineReleased: (BookEngine) -> Unit,
-    activeReadingSessionSeconds: Long,
+    activeReadingSessionSeconds: StateFlow<Long>,
     paceFactor: Float,
     onReaderInteraction: () -> Unit,
     onTapPrevious: () -> Unit,
@@ -919,11 +932,31 @@ private fun ReaderScreen(
     }
     LaunchedEffect(readerControlsRequest) {
         if (readerControlsRequest > 0L) {
-            selectedPanel = ReaderPanel.STYLE
             chromeVisible = true
         }
     }
     val readerDocumentReady = uiState is ReaderUiState.Loaded
+    var readingInfoVisible by remember { mutableStateOf(false) }
+    val readingInfoVisibleState = rememberUpdatedState(readingInfoVisible)
+    var readingInfoInteracting by remember { mutableStateOf(false) }
+    val readingInfoTimeout = LocalAccessibilityManager.current?.calculateRecommendedTimeoutMillis(
+        originalTimeoutMillis = 7_000L,
+        containsIcons = true,
+        containsText = true,
+        containsControls = true,
+    ) ?: 7_000L
+    LaunchedEffect(readerDocumentReady, readingInfoRequest) {
+        readingInfoVisible = readerDocumentReady
+    }
+    LaunchedEffect(readingInfoVisible, readingInfoRequest, readingInfoInteracting, chromeVisible, readingInfoTimeout) {
+        if (readingInfoVisible && !readingInfoInteracting && !chromeVisible) {
+            delay(readingInfoTimeout)
+            readingInfoVisible = false
+        }
+    }
+    val showReadingInfo = readingInfoVisible && !chromeVisible &&
+        (uiState as? ReaderUiState.Loaded)?.selection == null && activeHighlightCard == null &&
+        dictionaryLookup.wordOrNull() == null
     LaunchedEffect(
         webViewRef,
         readerDocumentReady,
@@ -1176,7 +1209,21 @@ private fun ReaderScreen(
                     false
                 }
             }
-            .background(settings.readerBackgroundColor()),
+            .background(settings.readerBackgroundColor())
+            .pointerInput(Unit) {
+                try {
+                    awaitPointerEventScope {
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            if (readingInfoVisibleState.value || readingInfoInteracting) {
+                                readingInfoInteracting = event.changes.any { it.pressed }
+                            }
+                        }
+                    }
+                } finally {
+                    readingInfoInteracting = false
+                }
+            },
     ) {
         Box(
             modifier = Modifier
@@ -1189,10 +1236,12 @@ private fun ReaderScreen(
                     modifier = Modifier
                         .fillMaxSize()
                         .windowInsetsPadding(
+                            // Keep the text viewport stable when controls reveal the system bars.
                             if (readAloudPanelVisible) {
-                                WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
+                                WindowInsets.safeDrawing.union(WindowInsets.systemBarsIgnoringVisibility)
+                                    .only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top)
                             } else {
-                                WindowInsets.safeDrawing
+                                WindowInsets.safeDrawing.union(WindowInsets.systemBarsIgnoringVisibility)
                             },
                         )
                         .onGloballyPositioned { webViewBounds = it.boundsInRoot() },
@@ -1301,7 +1350,7 @@ private fun ReaderScreen(
         val headerGap = settings.readerHeaderGapDp.dp.let { gap ->
             if (isLandscape) gap.coerceAtMost(readerLandscapeHeaderMaxGap) else gap
         }
-        if (settings.readerShowHeaders && !chromeVisible) {
+        if (showReadingInfo && settings.readerShowHeaders) {
             ReaderClockHeader(
                 modifier = Modifier.align(Alignment.TopCenter),
                 isEink = isEink,
@@ -1316,7 +1365,7 @@ private fun ReaderScreen(
             )
         }
 
-        if (uiState is ReaderUiState.Loaded && settings.readerShowHeaders && !chromeVisible) {
+        if (showReadingInfo && uiState is ReaderUiState.Loaded && settings.readerShowHeaders) {
             ReaderTimeLeftHeader(
                 modifier = Modifier.align(Alignment.TopEnd),
                 locator = uiState.currentLocator,
@@ -1330,13 +1379,14 @@ private fun ReaderScreen(
         if (uiState is ReaderUiState.Loaded && settings.readerShowFooter) {
             ReaderPageNumberFooter(
                 modifier = Modifier.align(Alignment.BottomStart),
+                visible = showReadingInfo,
                 locator = uiState.currentLocator,
                 footerGap = settings.readerFooterGapDp.dp,
                 onGoToPage = onGoToPage,
                 onPreparePageJump = onPreparePageJump,
                 onCancelPageJump = onCancelPageJump,
             )
-            ReaderBookProgressFooter(
+            if (showReadingInfo) ReaderBookProgressFooter(
                 modifier = Modifier.align(Alignment.BottomEnd),
                 locator = uiState.currentLocator,
                 footerGap = settings.readerFooterGapDp.dp,
@@ -1347,7 +1397,7 @@ private fun ReaderScreen(
             )
         }
 
-        if (shouldShowReaderSettingsFooterButton(
+        if (showReadingInfo && shouldShowReaderSettingsFooterButton(
                 readerLoaded = uiState is ReaderUiState.Loaded,
                 chromeVisible = chromeVisible,
                 selectionActive = (uiState as? ReaderUiState.Loaded)?.selection != null,
@@ -1783,10 +1833,11 @@ private fun ReaderSyncStatusDot(syncStatus: ReaderSyncStatus, modifier: Modifier
 @Composable
 private fun ReaderSessionHeader(
     modifier: Modifier = Modifier,
-    activeReadingSessionSeconds: Long,
+    activeReadingSessionSeconds: StateFlow<Long>,
     headerGap: Dp = readerHeaderTopPadding,
 ) {
-    val sessionMinutes = (activeReadingSessionSeconds / 60L).coerceAtLeast(0L).toInt()
+    val sessionSeconds by activeReadingSessionSeconds.collectAsStateWithLifecycle()
+    val sessionMinutes = (sessionSeconds / 60L).coerceAtLeast(0L).toInt()
     Surface(
         modifier = modifier
             .statusBarsPadding()
@@ -1839,6 +1890,7 @@ private fun ReaderTimeLeftHeader(
 @Composable
 private fun ReaderPageNumberFooter(
     modifier: Modifier = Modifier,
+    visible: Boolean = true,
     locator: Locator?,
     footerGap: Dp = Spacing.sm,
     onGoToPage: (Int) -> Unit,
@@ -1859,6 +1911,8 @@ private fun ReaderPageNumberFooter(
             onGoToPage(it)
         })
     }
+    // Keep an open page-jump dialog alive when the indicators time out.
+    if (!visible) return
     ReaderFooterPill(
         modifier = modifier,
         footerGap = footerGap,
@@ -2183,6 +2237,7 @@ private fun ReaderChrome(
     onSaveChapterWord: (ChapterWord) -> Unit,
 ) {
     var showJournal by remember { mutableStateOf(false) }
+    var moreToolsVisible by remember { mutableStateOf(false) }
     if (showJournal) ReadingJournalDialog(onDismiss = { showJournal = false }, onSave = onSaveJournal)
 
     // PDF pages have no reflowable text to restyle: the style panel offers page fit and crop instead.
@@ -2231,7 +2286,7 @@ private fun ReaderChrome(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.reader_close_controls),
                     )
                 }
                 Text(
@@ -2260,12 +2315,6 @@ private fun ReaderChrome(
                             )
                         }
                     }
-                    IconButton(onClick = { onPanelSelected(ReaderPanel.WORDS) }) {
-                        Icon(
-                            imageVector = Icons.Outlined.Translate,
-                            contentDescription = stringResource(R.string.reader_words_content_description),
-                        )
-                    }
                     IconButton(onClick = onCreateBookmark) {
                         Icon(
                             imageVector = Icons.Outlined.BookmarkAdd,
@@ -2281,29 +2330,60 @@ private fun ReaderChrome(
                 ReaderPanelButton(Icons.Outlined.Article, R.string.reader_contents, selectedPanel == ReaderPanel.CONTENTS) {
                     onPanelSelected(ReaderPanel.CONTENTS)
                 }
+                ReaderPanelButton(Icons.Outlined.Search, R.string.reader_search, selectedPanel == ReaderPanel.SEARCH) {
+                    onPanelSelected(ReaderPanel.SEARCH)
+                }
                 ReaderPanelButton(Icons.Outlined.BookmarkAdd, R.string.notes_filter_bookmarks, selectedPanel == ReaderPanel.BOOKMARKS) {
                     onPanelSelected(ReaderPanel.BOOKMARKS)
-                }
-                ReaderPanelButton(Icons.Outlined.EditNote, R.string.reader_notes, selectedPanel == ReaderPanel.NOTES) {
-                    onPanelSelected(ReaderPanel.NOTES)
-                }
-                ReaderPanelButton(Icons.Outlined.Tune, R.string.reader_progress, selectedPanel == ReaderPanel.PROGRESS) {
-                    onPanelSelected(ReaderPanel.PROGRESS)
                 }
                 ReaderPanelButton(Icons.Outlined.TextFields, R.string.reader_style, selectedPanel == ReaderPanel.STYLE) {
                     onPanelSelected(ReaderPanel.STYLE)
                 }
-                if (settings.readerAudioFeaturesEnabled) {
+                Box {
                     ReaderPanelButton(
-                        Icons.Outlined.Headphones,
-                        R.string.settings_read_aloud_section_title,
-                        selectedPanel == ReaderPanel.READ_ALOUD,
+                        Icons.Outlined.MoreHoriz,
+                        R.string.reader_more_tools,
+                        selectedPanel == ReaderPanel.NOTES || selectedPanel == ReaderPanel.PROGRESS ||
+                            selectedPanel == ReaderPanel.READ_ALOUD || selectedPanel == ReaderPanel.WORDS,
                     ) {
-                        onPanelSelected(ReaderPanel.READ_ALOUD)
+                        moreToolsVisible = true
                     }
-                }
-                ReaderPanelButton(Icons.Outlined.Search, R.string.reader_search, selectedPanel == ReaderPanel.SEARCH) {
-                    onPanelSelected(ReaderPanel.SEARCH)
+                    DropdownMenu(expanded = moreToolsVisible, onDismissRequest = { moreToolsVisible = false }) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.reader_notes)) },
+                            onClick = {
+                                moreToolsVisible = false
+                                onPanelSelected(ReaderPanel.NOTES)
+                            },
+                            leadingIcon = { Icon(Icons.Outlined.EditNote, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.reader_progress)) },
+                            onClick = {
+                                moreToolsVisible = false
+                                onPanelSelected(ReaderPanel.PROGRESS)
+                            },
+                            leadingIcon = { Icon(Icons.Outlined.Tune, contentDescription = null) },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.reader_words_content_description)) },
+                            onClick = {
+                                moreToolsVisible = false
+                                onPanelSelected(ReaderPanel.WORDS)
+                            },
+                            leadingIcon = { Icon(Icons.Outlined.Translate, contentDescription = null) },
+                        )
+                        if (settings.readerAudioFeaturesEnabled) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.settings_read_aloud_section_title)) },
+                                onClick = {
+                                    moreToolsVisible = false
+                                    onPanelSelected(ReaderPanel.READ_ALOUD)
+                                },
+                                leadingIcon = { Icon(Icons.Outlined.Headphones, contentDescription = null) },
+                            )
+                        }
+                    }
                 }
             }
             AnimatedContent(

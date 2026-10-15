@@ -1099,6 +1099,8 @@
     <string name="settings_week_start_monday">Lundi</string>
 
     <string name="reader_contents">Sommaire</string>
+    <string name="reader_more_tools">Autres outils</string>
+    <string name="reader_close_controls">Reprendre la lecture</string>
     <string name="reader_notes">Notes</string>
     <string name="reader_notes_empty">Pas encore de notes ni de surlignages dans ce livre.</string>
     <string name="reader_selection_highlight_yellow">Jaune</string>

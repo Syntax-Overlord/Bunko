@@ -241,7 +241,7 @@ test('a late quote match cannot restore an annotation removed by a newer snapsho
         pendingTextAnnotations: new Set(),
         pendingQuoteAdds: new Set(),
         unmatchedInDoc: new WeakMap(),
-        completedMatchingRevision: new WeakMap(),
+        completedMatchingRevision: new WeakMap(), readerWorkDelay: () => 0,
         DefaultAnnotationColor: '#111111',
         resetPopularBadgeResolutionRetries: () => {},
         scheduleBadgeLayout: () => {},
@@ -284,7 +284,7 @@ test('editing a missing quote or its matching mode retries in the loaded documen
         pendingTextAnnotations: new Set(),
         pendingQuoteAdds: new Set(),
         unmatchedInDoc: new WeakMap(),
-        completedMatchingRevision: new WeakMap(),
+        completedMatchingRevision: new WeakMap(), readerWorkDelay: () => 0,
         DefaultAnnotationColor: '#111111',
         resetPopularBadgeResolutionRetries: () => {},
         scheduleBadgeLayout: () => {},
@@ -330,7 +330,7 @@ test('CFI-backed user highlights bypass quote matching and are rendered only onc
         pendingTextAnnotations: new Set(),
         pendingQuoteAdds: new Set(),
         unmatchedInDoc: new WeakMap(),
-        completedMatchingRevision: new WeakMap(),
+        completedMatchingRevision: new WeakMap(), readerWorkDelay: () => 0,
         DefaultAnnotationColor: '#111111',
         resetPopularBadgeResolutionRetries: () => {},
         scheduleBadgeLayout: () => {},
@@ -373,7 +373,7 @@ test('a community quote resolving to a personal highlight CFI does not replace i
         pendingTextAnnotations: new Set(),
         pendingQuoteAdds: new Set(),
         unmatchedInDoc: new WeakMap(),
-        completedMatchingRevision: new WeakMap(),
+        completedMatchingRevision: new WeakMap(), readerWorkDelay: () => 0,
         DefaultAnnotationColor: '#111111',
         resetPopularBadgeResolutionRetries: () => {},
         scheduleBadgeLayout: () => {},
@@ -424,7 +424,7 @@ test('an editable highlight renders when a newer note has the exact same CFI', a
         pendingTextAnnotations: new Set(),
         pendingQuoteAdds: new Set(),
         unmatchedInDoc: new WeakMap(),
-        completedMatchingRevision: new WeakMap(),
+        completedMatchingRevision: new WeakMap(), readerWorkDelay: () => 0,
         resetPopularBadgeResolutionRetries: () => {},
         scheduleBadgeLayout: () => {},
         isTextAnnotationValue: () => false,
@@ -462,7 +462,7 @@ test('adding a user highlight preserves unchanged community-quote miss results',
         pendingTextAnnotations: new Set(),
         pendingQuoteAdds: new Set(),
         unmatchedInDoc: new WeakMap(),
-        completedMatchingRevision: new WeakMap(),
+        completedMatchingRevision: new WeakMap(), readerWorkDelay: () => 0,
         DefaultAnnotationColor: '#111111',
         resetPopularBadgeResolutionRetries: () => {},
         scheduleBadgeLayout: () => {},
@@ -489,6 +489,7 @@ test('adding a user highlight preserves unchanged community-quote miss results',
 test('a community quote stays retryable when its overlay is not attached yet', async () => {
     const doc = {}
     let overlayAttached = false
+    let searches = 0
     const addAttempts = []
     const context = vm.createContext({
         fixedLayout: false,
@@ -511,12 +512,12 @@ test('a community quote stays retryable when its overlay is not attached yet', a
         pendingTextAnnotations: new Set(),
         pendingQuoteAdds: new Set(),
         unmatchedInDoc: new WeakMap(),
-        completedMatchingRevision: new WeakMap(),
+        completedMatchingRevision: new WeakMap(), readerWorkDelay: () => 0,
         DefaultAnnotationColor: '#111111',
         resetPopularBadgeResolutionRetries: () => {},
         scheduleBadgeLayout: () => {},
         isTextAnnotationValue: () => true,
-        findTextRangeInDoc: () => ({}),
+        findTextRangeInDoc: () => { searches++; return {} },
         rangeOverlapRatio: () => 0.9,
         highlightCount: () => 8,
         post: () => {},
@@ -525,8 +526,11 @@ test('a community quote stays retryable when its overlay is not attached yet', a
     const quote = { value: 'quote:1', text: 'A community passage', type: 'underline', popular: true }
     const duplicate = { ...quote, value: 'quote:2' }
 
-    context.renderAnnotations([quote, duplicate])
+    context.renderAnnotations([quote, duplicate,
+        ...Array.from({ length: 198 }, (_, id) => ({ ...quote, value: `quote:${id + 3}` })),
+    ])
     for (let turn = 0; turn < 20; turn++) await Promise.resolve()
+    assert.equal(searches, 1, '200 identical passages need one chapter search')
     assert.equal(context.resolvedTextAnnotations.has('quote:1'), false)
     assert.equal(context.resolvedTextAnnotations.has('quote:2'), false, 'a duplicate must not publish a badge before its underline is drawn')
 
@@ -534,8 +538,27 @@ test('a community quote stays retryable when its overlay is not attached yet', a
     context.matchTextAnnotationsForDoc(doc, 0)
     for (let turn = 0; turn < 20; turn++) await Promise.resolve()
 
+    assert.equal(searches, 2, 'a missing overlay retries the passage in the next matching pass')
     assert.deepEqual(addAttempts, ['epubcfi(/6/8)', 'epubcfi(/6/8)'])
     assert.equal(context.resolvedTextAnnotations.get('quote:1'), 'epubcfi(/6/8)')
     assert.equal(context.resolvedTextAnnotations.get('quote:2'), 'epubcfi(/6/8)')
     assert.equal(context.renderedAnnotations.has('epubcfi(/6/8)'), true)
+})
+
+test('passage reuse keeps strict community matching separate from personal-import fallback', () => {
+    const doc = {}, modes = []
+    const context = vm.createContext({
+        activeAnnotationsList: [
+            { value: 'quote:community', text: 'The same imported passage', popular: true },
+            { value: 'quote:personal', text: 'The same imported passage', popular: false },
+        ],
+        view: {}, annotationRevision: 1, annotationApplyGeneration: 1,
+        completedMatchingRevision: new WeakMap(), unmatchedInDoc: new WeakMap(),
+        resolvedTextAnnotations: new Map(), pendingTextAnnotations: new Set(),
+        readerWorkDelay: () => 0, isTextAnnotationValue: () => true,
+        findTextRangeInDoc: (_, text, options) => { modes.push([options.exactOnly, options.unique]); return null },
+    })
+    vm.runInContext(bridge.slice(bridge.indexOf('function matchTextAnnotationsForDoc'), bridge.indexOf('function highlightCount')), context)
+    context.matchTextAnnotationsForDoc(doc, 0)
+    assert.deepEqual(modes, [[true, true], [false, false]])
 })

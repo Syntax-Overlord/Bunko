@@ -1090,6 +1090,8 @@
     <string name="settings_week_start_monday">திங்கள்</string>
 
     <string name="reader_contents">உள்ளடக்கம்</string>
+    <string name="reader_more_tools">மேலும் கருவிகள்</string>
+    <string name="reader_close_controls">வாசிப்புக்குத் திரும்பு</string>
     <string name="reader_notes">குறிப்புகள்</string>
     <string name="reader_notes_empty">இந்த நூலில் இன்னும் குறிப்புகளோ குறியீடுகளோ இல்லை.</string>
     <string name="reader_selection_highlight_yellow">மஞ்சள்</string>

@@ -27,7 +27,8 @@ test('counts actual chapter layouts, excluding non-linear sections', async () =>
 test('a resize during a count discards the old layout and releases its renderer', async () => {
     const f = fixture()
     let cancelled = false
-    const counts = await measureBookPages(f.renderer, [{}, {}], () => cancelled, async () => { cancelled = true })
+    let yields = 0
+    const counts = await measureBookPages(f.renderer, [{}, {}], () => cancelled, async () => { cancelled = ++yields === 3 })
     assert.equal(counts, null)
     assert.equal(f.cleaned(), true)
 })
@@ -36,5 +37,26 @@ test('a failed section cannot be mistaken for the previously measured chapter', 
     const f = fixture()
     f.counter.goTo = async () => {}
     assert.equal(await measureBookPages(f.renderer, [{}], () => false, async () => {}), null)
+    assert.equal(f.cleaned(), true)
+})
+
+test('a superseded count does not create a hidden renderer', async () => {
+    let created = 0
+    const renderer = { createPageCounter: () => { created++; return fixture().counter } }
+    assert.equal(await measureBookPages(renderer, [{}], () => true, async () => {}), null)
+    assert.equal(created, 0)
+})
+
+test('a layout invalidated while fonts load skips rendering and yielding', async () => {
+    const f = fixture()
+    let cancelled = false, renders = 0, yields = 0
+    f.counter.getContents = () => [{ index: 0, doc: {
+        fonts: { ready: Promise.resolve().then(() => { cancelled = true }) },
+    } }]
+    f.counter.render = () => { renders++ }
+    const counts = await measureBookPages(f.renderer, [{}], () => cancelled, async () => { yields++ })
+    assert.equal(counts, null)
+    assert.equal(renders, 0)
+    assert.equal(yields, 1, 'only the initial idle wait ran')
     assert.equal(f.cleaned(), true)
 })

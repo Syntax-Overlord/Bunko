@@ -1099,6 +1099,8 @@
     <string name="settings_week_start_monday">Segunda-feira</string>
 
     <string name="reader_contents">Sumário</string>
+    <string name="reader_more_tools">Mais ferramentas</string>
+    <string name="reader_close_controls">Voltar à leitura</string>
     <string name="reader_notes">Notas</string>
     <string name="reader_notes_empty">Ainda não há notas ou destaques neste livro.</string>
     <string name="reader_selection_highlight_yellow">Amarelo</string>

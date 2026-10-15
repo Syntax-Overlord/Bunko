@@ -1,5 +1,8 @@
 // Count real layouts one chapter at a time without navigating the visible reader.
 export async function measureBookPages(renderer, sections, isCancelled, yieldWork, prepareDocument = () => {}) {
+    if (isCancelled()) return null
+    await yieldWork()
+    if (isCancelled()) return null
     const counter = renderer.createPageCounter()
     const counts = new Map()
     try {
@@ -12,6 +15,9 @@ export async function measureBookPages(renderer, sections, isCancelled, yieldWor
             if (content?.index !== index || !content.doc) return null
             prepareDocument(content.doc)
             await content.doc.fonts.ready
+            if (isCancelled()) return null
+            await yieldWork()
+            if (isCancelled()) return null
             counter.render()
             await yieldWork()
             if (isCancelled()) return null

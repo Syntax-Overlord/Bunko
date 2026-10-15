@@ -1,5 +1,45 @@
 # Performance experiments
 
+## Reader layout and annotation reuse — 2026-10-15
+
+Controlled operation-count checks against the reader bridge:
+
+| Workload | Before | After |
+| --- | --- | --- |
+| 100 identical CSS/margin requests | 100 CSS writes, estimate resets, and count scheduling requests | 1 of each |
+| 1,000 annotations restored across 20 chapter overlays | 20,000 chapter resolutions | 1,000 |
+| 200 identical community passages in one matching pass | 200 chapter searches | 1 |
+
+Unchanged CSS is remembered per renderer; a margin change still invalidates pagination without
+rewriting the same CSS. Bionic formatting and actual typography changes retain their own resets.
+Count scheduling already debounces rapid requests, so the first row measures avoided writes and
+invalidations, not 100 completed full-book counts.
+
+Annotation chapter indexes are weakly keyed by book view and annotation object. Only successful
+resolutions are remembered; changed quote CFIs and replacement views resolve again. DOM ranges
+are recreated for every overlay. Identical quote searches share a range only within one matching
+pass, with separate keys for strict community matching and personal-import fallback. A missing
+overlay remains retryable on the next pass.
+
+Tests guard these work counts, replacement renderers/views, changed CFIs, transient misses, and
+overlay retries. These are deterministic reductions in work, not measured phone latency or FPS.
+
+## Reading gestures take priority — 2026-10-15
+
+Full-book pagination waits before creating its hidden renderer and before laying out each chapter
+until the reader has been idle for 250 ms. Pointer holds and multi-finger gestures keep it paused;
+hardware page turns also restart the quiet interval. Font loading and section loading already in
+flight finish normally, with cancellation checks preventing obsolete layouts from being published.
+Quote-text matching is deferred and coalesced during gestures, and deferred callbacks discard
+chapters that are no longer loaded. Personal highlights with existing CFIs still render directly.
+
+Deterministic tests cover held pointers, pinch release, cancellation, detached chapters, and
+coalesced quote matching. These checks prove scheduling behavior, not a measured frame-rate gain.
+Pointer moves need no activity handler: the held-pointer state already pauses background work,
+and releasing the final pointer starts the quiet interval. Mouse or stylus hover cannot delay it.
+The session clock is collected only inside its visible header, so hidden indicators do not
+invalidate the whole reader on clock updates. Hidden indicators also skip touch-state updates.
+
 ## Search excerpt first-match lookup — 2026-10-14
 
 Excerpt generation now stops at the first matching word instead of calculating all highlight ranges and

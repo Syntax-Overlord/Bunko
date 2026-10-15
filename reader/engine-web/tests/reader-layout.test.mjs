@@ -31,3 +31,25 @@ test('margin changes render once and height-only keyboard resizes do not repeat 
     assert.equal(attribute, '360px')
     assert.equal(renders, 3)
 })
+
+test('unchanged typography preserves pagination and margin-only changes do not rewrite CSS', () => {
+    const operations = { styles: 0, resets: 0, counts: 0 }
+    const renderer = { setStyles: () => { operations.styles++ } }
+    const context = vm.createContext({ view: { renderer }, readerSideMarginPercent: 10,
+        resetPageEstimate: () => { operations.resets++ },
+        schedulePageCount: () => { operations.counts++ },
+        applyReaderMargin: margin => { context.readerSideMarginPercent = margin },
+    })
+    const styleStart = bridge.indexOf('const appliedReaderStyles')
+    vm.runInContext(bridge.slice(styleStart >= 0 ? styleStart : bridge.indexOf('function applyStyle('),
+        bridge.indexOf('const BionicWordClass')), context)
+    for (let i = 0; i < 100; i++) context.applyStyle('body{font-size:100%}', 10)
+    assert.deepEqual(operations, { styles: 1, resets: 1, counts: 1 })
+    context.applyStyle('body{font-size:100%}', 20)
+    assert.deepEqual(operations, { styles: 1, resets: 2, counts: 2 })
+    context.applyStyle('body{font-size:120%}', 20)
+    assert.deepEqual(operations, { styles: 2, resets: 3, counts: 3 })
+    context.view = { renderer: { setStyles: renderer.setStyles } }
+    context.applyStyle('body{font-size:120%}', 20)
+    assert.deepEqual(operations, { styles: 3, resets: 4, counts: 4 }, 'a replacement renderer needs its own style')
+})

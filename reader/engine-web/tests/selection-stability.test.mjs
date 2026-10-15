@@ -439,6 +439,7 @@ test('a replacement overlay redraws standard and authoritative community marks',
     }
     const context = vm.createContext({
         activeAnnotationsList,
+        annotationSectionCache: new WeakMap(),
         authoritativeSourceForCfi,
         isTextAnnotationValue: value => value.startsWith('goodreads-quote:'),
         popularBadgeIndexDirty: false,
@@ -457,4 +458,59 @@ test('a replacement overlay redraws standard and authoritative community marks',
         'epubcfi(/6/2!/4/4)',
     ])
     assert.equal(badgeLayouts, 1)
+})
+
+test('chapter changes resolve annotation sections once per snapshot rather than once per overlay', async () => {
+    let doc = {}, index = 0, resolves = 0, draws = 0
+    const annotations = Array.from({ length: 1000 }, (_, id) => ({ value: `mark:${id}`, editable: id % 2 === 0 }))
+    const view = {
+        renderer: { getContents: () => [{ doc, index, overlayer: {} }] },
+        resolveCFI: cfi => { resolves++; return { index: Number(cfi.split(':')[1]) % 20 } },
+        addAnnotation: () => { draws++ },
+    }
+    const context = vm.createContext({ view, activeAnnotationsList: annotations,
+        annotationSectionCache: new WeakMap(), isTextAnnotationValue: () => false,
+        resolvedTextAnnotations: new Map(), authoritativeSourceForCfi: new Map(),
+        resetPopularBadgeResolutionRetries() {}, scheduleBadgeLayout() {},
+    })
+    vm.runInContext(bridge.slice(restoreStart, restoreEnd), context)
+    for (index = 0; index < 20; index++) {
+        doc = {}
+        await context.restoreAnnotationsForOverlay(doc, index)
+    }
+    assert.equal(draws, 1000, 'all marks still draw in their own chapters')
+    assert.equal(resolves, 1000, '1000 annotations across 20 chapters need 1000 resolutions, rather than 20000')
+
+    context.view = { ...view }
+    index = 0
+    await context.restoreAnnotationsForOverlay(doc, index)
+    assert.equal(resolves, 2000, 'another book view cannot inherit cached section indexes')
+})
+
+test('overlay section caching retries resolution misses and follows changed quote CFIs', async () => {
+    const doc = {}, quote = { value: 'quote:1' }
+    let ready = false, index = 0, resolves = 0
+    const drawn = []
+    const context = vm.createContext({
+        activeAnnotationsList: [quote], annotationSectionCache: new WeakMap(),
+        resolvedTextAnnotations: new Map([['quote:1', 'mark:0']]), authoritativeSourceForCfi: new Map(),
+        isTextAnnotationValue: value => value.startsWith('quote:'),
+        resetPopularBadgeResolutionRetries() {}, scheduleBadgeLayout() {},
+        view: {
+            renderer: { getContents: () => [{ doc, index, overlayer: {} }] },
+            resolveCFI: cfi => { resolves++; return ready ? { index: Number(cfi.split(':')[1]) } : null },
+            addAnnotation: annotation => { drawn.push(annotation.value) },
+        },
+    })
+    vm.runInContext(bridge.slice(restoreStart, restoreEnd), context)
+    await context.restoreAnnotationsForOverlay(doc, 0)
+    assert.deepEqual(drawn, [])
+    ready = true
+    await context.restoreAnnotationsForOverlay(doc, 0)
+    assert.equal(resolves, 2, 'a missing resolution is not cached')
+    context.resolvedTextAnnotations.set('quote:1', 'mark:1')
+    index = 1
+    await context.restoreAnnotationsForOverlay(doc, 1)
+    assert.deepEqual(drawn, ['mark:0', 'mark:1'])
+    assert.equal(resolves, 3)
 })
