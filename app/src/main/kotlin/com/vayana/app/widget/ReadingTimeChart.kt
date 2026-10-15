@@ -93,13 +93,20 @@ fun drawReadingTimeChart(
     val bitmap = createBitmap(widthPx.coerceAtLeast(1), heightPx.coerceAtLeast(1))
     val canvas = Canvas(bitmap)
     val showLabels = heightPx >= MinLabelledHeightDp * density
-    val left = if (showLabels) GutterDp * density else PointRadiusInsetDp * density
+    val step = scaleStep(max(week.minutesByDay.max(), if (week.hasHistory) week.averageMinutes else 0))
+    val axis = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        typeface = Typeface.DEFAULT
+        textSize = AxisSp * scaledDensity
+        color = colors.textMuted
+    }
+    val axisLabels = (0..Intervals).map { axisLabel(step * it) }
+    // The gutter fits the widest tick label, which starts at the bitmap's left edge: in line with the header text.
+    val left = if (showLabels) axisLabels.maxOf(axis::measureText) + AxisGapDp * density else PointRadiusInsetDp * density
     val right = widthPx - RightInsetDp * density
     val top = TopInsetDp * density
     val bottom = (if (showLabels) heightPx - LabelBandDp * density else heightPx - TopInsetDp * density)
         .coerceAtLeast(top + 1f)
 
-    val step = scaleStep(max(week.minutesByDay.max(), if (week.hasHistory) week.averageMinutes else 0))
     val yMax = step * Intervals.toFloat()
     fun x(index: Int) = left + (right - left) * index / (ReadingWeek.DaysShown - 1)
     fun y(minutes: Number) = bottom - (bottom - top) * (minutes.toFloat() / yMax).coerceIn(0f, 1f)
@@ -137,16 +144,9 @@ fun drawReadingTimeChart(
     canvas.drawRect(left, top, right, bottom, paint)
 
     if (showLabels) {
-        val axis = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = Typeface.DEFAULT
-            textSize = AxisSp * scaledDensity
-            color = colors.textMuted
-            textAlign = Paint.Align.RIGHT
-        }
-        for (interval in 0..Intervals) {
-            val minutes = step * interval
-            canvas.drawText(axisLabel(minutes), left - AxisGapDp * density, y(minutes) + axis.textSize / 3, axis)
-        }
+        // Centred on its grid line by the font's own metrics.
+        val centre = (axis.fontMetrics.ascent + axis.fontMetrics.descent) / 2
+        axisLabels.forEachIndexed { interval, text -> canvas.drawText(text, 0f, y(step * interval) - centre, axis) }
     }
 
     val path = Path()
@@ -236,7 +236,6 @@ private const val MinutesPerHour = 60
 private const val MinCountedSessionSeconds = 60L
 private const val SecondsPerMinute = 60L
 private const val MinLabelledHeightDp = 64f
-private const val GutterDp = 31f
 private const val AxisGapDp = 6f
 private const val LabelBandDp = 22f
 private const val DayBaselineDp = 16f
@@ -254,6 +253,6 @@ private const val PastDotDp = 3f
 private const val TodayDotDp = 5f
 private const val DotStrokeDp = 1.5f
 private const val DashDp = 4f
-private const val AxisSp = 8.5f
-private const val DaySp = 9f
+private const val AxisSp = 10f
+private const val DaySp = 10f
 private const val AreaAlpha = 31

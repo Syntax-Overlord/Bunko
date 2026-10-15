@@ -391,7 +391,7 @@ internal data class ReadingWidgetLayout(
                 paddingHorizontalDp = if (compact) 10 else 16,
                 paddingTopDp = top,
                 paddingBottomDp = bottom,
-                valueSp = if (compact) 22f else 27f,
+                valueSp = if (compact) 19f else 22f,
                 showAverage = !compact,
                 showAverageWords = !compact && widthDp >= WordsMinWidthDp,
                 chromeHeightDp = top + bottom + header + ChartGapDp,
@@ -401,8 +401,9 @@ internal data class ReadingWidgetLayout(
         private const val AverageMinWidthDp = 200
         private const val WordsMinWidthDp = 260
         private const val CompactHeightDp = 130
-        private const val HeaderDp = 36
-        private const val CompactHeaderDp = 30
+        // The value's line height without font padding; the average row is shorter.
+        private const val HeaderDp = 26
+        private const val CompactHeaderDp = 22
         private const val ChartGapDp = 10
     }
 }

@@ -46,10 +46,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="sans-serif-medium"
+                    android:includeFontPadding="false"
                     android:maxLines="1"
                     android:text="@string/widget_reading_preview_today"
                     android:textColor="@color/widget_on_surface"
-                    android:textSize="27sp"
+                    android:textSize="22sp"
                     android:textStyle="bold" />
             </LinearLayout>
 
