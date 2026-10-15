@@ -1557,8 +1557,17 @@
     <string name="widget_chart_curve">Kurve</string>
     <string name="widget_chart_bars">Balken</string>
     <string name="widget_chart_grid">Gitterlinien</string>
+    <string name="widget_chart_days">Angezeigte Tage</string>
+    <plurals name="widget_chart_days_value">
+        <item quantity="one">%1$d Tag</item>
+        <item quantity="other">%1$d Tage</item>
+    </plurals>
     <string name="widget_chart_axis_labels">Achsenbeschriftung</string>
     <string name="widget_chart_axis_labels_subtitle">Tage unten, Stunden an der Seite</string>
+    <string name="widget_chart_header">Kopfzeile</string>
+    <string name="widget_chart_header_subtitle">Heutige Lesezeit und 7-Tage-Durchschnitt</string>
+    <string name="widget_chart_fill">Widget ausfüllen</string>
+    <string name="widget_chart_fill_subtitle">Das Diagramm reicht bis an den Rand, das Widget selbst ist der Rahmen, ohne Beschriftung</string>
     <string name="widget_reading_title">Lesezeit</string>
     <string name="widget_reading_description">Deine heutige Lesezeit auf allen Geräten und die letzten 7 Tage als Diagramm.</string>
     <string name="widget_reading_today">Heute</string>

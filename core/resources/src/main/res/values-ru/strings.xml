@@ -1589,8 +1589,19 @@
     <string name="widget_chart_curve">Кривая</string>
     <string name="widget_chart_bars">Столбцы</string>
     <string name="widget_chart_grid">Линии сетки</string>
+    <string name="widget_chart_days">Число дней</string>
+    <plurals name="widget_chart_days_value">
+        <item quantity="one">%1$d день</item>
+        <item quantity="few">%1$d дня</item>
+        <item quantity="many">%1$d дней</item>
+        <item quantity="other">%1$d дня</item>
+    </plurals>
     <string name="widget_chart_axis_labels">Подписи осей</string>
     <string name="widget_chart_axis_labels_subtitle">Дни внизу, часы сбоку</string>
+    <string name="widget_chart_header">Заголовок</string>
+    <string name="widget_chart_header_subtitle">Время за сегодня и среднее за 7 дней</string>
+    <string name="widget_chart_fill">Заполнить виджет</string>
+    <string name="widget_chart_fill_subtitle">График до краёв, рамкой служит сам виджет, без подписей</string>
     <string name="widget_reading_title">Время чтения</string>
     <string name="widget_reading_description">Время чтения за сегодня на всех устройствах и график за последние 7 дней.</string>
     <string name="widget_reading_today">Сегодня</string>

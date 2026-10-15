@@ -146,6 +146,12 @@ data class SettingsSnapshot(
     val widgetChartAxisLabels: Boolean = true,
     /** The reading-time widget's grid lines, as a percentage of their full strength. */
     val widgetChartGridOpacity: Int = 100,
+    /** Days the reading-time widget charts, today included. */
+    val widgetChartDays: Int = WidgetChartDaysMin,
+    /** The reading-time widget's header: today's time and the 7-day average. */
+    val widgetChartHeader: Boolean = true,
+    /** Without a header, the reading-time widget's graph may fill the widget edge to edge. */
+    val widgetChartFill: Boolean = false,
     val yearlyBooksGoal: Int = 12,
     val defaultCoverSource: DefaultCoverSource = DefaultCoverSource.YOURS,
     /** Mirrors Home Library's catalog into Offline books while it is installed on this phone. */
@@ -767,6 +773,29 @@ object SettingsRegistry {
         range = 0..100,
         step = WidgetChartGridOpacityStep,
     )
+    val WidgetChartDays: IntSetting = IntSetting(
+        key = "widgets.chart_days",
+        defaultValue = WidgetChartDaysMin,
+        titleRes = R.string.widget_chart_days,
+        subtitleRes = null,
+        group = SettingsGroup.APPEARANCE,
+        range = WidgetChartDaysMin..WidgetChartDaysMax,
+        step = 1,
+    )
+    val WidgetChartHeader: BooleanSetting = BooleanSetting(
+        key = "widgets.chart_header",
+        defaultValue = true,
+        titleRes = R.string.widget_chart_header,
+        subtitleRes = R.string.widget_chart_header_subtitle,
+        group = SettingsGroup.APPEARANCE,
+    )
+    val WidgetChartFill: BooleanSetting = BooleanSetting(
+        key = "widgets.chart_fill",
+        defaultValue = false,
+        titleRes = R.string.widget_chart_fill,
+        subtitleRes = R.string.widget_chart_fill_subtitle,
+        group = SettingsGroup.APPEARANCE,
+    )
     val WidgetChartAxisLabels: BooleanSetting = BooleanSetting(
         key = "widgets.chart_axis_labels",
         defaultValue = true,
@@ -964,6 +993,9 @@ object SettingsRegistry {
         WidgetChart,
         WidgetChartAxisLabels,
         WidgetChartGridOpacity,
+        WidgetChartDays,
+        WidgetChartHeader,
+        WidgetChartFill,
         ReaderPaceActualSeconds,
         ReaderPaceEstimatedSeconds,
     )
@@ -982,6 +1014,10 @@ const val WidgetCornerRadiusStep = 4
 enum class WidgetProgressStyle { FLAT, SQUIGGLY }
 
 const val WidgetChartGridOpacityStep = 10
+
+/** The reading-time widget charts from a week and today up to a month. */
+const val WidgetChartDaysMin = 8
+const val WidgetChartDaysMax = 31
 
 /** How the reading-time widget draws the week. */
 enum class WidgetChartStyle { LINE, CURVE, BARS }

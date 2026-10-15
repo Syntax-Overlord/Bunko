@@ -1573,8 +1573,18 @@
     <string name="widget_chart_curve">Curva</string>
     <string name="widget_chart_bars">Barre</string>
     <string name="widget_chart_grid">Linee della griglia</string>
+    <string name="widget_chart_days">Giorni mostrati</string>
+    <plurals name="widget_chart_days_value">
+        <item quantity="one">%1$d giorno</item>
+        <item quantity="many">%1$d giorni</item>
+        <item quantity="other">%1$d giorni</item>
+    </plurals>
     <string name="widget_chart_axis_labels">Etichette degli assi</string>
     <string name="widget_chart_axis_labels_subtitle">Giorni in basso, ore di lato</string>
+    <string name="widget_chart_header">Intestazione</string>
+    <string name="widget_chart_header_subtitle">Tempo di oggi e media di 7 giorni</string>
+    <string name="widget_chart_fill">Riempi il widget</string>
+    <string name="widget_chart_fill_subtitle">Il grafico arriva ai bordi, incorniciato dal widget stesso, senza etichette</string>
     <string name="widget_reading_title">Tempo di lettura</string>
     <string name="widget_reading_description">Il tempo di lettura di oggi su tutti i dispositivi e gli ultimi 7 giorni in un grafico.</string>
     <string name="widget_reading_today">Oggi</string>

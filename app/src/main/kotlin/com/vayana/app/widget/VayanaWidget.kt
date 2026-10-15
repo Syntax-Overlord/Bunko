@@ -5,6 +5,7 @@ import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.DrawableRes
 import com.vayana.app.R
+import com.vayana.core.datastore.settings.WidgetChartDaysMin
 import com.vayana.core.datastore.settings.WidgetChartStyle
 import com.vayana.core.datastore.settings.WidgetCornerRadiusMatchLauncher
 import com.vayana.core.datastore.settings.WidgetProgressStyle
@@ -26,7 +27,16 @@ data class WidgetAppearance(
     val chartAxisLabels: Boolean = true,
     /** Grid-line strength in percent; 100 is the full grid. */
     val chartGridOpacity: Int = 100,
+    /** Days the reading-time widget charts, today included. */
+    val chartDays: Int = WidgetChartDaysMin,
+    /** Whether the reading-time widget shows today's time and the average above its chart. */
+    val chartHeader: Boolean = true,
+    /** With no header, the graph fills the widget and the widget's own edge frames it. */
+    val chartFill: Boolean = false,
 ) {
+    /** Fill applies only without a header; it always hides the axis labels, which need room outside the graph. */
+    val chartFillsWidget: Boolean get() = chartFill && !chartHeader
+
     val matchesLauncher: Boolean get() = cornerRadiusDp == WidgetCornerRadiusMatchLauncher
 
     /** Styles a widget's root: [rootId] must be the view carrying the widget's background. */

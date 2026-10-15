@@ -48,6 +48,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -58,6 +59,8 @@ import com.vayana.core.common.AppLanguage
 import com.vayana.core.datastore.settings.SettingsRepository
 import com.vayana.core.datastore.settings.SettingsRegistry
 import com.vayana.core.datastore.settings.SettingsSnapshot
+import com.vayana.core.datastore.settings.WidgetChartDaysMax
+import com.vayana.core.datastore.settings.WidgetChartDaysMin
 import com.vayana.core.datastore.settings.WidgetChartGridOpacityStep
 import com.vayana.core.datastore.settings.WidgetChartStyle
 import com.vayana.core.datastore.settings.WidgetCornerRadiusMatchLauncher
@@ -152,6 +155,9 @@ class WidgetConfigureViewModel @Inject constructor(
             settingsRepository.update(SettingsRegistry.WidgetChart, appearance.chartStyle)
             settingsRepository.update(SettingsRegistry.WidgetChartAxisLabels, appearance.chartAxisLabels)
             settingsRepository.update(SettingsRegistry.WidgetChartGridOpacity, appearance.chartGridOpacity)
+            settingsRepository.update(SettingsRegistry.WidgetChartDays, appearance.chartDays)
+            settingsRepository.update(SettingsRegistry.WidgetChartHeader, appearance.chartHeader)
+            settingsRepository.update(SettingsRegistry.WidgetChartFill, appearance.chartFill)
             onSaved()
         }
     }
@@ -175,7 +181,12 @@ private fun WidgetConfigureScreen(
     var chartStyle by rememberSaveable { mutableStateOf(initial.chartStyle) }
     var chartAxisLabels by rememberSaveable { mutableStateOf(initial.chartAxisLabels) }
     var chartGridOpacity by rememberSaveable { mutableIntStateOf(initial.chartGridOpacity) }
-    val appearance = WidgetAppearance(cornerRadius, progressStyle, chartStyle, chartAxisLabels, chartGridOpacity)
+    var chartDays by rememberSaveable { mutableIntStateOf(initial.chartDays) }
+    var chartHeader by rememberSaveable { mutableStateOf(initial.chartHeader) }
+    var chartFill by rememberSaveable { mutableStateOf(initial.chartFill) }
+    val appearance = WidgetAppearance(
+        cornerRadius, progressStyle, chartStyle, chartAxisLabels, chartGridOpacity, chartDays, chartHeader, chartFill,
+    )
 
     Scaffold(
         topBar = {
@@ -254,11 +265,43 @@ private fun WidgetConfigureScreen(
                     onSelect = { chartStyle = it },
                 )
                 ListItem(
-                    headlineContent = { Text(stringResource(R.string.widget_chart_axis_labels)) },
-                    supportingContent = { Text(stringResource(R.string.widget_chart_axis_labels_subtitle)) },
-                    trailingContent = { Switch(checked = chartAxisLabels, onCheckedChange = { chartAxisLabels = it }) },
+                    headlineContent = { Text(stringResource(R.string.widget_chart_header)) },
+                    supportingContent = { Text(stringResource(R.string.widget_chart_header_subtitle)) },
+                    trailingContent = { Switch(checked = chartHeader, onCheckedChange = { chartHeader = it }) },
                     colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
                 )
+                if (!chartHeader) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.widget_chart_fill)) },
+                        supportingContent = { Text(stringResource(R.string.widget_chart_fill_subtitle)) },
+                        trailingContent = { Switch(checked = chartFill, onCheckedChange = { chartFill = it }) },
+                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                    )
+                }
+                // A filled graph has no room for labels, so the choice is hidden rather than ignored.
+                if (!appearance.chartFillsWidget) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.widget_chart_axis_labels)) },
+                        supportingContent = { Text(stringResource(R.string.widget_chart_axis_labels_subtitle)) },
+                        trailingContent = { Switch(checked = chartAxisLabels, onCheckedChange = { chartAxisLabels = it }) },
+                        colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                    )
+                }
+                SectionTitle(stringResource(R.string.widget_chart_days))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    Slider(
+                        value = chartDays.toFloat(),
+                        onValueChange = { chartDays = it.roundToInt().coerceIn(WidgetChartDaysMin, WidgetChartDaysMax) },
+                        valueRange = WidgetChartDaysMin.toFloat()..WidgetChartDaysMax.toFloat(),
+                        steps = WidgetChartDaysMax - WidgetChartDaysMin - 1,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        pluralStringResource(R.plurals.widget_chart_days_value, chartDays, chartDays),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.widthIn(min = Sizes.touchTarget),
+                    )
+                }
                 SectionTitle(stringResource(R.string.widget_chart_grid))
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                     Slider(
@@ -342,4 +385,7 @@ private fun SectionTitle(text: String) {
 private const val DefaultCustomRadius = 24
 
 internal fun SettingsSnapshot.widgetAppearance() =
-    WidgetAppearance(widgetCornerRadius, widgetProgressStyle, widgetChartStyle, widgetChartAxisLabels, widgetChartGridOpacity)
+    WidgetAppearance(
+        widgetCornerRadius, widgetProgressStyle, widgetChartStyle, widgetChartAxisLabels, widgetChartGridOpacity, widgetChartDays,
+        widgetChartHeader, widgetChartFill,
+    )

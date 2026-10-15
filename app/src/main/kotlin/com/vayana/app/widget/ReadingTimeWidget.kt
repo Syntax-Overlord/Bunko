@@ -106,9 +106,14 @@ class ReadingTimeWidgetUpdater @Inject constructor(
     }.distinctUntilChanged()
 
     @OptIn(ExperimentalCoroutinesApi::class)
-    private val week: Flow<ReadingWeek> = today.flatMapLatest { day ->
-        val since = day.minusDays((ReadingWeek.DaysShown - 1).toLong()).atStartOfDay(zone).toInstant().toEpochMilli()
-        readingSessionRepository.observeSince(since).map { readingWeek(it, day, zone) }
+    private val week: Flow<ReadingWeek> = combine(
+        today,
+        settingsRepository.snapshot.map { it.widgetChartDays }.distinctUntilChanged(),
+    ) { day, days -> day to days }.flatMapLatest { (day, days) -> weekOf(day, days) }
+
+    private fun weekOf(day: LocalDate, days: Int): Flow<ReadingWeek> {
+        val since = day.minusDays((days - 1).toLong()).atStartOfDay(zone).toInstant().toEpochMilli()
+        return readingSessionRepository.observeSince(since).map { readingWeek(it, day, zone, days) }
     }
 
     private val state: Flow<Pair<ReadingWeek, ReadingWidgetTheme>> = combine(
@@ -140,7 +145,9 @@ class ReadingTimeWidgetUpdater @Inject constructor(
     }
 
     override suspend fun preview(appearance: WidgetAppearance): RemoteViews = withContext(dispatchers.io) {
-        val (week, theme) = state.first()
+        val theme = settingsRepository.snapshot.map(::readingWidgetTheme).first()
+        // The days being previewed may not be saved yet.
+        val week = weekOf(LocalDate.now(zone), appearance.chartDays).first()
         views(week, theme.copy(appearance = appearance), DefaultWidthDp, DefaultHeightDp)
     }
 
@@ -174,7 +181,8 @@ class ReadingTimeWidgetUpdater @Inject constructor(
             // Bitmaps are drawn at most at 2x; the image views scale them up on denser screens.
             val density = minOf(context.resources.displayMetrics.density, MaxBitmapDensity)
             val scaledDensity = density * context.resources.configuration.fontScale
-            val layout = ReadingWidgetLayout.forSize(widthDp, heightDp)
+            val fill = theme.appearance.chartFillsWidget
+            val layout = ReadingWidgetLayout.forSize(widthDp, heightDp, theme.appearance.chartHeader, fill)
             val palette = resolvePalette(theme)
             setImageViewBitmap(R.id.reading_background, drawBackground(widthDp, heightDp, density, theme.appearance, palette))
             setOnClickPendingIntent(android.R.id.background, openStatistics())
@@ -186,7 +194,9 @@ class ReadingTimeWidgetUpdater @Inject constructor(
             applyLayout(layout)
             applyPalette(palette)
             val locale = context.resources.configuration.locales[0] ?: Locale.getDefault()
-            val dayNames = week.days.map { it.dayOfWeek.getDisplayName(TextStyle.NARROW, locale) }
+            // A week reads by weekday; longer spans repeat the letters, so they read by date.
+            val byDate = week.days.size > ReadingWeek.MinDays
+            val dayNames = week.days.map { if (byDate) "${it.dayOfMonth}" else it.dayOfWeek.getDisplayName(TextStyle.NARROW, locale) }
             val chartWidth = ((widthDp - layout.paddingHorizontalDp * 2) * density).roundToInt().coerceAtLeast(MinChartPx)
             val chartHeight = ((heightDp - layout.chromeHeightDp) * density).roundToInt().coerceAtLeast(MinChartPx)
             // The header's text starts and ends where the plot box does.
@@ -196,7 +206,12 @@ class ReadingTimeWidgetUpdater @Inject constructor(
                 density,
                 scaledDensity,
             )
-            setViewPadding(R.id.reading_header, dpToPx(plotLeft / density), 0, dpToPx(plotRight / density), 0)
+            // The header's bottom padding is the gap above the chart, so hiding the header closes the gap too.
+            setViewVisibility(R.id.reading_header, if (layout.showHeader) View.VISIBLE else View.GONE)
+            setViewPadding(
+                R.id.reading_header,
+                dpToPx(plotLeft / density), 0, dpToPx(plotRight / density), dpToPx(ReadingWidgetLayout.ChartGapDp),
+            )
             val chart = drawReadingTimeChart(
                 week = week,
                 labels = ReadingChartLabels(dayNames),
@@ -208,6 +223,9 @@ class ReadingTimeWidgetUpdater @Inject constructor(
                 style = theme.appearance.chartStyle,
                 showAxisLabels = theme.appearance.chartAxisLabels,
                 gridOpacity = theme.appearance.chartGridOpacity,
+                fill = fill,
+                // Inside the widget's corners by the inset that keeps its border showing.
+                fillCornerPx = (backgroundRadiusPx(theme.appearance, density) - layout.paddingTopDp * density).coerceAtLeast(0f),
             )
             setImageViewBitmap(R.id.reading_chart, chart)
             setContentDescription(R.id.reading_chart, chartDescription(week, locale))
@@ -221,7 +239,8 @@ class ReadingTimeWidgetUpdater @Inject constructor(
         )
         setTextViewTextSize(R.id.reading_today, TypedValue.COMPLEX_UNIT_SP, layout.valueSp)
         setViewVisibility(R.id.reading_average_group, if (layout.showAverage) View.VISIBLE else View.GONE)
-        setViewVisibility(R.id.reading_average_label, if (layout.showAverageWords) View.VISIBLE else View.GONE)
+        // The legend line goes with its words, so it never floats over nothing.
+        setViewVisibility(R.id.reading_average_legend, if (layout.showAverageWords) View.VISIBLE else View.GONE)
     }
 
     private fun RemoteViews.applyPalette(palette: ReadingWidgetPalette) {
@@ -275,11 +294,7 @@ class ReadingTimeWidgetUpdater @Inject constructor(
     ): Bitmap {
         val width = (widthDp * density).roundToInt().coerceAtLeast(1)
         val height = (heightDp * density).roundToInt().coerceAtLeast(1)
-        val radius = if (appearance.matchesLauncher) {
-            context.resources.getDimension(R.dimen.widget_radius)
-        } else {
-            appearance.cornerRadiusDp * density
-        }
+        val radius = backgroundRadiusPx(appearance, density)
         return createBitmap(width, height).also { bitmap ->
             val canvas = Canvas(bitmap)
             canvas.drawRoundRect(RectF(0f, 0f, width.toFloat(), height.toFloat()), radius, radius, Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -300,6 +315,13 @@ class ReadingTimeWidgetUpdater @Inject constructor(
             )
         }
     }
+
+    private fun backgroundRadiusPx(appearance: WidgetAppearance, density: Float): Float =
+        if (appearance.matchesLauncher) {
+            context.resources.getDimension(R.dimen.widget_radius)
+        } else {
+            appearance.cornerRadiusDp * density
+        }
 
     private fun duration(minutes: Int): String = when {
         minutes < MinutesPerHour -> context.getString(Res.string.reader_duration_minutes, minutes)
@@ -393,13 +415,22 @@ internal data class ReadingWidgetLayout(
     val showAverage: Boolean,
     val showAverageWords: Boolean,
     val chromeHeightDp: Int,
+    val showHeader: Boolean,
 ) {
     companion object {
-        fun forSize(widthDp: Int, heightDp: Int): ReadingWidgetLayout {
+        /**
+         * Without a [header] the chart rises to the top margin; with [fill] too, it reaches the widget's edges, inset
+         * only enough to leave the widget's border showing.
+         */
+        fun forSize(widthDp: Int, heightDp: Int, header: Boolean = true, fill: Boolean = false): ReadingWidgetLayout {
             val compact = widthDp < AverageMinWidthDp || heightDp < CompactHeightDp
             // One margin on all four sides.
-            val margin = if (compact) 10 else 16
-            val header = if (compact) CompactHeaderDp else HeaderDp
+            val margin = when {
+                fill && !header -> FillInsetDp
+                compact -> 10
+                else -> 16
+            }
+            val headerDp = if (compact) CompactHeaderDp else HeaderDp
             return ReadingWidgetLayout(
                 paddingHorizontalDp = margin,
                 paddingTopDp = margin,
@@ -407,7 +438,8 @@ internal data class ReadingWidgetLayout(
                 valueSp = if (compact) 19f else 22f,
                 showAverage = !compact,
                 showAverageWords = !compact && widthDp >= WordsMinWidthDp,
-                chromeHeightDp = margin * 2 + header + ChartGapDp,
+                chromeHeightDp = margin * 2 + if (header) headerDp + ChartGapDp else 0,
+                showHeader = header,
             )
         }
 
@@ -417,6 +449,7 @@ internal data class ReadingWidgetLayout(
         // The value's line height without font padding; the average row is shorter.
         private const val HeaderDp = 26
         private const val CompactHeaderDp = 22
-        private const val ChartGapDp = 10
+        const val ChartGapDp = 10
+        private const val FillInsetDp = 2
     }
 }

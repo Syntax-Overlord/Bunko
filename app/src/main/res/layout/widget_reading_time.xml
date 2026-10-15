@@ -31,6 +31,7 @@
             android:id="@+id/reading_header"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:paddingBottom="10dp"
             android:baselineAligned="false"
             android:gravity="center_vertical"
             android:orientation="horizontal">
@@ -61,29 +62,41 @@
                 android:gravity="end"
                 android:orientation="vertical">
 
+                <!-- The legend line sits over its label, flush with the label's end; the label and the value share a
+                     baseline (the legend's baseline is its label's). -->
                 <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:gravity="center_vertical"
+                    android:baselineAligned="true"
                     android:orientation="horizontal">
 
-                    <TextView
-                        android:id="@+id/reading_average_rule"
-                        android:layout_width="18dp"
-                        android:layout_height="3dp"
-                        android:layout_marginEnd="7dp"
-                        android:background="@color/widget_tertiary"
-                        android:contentDescription="@null" />
-
-                    <TextView
-                        android:id="@+id/reading_average_label"
+                    <LinearLayout
+                        android:id="@+id/reading_average_legend"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="7dp"
-                        android:maxLines="1"
-                        android:text="@string/widget_reading_avg_label"
-                        android:textColor="@color/widget_on_surface_variant"
-                        android:textSize="12sp" />
+                        android:baselineAlignedChildIndex="1"
+                        android:gravity="end"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/reading_average_rule"
+                            android:layout_width="28dp"
+                            android:layout_height="3dp"
+                            android:layout_marginBottom="3dp"
+                            android:background="@color/widget_tertiary"
+                            android:contentDescription="@null" />
+
+                        <TextView
+                            android:id="@+id/reading_average_label"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:includeFontPadding="false"
+                            android:maxLines="1"
+                            android:text="@string/widget_reading_avg_label"
+                            android:textColor="@color/widget_on_surface_variant"
+                            android:textSize="12sp" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/reading_average"
@@ -103,7 +116,6 @@
             android:id="@+id/reading_chart"
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_marginTop="10dp"
             android:layout_weight="1"
             android:contentDescription="@string/widget_reading_title"
             android:scaleType="fitXY"

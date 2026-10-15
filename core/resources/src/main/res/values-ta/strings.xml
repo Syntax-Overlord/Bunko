@@ -1557,8 +1557,17 @@
     <string name="widget_chart_curve">வளைவு</string>
     <string name="widget_chart_bars">பட்டைகள்</string>
     <string name="widget_chart_grid">கட்டக் கோடுகள்</string>
+    <string name="widget_chart_days">காட்டும் நாட்கள்</string>
+    <plurals name="widget_chart_days_value">
+        <item quantity="one">%1$d நாள்</item>
+        <item quantity="other">%1$d நாட்கள்</item>
+    </plurals>
     <string name="widget_chart_axis_labels">அச்சுக் குறிகள்</string>
     <string name="widget_chart_axis_labels_subtitle">கீழே நாட்கள், பக்கத்தில் மணிநேரம்</string>
+    <string name="widget_chart_header">தலைப்பு</string>
+    <string name="widget_chart_header_subtitle">இன்றைய நேரமும் 7 நாள் சராசரியும்</string>
+    <string name="widget_chart_fill">விட்ஜெட்டை நிரப்பு</string>
+    <string name="widget_chart_fill_subtitle">வரைபடம் ஓரங்கள் வரை, விட்ஜெட்டே சட்டகம், குறிகள் இல்லாமல்</string>
     <string name="widget_reading_title">வாசிப்பு நேரம்</string>
     <string name="widget_reading_description">எல்லாச் சாதனங்களிலும் இன்றைய வாசிப்பு நேரம், கடந்த 7 நாட்களின் வரைபடம்.</string>
     <string name="widget_reading_today">இன்று</string>

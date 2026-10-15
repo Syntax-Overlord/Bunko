@@ -1717,8 +1717,17 @@
     <string name="widget_chart_curve">Curve</string>
     <string name="widget_chart_bars">Bars</string>
     <string name="widget_chart_grid">Grid lines</string>
+    <string name="widget_chart_days">Days shown</string>
+    <plurals name="widget_chart_days_value">
+        <item quantity="one">%1$d day</item>
+        <item quantity="other">%1$d days</item>
+    </plurals>
     <string name="widget_chart_axis_labels">Axis labels</string>
     <string name="widget_chart_axis_labels_subtitle">Days along the bottom, hours along the side</string>
+    <string name="widget_chart_header">Header</string>
+    <string name="widget_chart_header_subtitle">Today’s time and the 7-day average</string>
+    <string name="widget_chart_fill">Fill the widget</string>
+    <string name="widget_chart_fill_subtitle">The graph reaches the widget’s edges, framed by the widget itself, without labels</string>
     <string name="widget_reading_title">Reading time</string>
     <string name="widget_reading_description">Today’s reading time across your devices, and the last 7 days as a chart.</string>
     <string name="widget_reading_today">Today</string>

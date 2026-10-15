@@ -86,6 +86,30 @@ class ReadingTimeChartTest {
     }
 
     @Test
+    fun `a month keeps today last and averages only the seven days before it`() {
+        val minutes = List(31) { if (it in 23..29) 14 else 500 }
+        val month = ReadingWeek(today, minutes)
+        assertEquals(14, month.averageMinutes)
+        assertEquals(500, month.todayMinutes)
+        assertEquals(today.minusDays(30), month.days.first())
+    }
+
+    @Test
+    fun `a month of sessions reaches back thirty days`() {
+        val zone = ZoneId.of("UTC")
+        val start = today.minusDays(30).atTime(9, 0).atZone(zone).toInstant().toEpochMilli()
+        val month = readingWeek(listOf(ReadingSession(1, "s", 1, start, start + 600_000, 600)), today, zone, 31)
+        assertEquals(31, month.minutesByDay.size)
+        assertEquals(10, month.minutesByDay.first())
+    }
+
+    @Test
+    fun `day labels thin out only when they would touch`() {
+        assertEquals(1, dayLabelEvery(labelWidthPx = 10f, dayWidthPx = 30f, gapPx = 6f))
+        assertEquals(3, dayLabelEvery(labelWidthPx = 14f, dayWidthPx = 7f, gapPx = 6f)) // 20 / 7 -> every third day
+    }
+
+    @Test
     fun `layout sheds header parts as the widget shrinks`() {
         val large = ReadingWidgetLayout.forSize(440, 220)
         assertTrue(large.showAverageWords && large.showAverage)
@@ -93,5 +117,25 @@ class ReadingTimeChartTest {
         assertTrue(narrow.showAverage && !narrow.showAverageWords)
         val small = ReadingWidgetLayout.forSize(180, 110)
         assertFalse(small.showAverage)
+    }
+
+    @Test
+    fun `without a header the chart takes its height up to the top margin`() {
+        val withHeader = ReadingWidgetLayout.forSize(320, 160)
+        val without = ReadingWidgetLayout.forSize(320, 160, header = false)
+        assertFalse(without.showHeader)
+        assertEquals(without.paddingTopDp + without.paddingBottomDp, without.chromeHeightDp)
+        assertTrue(without.chromeHeightDp < withHeader.chromeHeightDp)
+        val filled = ReadingWidgetLayout.forSize(320, 160, header = false, fill = true)
+        assertTrue(filled.paddingHorizontalDp < without.paddingHorizontalDp)
+        assertEquals(filled.paddingTopDp * 2, filled.chromeHeightDp)
+        // Fill needs the header off.
+        assertEquals(withHeader, ReadingWidgetLayout.forSize(320, 160, header = true, fill = true))
+    }
+
+    @Test
+    fun `fill applies only without a header`() {
+        assertTrue(WidgetAppearance(chartHeader = false, chartFill = true).chartFillsWidget)
+        assertFalse(WidgetAppearance(chartHeader = true, chartFill = true).chartFillsWidget)
     }
 }
