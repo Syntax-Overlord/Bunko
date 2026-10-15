@@ -58,6 +58,8 @@ import com.vayana.core.common.AppLanguage
 import com.vayana.core.datastore.settings.SettingsRepository
 import com.vayana.core.datastore.settings.SettingsRegistry
 import com.vayana.core.datastore.settings.SettingsSnapshot
+import com.vayana.core.datastore.settings.WidgetChartGridOpacityStep
+import com.vayana.core.datastore.settings.WidgetChartStyle
 import com.vayana.core.datastore.settings.WidgetCornerRadiusMatchLauncher
 import com.vayana.core.datastore.settings.WidgetCornerRadiusMax
 import com.vayana.core.datastore.settings.WidgetCornerRadiusStep
@@ -75,6 +77,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 /**
  * The one configure screen for every Vayana widget: the home screen opens it when a widget is added (optional from
@@ -110,7 +113,9 @@ class WidgetConfigureActivity : ComponentActivity() {
                 dateFormatStyle = settings.dateFormatStyle,
             ) {
                 WidgetConfigureScreen(
-                    initial = WidgetAppearance(settings.widgetCornerRadius, settings.widgetProgressStyle),
+                    initial = settings.widgetAppearance(),
+                    // Each widget shows only the options it draws; the rest keep their saved values.
+                    readingTime = provider == ReadingTimeWidget::class.java.name,
                     preview = { appearance -> viewModel.preview(provider, appearance) },
                     onCancel = ::finish,
                     onDone = { appearance ->
@@ -144,6 +149,9 @@ class WidgetConfigureViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.update(SettingsRegistry.WidgetCornerRadius, appearance.cornerRadiusDp)
             settingsRepository.update(SettingsRegistry.WidgetProgressBar, appearance.progressStyle)
+            settingsRepository.update(SettingsRegistry.WidgetChart, appearance.chartStyle)
+            settingsRepository.update(SettingsRegistry.WidgetChartAxisLabels, appearance.chartAxisLabels)
+            settingsRepository.update(SettingsRegistry.WidgetChartGridOpacity, appearance.chartGridOpacity)
             onSaved()
         }
     }
@@ -153,6 +161,7 @@ class WidgetConfigureViewModel @Inject constructor(
 @Composable
 private fun WidgetConfigureScreen(
     initial: WidgetAppearance,
+    readingTime: Boolean,
     preview: suspend (WidgetAppearance) -> RemoteViews?,
     onCancel: () -> Unit,
     onDone: (WidgetAppearance) -> Unit,
@@ -163,7 +172,10 @@ private fun WidgetConfigureScreen(
         mutableIntStateOf(initial.cornerRadiusDp.takeIf { it >= 0 } ?: DefaultCustomRadius)
     }
     var progressStyle by rememberSaveable { mutableStateOf(initial.progressStyle) }
-    val appearance = WidgetAppearance(cornerRadius, progressStyle)
+    var chartStyle by rememberSaveable { mutableStateOf(initial.chartStyle) }
+    var chartAxisLabels by rememberSaveable { mutableStateOf(initial.chartAxisLabels) }
+    var chartGridOpacity by rememberSaveable { mutableIntStateOf(initial.chartGridOpacity) }
+    val appearance = WidgetAppearance(cornerRadius, progressStyle, chartStyle, chartAxisLabels, chartGridOpacity)
 
     Scaffold(
         topBar = {
@@ -230,20 +242,48 @@ private fun WidgetConfigureScreen(
                 }
             }
 
-            SectionTitle(stringResource(R.string.widget_progress_style))
-            val styles = listOf(
-                WidgetProgressStyle.FLAT to stringResource(R.string.widget_progress_flat),
-                WidgetProgressStyle.SQUIGGLY to stringResource(R.string.widget_progress_squiggly),
-            )
-            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                styles.forEachIndexed { index, (style, label) ->
-                    SegmentedButton(
-                        selected = progressStyle == style,
-                        onClick = { progressStyle = style },
-                        shape = SegmentedButtonDefaults.itemShape(index, styles.size),
-                        label = { Text(label) },
+            if (readingTime) {
+                SectionTitle(stringResource(R.string.widget_chart_style))
+                ChoiceRow(
+                    options = listOf(
+                        WidgetChartStyle.LINE to stringResource(R.string.widget_chart_line),
+                        WidgetChartStyle.CURVE to stringResource(R.string.widget_chart_curve),
+                        WidgetChartStyle.BARS to stringResource(R.string.widget_chart_bars),
+                    ),
+                    selected = chartStyle,
+                    onSelect = { chartStyle = it },
+                )
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.widget_chart_axis_labels)) },
+                    supportingContent = { Text(stringResource(R.string.widget_chart_axis_labels_subtitle)) },
+                    trailingContent = { Switch(checked = chartAxisLabels, onCheckedChange = { chartAxisLabels = it }) },
+                    colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.surface),
+                )
+                SectionTitle(stringResource(R.string.widget_chart_grid))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                    Slider(
+                        value = chartGridOpacity.toFloat(),
+                        onValueChange = { chartGridOpacity = (it / WidgetChartGridOpacityStep).roundToInt() * WidgetChartGridOpacityStep },
+                        valueRange = 0f..100f,
+                        steps = 100 / WidgetChartGridOpacityStep - 1,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        stringResource(R.string.percent_value, chartGridOpacity),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.widthIn(min = Sizes.touchTarget),
                     )
                 }
+            } else {
+                SectionTitle(stringResource(R.string.widget_progress_style))
+                ChoiceRow(
+                    options = listOf(
+                        WidgetProgressStyle.FLAT to stringResource(R.string.widget_progress_flat),
+                        WidgetProgressStyle.SQUIGGLY to stringResource(R.string.widget_progress_squiggly),
+                    ),
+                    selected = progressStyle,
+                    onSelect = { progressStyle = it },
+                )
             }
         }
     }
@@ -274,6 +314,21 @@ private fun WidgetPreview(appearance: WidgetAppearance, preview: suspend (Widget
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <T> ChoiceRow(options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        options.forEachIndexed { index, (value, label) ->
+            SegmentedButton(
+                selected = selected == value,
+                onClick = { onSelect(value) },
+                shape = SegmentedButtonDefaults.itemShape(index, options.size),
+                label = { Text(label) },
+            )
+        }
+    }
+}
+
 @Composable
 private fun SectionTitle(text: String) {
     Text(
@@ -285,3 +340,6 @@ private fun SectionTitle(text: String) {
 }
 
 private const val DefaultCustomRadius = 24
+
+internal fun SettingsSnapshot.widgetAppearance() =
+    WidgetAppearance(widgetCornerRadius, widgetProgressStyle, widgetChartStyle, widgetChartAxisLabels, widgetChartGridOpacity)

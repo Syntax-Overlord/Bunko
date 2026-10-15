@@ -1552,6 +1552,13 @@
     <string name="widget_progress_style">Fortschrittsbalken</string>
     <string name="widget_progress_flat">Gerade</string>
     <string name="widget_progress_squiggly">Wellig</string>
+    <string name="widget_chart_style">Diagramm</string>
+    <string name="widget_chart_line">Linie</string>
+    <string name="widget_chart_curve">Kurve</string>
+    <string name="widget_chart_bars">Balken</string>
+    <string name="widget_chart_grid">Gitterlinien</string>
+    <string name="widget_chart_axis_labels">Achsenbeschriftung</string>
+    <string name="widget_chart_axis_labels_subtitle">Tage unten, Stunden an der Seite</string>
     <string name="widget_reading_title">Lesezeit</string>
     <string name="widget_reading_description">Deine heutige Lesezeit auf allen Geräten und die letzten 7 Tage als Diagramm.</string>
     <string name="widget_reading_today">Heute</string>

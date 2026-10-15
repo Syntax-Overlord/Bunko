@@ -1584,6 +1584,13 @@
     <string name="widget_progress_style">Индикатор прогресса</string>
     <string name="widget_progress_flat">Прямой</string>
     <string name="widget_progress_squiggly">Волнистый</string>
+    <string name="widget_chart_style">График</string>
+    <string name="widget_chart_line">Линия</string>
+    <string name="widget_chart_curve">Кривая</string>
+    <string name="widget_chart_bars">Столбцы</string>
+    <string name="widget_chart_grid">Линии сетки</string>
+    <string name="widget_chart_axis_labels">Подписи осей</string>
+    <string name="widget_chart_axis_labels_subtitle">Дни внизу, часы сбоку</string>
     <string name="widget_reading_title">Время чтения</string>
     <string name="widget_reading_description">Время чтения за сегодня на всех устройствах и график за последние 7 дней.</string>
     <string name="widget_reading_today">Сегодня</string>

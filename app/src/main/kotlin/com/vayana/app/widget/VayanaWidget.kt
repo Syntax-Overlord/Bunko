@@ -5,6 +5,7 @@ import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.DrawableRes
 import com.vayana.app.R
+import com.vayana.core.datastore.settings.WidgetChartStyle
 import com.vayana.core.datastore.settings.WidgetCornerRadiusMatchLauncher
 import com.vayana.core.datastore.settings.WidgetProgressStyle
 import dagger.Binds
@@ -20,6 +21,11 @@ import dagger.multibindings.IntoSet
 data class WidgetAppearance(
     val cornerRadiusDp: Int = WidgetCornerRadiusMatchLauncher,
     val progressStyle: WidgetProgressStyle = WidgetProgressStyle.FLAT,
+    /** The reading-time widget's graph; other widgets ignore it. */
+    val chartStyle: WidgetChartStyle = WidgetChartStyle.LINE,
+    val chartAxisLabels: Boolean = true,
+    /** Grid-line strength in percent; 100 is the full grid. */
+    val chartGridOpacity: Int = 100,
 ) {
     val matchesLauncher: Boolean get() = cornerRadiusDp == WidgetCornerRadiusMatchLauncher
 

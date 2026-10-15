@@ -1568,6 +1568,13 @@
     <string name="widget_progress_style">Barra de progresso</string>
     <string name="widget_progress_flat">Reta</string>
     <string name="widget_progress_squiggly">Ondulada</string>
+    <string name="widget_chart_style">Gráfico</string>
+    <string name="widget_chart_line">Linha</string>
+    <string name="widget_chart_curve">Curva</string>
+    <string name="widget_chart_bars">Barras</string>
+    <string name="widget_chart_grid">Linhas de grade</string>
+    <string name="widget_chart_axis_labels">Rótulos dos eixos</string>
+    <string name="widget_chart_axis_labels_subtitle">Dias embaixo, horas ao lado</string>
     <string name="widget_reading_title">Tempo de leitura</string>
     <string name="widget_reading_description">Seu tempo de leitura de hoje em todos os dispositivos e os últimos 7 dias em um gráfico.</string>
     <string name="widget_reading_today">Hoje</string>

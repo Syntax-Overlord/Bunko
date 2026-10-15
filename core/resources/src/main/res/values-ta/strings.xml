@@ -1552,6 +1552,13 @@
     <string name="widget_progress_style">முன்னேற்றப் பட்டை</string>
     <string name="widget_progress_flat">நேர்</string>
     <string name="widget_progress_squiggly">அலை</string>
+    <string name="widget_chart_style">வரைபடம்</string>
+    <string name="widget_chart_line">கோடு</string>
+    <string name="widget_chart_curve">வளைவு</string>
+    <string name="widget_chart_bars">பட்டைகள்</string>
+    <string name="widget_chart_grid">கட்டக் கோடுகள்</string>
+    <string name="widget_chart_axis_labels">அச்சுக் குறிகள்</string>
+    <string name="widget_chart_axis_labels_subtitle">கீழே நாட்கள், பக்கத்தில் மணிநேரம்</string>
     <string name="widget_reading_title">வாசிப்பு நேரம்</string>
     <string name="widget_reading_description">எல்லாச் சாதனங்களிலும் இன்றைய வாசிப்பு நேரம், கடந்த 7 நாட்களின் வரைபடம்.</string>
     <string name="widget_reading_today">இன்று</string>

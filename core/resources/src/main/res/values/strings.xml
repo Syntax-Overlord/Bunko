@@ -1712,6 +1712,13 @@
     <string name="widget_progress_style">Progress bar</string>
     <string name="widget_progress_flat">Flat</string>
     <string name="widget_progress_squiggly">Squiggly</string>
+    <string name="widget_chart_style">Graph</string>
+    <string name="widget_chart_line">Line</string>
+    <string name="widget_chart_curve">Curve</string>
+    <string name="widget_chart_bars">Bars</string>
+    <string name="widget_chart_grid">Grid lines</string>
+    <string name="widget_chart_axis_labels">Axis labels</string>
+    <string name="widget_chart_axis_labels_subtitle">Days along the bottom, hours along the side</string>
     <string name="widget_reading_title">Reading time</string>
     <string name="widget_reading_description">Today’s reading time across your devices, and the last 7 days as a chart.</string>
     <string name="widget_reading_today">Today</string>

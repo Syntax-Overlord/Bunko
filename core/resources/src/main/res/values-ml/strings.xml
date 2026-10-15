@@ -1552,6 +1552,13 @@
     <string name="widget_progress_style">പുരോഗതി ബാർ</string>
     <string name="widget_progress_flat">നേർ</string>
     <string name="widget_progress_squiggly">തിരമാല</string>
+    <string name="widget_chart_style">ഗ്രാഫ്</string>
+    <string name="widget_chart_line">രേഖ</string>
+    <string name="widget_chart_curve">വക്രം</string>
+    <string name="widget_chart_bars">ബാറുകൾ</string>
+    <string name="widget_chart_grid">ഗ്രിഡ് വരകൾ</string>
+    <string name="widget_chart_axis_labels">അക്ഷ ലേബലുകൾ</string>
+    <string name="widget_chart_axis_labels_subtitle">താഴെ ദിവസങ്ങൾ, വശത്ത് മണിക്കൂറുകൾ</string>
     <string name="widget_reading_title">വായനാ സമയം</string>
     <string name="widget_reading_description">എല്ലാ ഉപകരണങ്ങളിലെയും ഇന്നത്തെ വായനാ സമയവും കഴിഞ്ഞ 7 ദിവസത്തെ ചാർട്ടും.</string>
     <string name="widget_reading_today">ഇന്ന്</string>

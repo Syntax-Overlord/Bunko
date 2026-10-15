@@ -189,6 +189,14 @@ class ReadingTimeWidgetUpdater @Inject constructor(
             val dayNames = week.days.map { it.dayOfWeek.getDisplayName(TextStyle.NARROW, locale) }
             val chartWidth = ((widthDp - layout.paddingHorizontalDp * 2) * density).roundToInt().coerceAtLeast(MinChartPx)
             val chartHeight = ((heightDp - layout.chromeHeightDp) * density).roundToInt().coerceAtLeast(MinChartPx)
+            // The header's text starts and ends where the plot box does.
+            val (plotLeft, plotRight) = plotInsets(
+                week,
+                chartLabelsShown(theme.appearance.chartAxisLabels, chartHeight, density),
+                density,
+                scaledDensity,
+            )
+            setViewPadding(R.id.reading_header, dpToPx(plotLeft / density), 0, dpToPx(plotRight / density), 0)
             val chart = drawReadingTimeChart(
                 week = week,
                 labels = ReadingChartLabels(dayNames),
@@ -197,6 +205,9 @@ class ReadingTimeWidgetUpdater @Inject constructor(
                 heightPx = chartHeight,
                 density = density,
                 scaledDensity = scaledDensity,
+                style = theme.appearance.chartStyle,
+                showAxisLabels = theme.appearance.chartAxisLabels,
+                gridOpacity = theme.appearance.chartGridOpacity,
             )
             setImageViewBitmap(R.id.reading_chart, chart)
             setContentDescription(R.id.reading_chart, chartDescription(week, locale))
@@ -233,7 +244,9 @@ class ReadingTimeWidgetUpdater @Inject constructor(
         return context.getString(Res.string.widget_reading_chart_description, days.joinToString(", "), average)
     }
 
-    private fun dpToPx(dp: Int): Int = (dp * context.resources.displayMetrics.density).roundToInt()
+    private fun dpToPx(dp: Int): Int = dpToPx(dp.toFloat())
+
+    private fun dpToPx(dp: Float): Int = (dp * context.resources.displayMetrics.density).roundToInt()
 
     private fun resolvePalette(theme: ReadingWidgetTheme): ReadingWidgetPalette {
         val isDark = when (theme.themeMode) {
@@ -327,7 +340,7 @@ private data class ReadingWidgetTheme(
 )
 
 private fun readingWidgetTheme(settings: SettingsSnapshot) = ReadingWidgetTheme(
-    appearance = WidgetAppearance(settings.widgetCornerRadius, settings.widgetProgressStyle),
+    appearance = settings.widgetAppearance(),
     themeMode = settings.themeMode,
     displayProfile = settings.displayProfile,
     einkPalette = settings.einkPalette,
@@ -384,17 +397,17 @@ internal data class ReadingWidgetLayout(
     companion object {
         fun forSize(widthDp: Int, heightDp: Int): ReadingWidgetLayout {
             val compact = widthDp < AverageMinWidthDp || heightDp < CompactHeightDp
-            val top = if (compact) 10 else 14
-            val bottom = if (compact) 8 else 12
+            // One margin on all four sides.
+            val margin = if (compact) 10 else 16
             val header = if (compact) CompactHeaderDp else HeaderDp
             return ReadingWidgetLayout(
-                paddingHorizontalDp = if (compact) 10 else 16,
-                paddingTopDp = top,
-                paddingBottomDp = bottom,
+                paddingHorizontalDp = margin,
+                paddingTopDp = margin,
+                paddingBottomDp = margin,
                 valueSp = if (compact) 19f else 22f,
                 showAverage = !compact,
                 showAverageWords = !compact && widthDp >= WordsMinWidthDp,
-                chromeHeightDp = top + bottom + header + ChartGapDp,
+                chromeHeightDp = margin * 2 + header + ChartGapDp,
             )
         }
 

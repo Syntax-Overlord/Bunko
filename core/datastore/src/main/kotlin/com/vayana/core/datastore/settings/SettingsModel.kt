@@ -142,6 +142,10 @@ data class SettingsSnapshot(
     /** Home-screen widgets' corner radius in dp, or [WidgetCornerRadiusMatchLauncher]. */
     val widgetCornerRadius: Int = WidgetCornerRadiusMatchLauncher,
     val widgetProgressStyle: WidgetProgressStyle = WidgetProgressStyle.FLAT,
+    val widgetChartStyle: WidgetChartStyle = WidgetChartStyle.LINE,
+    val widgetChartAxisLabels: Boolean = true,
+    /** The reading-time widget's grid lines, as a percentage of their full strength. */
+    val widgetChartGridOpacity: Int = 100,
     val yearlyBooksGoal: Int = 12,
     val defaultCoverSource: DefaultCoverSource = DefaultCoverSource.YOURS,
     /** Mirrors Home Library's catalog into Offline books while it is installed on this phone. */
@@ -741,6 +745,35 @@ object SettingsRegistry {
             ChoiceOption(WidgetProgressStyle.SQUIGGLY, R.string.widget_progress_squiggly),
         ),
     )
+    /** The reading-time widget's graph. Set on the widget configure screen. */
+    val WidgetChart: ChoiceSetting<WidgetChartStyle> = ChoiceSetting(
+        key = "widgets.chart_style",
+        defaultValue = WidgetChartStyle.LINE,
+        titleRes = R.string.widget_chart_style,
+        subtitleRes = null,
+        group = SettingsGroup.APPEARANCE,
+        options = listOf(
+            ChoiceOption(WidgetChartStyle.LINE, R.string.widget_chart_line),
+            ChoiceOption(WidgetChartStyle.CURVE, R.string.widget_chart_curve),
+            ChoiceOption(WidgetChartStyle.BARS, R.string.widget_chart_bars),
+        ),
+    )
+    val WidgetChartGridOpacity: IntSetting = IntSetting(
+        key = "widgets.chart_grid_opacity",
+        defaultValue = 100,
+        titleRes = R.string.widget_chart_grid,
+        subtitleRes = null,
+        group = SettingsGroup.APPEARANCE,
+        range = 0..100,
+        step = WidgetChartGridOpacityStep,
+    )
+    val WidgetChartAxisLabels: BooleanSetting = BooleanSetting(
+        key = "widgets.chart_axis_labels",
+        defaultValue = true,
+        titleRes = R.string.widget_chart_axis_labels,
+        subtitleRes = R.string.widget_chart_axis_labels_subtitle,
+        group = SettingsGroup.APPEARANCE,
+    )
     val BorrowReminders: BooleanSetting = BooleanSetting(
         key = "reminders.borrowed_enabled",
         defaultValue = true,
@@ -928,6 +961,9 @@ object SettingsRegistry {
         ReaderPdfFitWidth,
         WidgetCornerRadius,
         WidgetProgressBar,
+        WidgetChart,
+        WidgetChartAxisLabels,
+        WidgetChartGridOpacity,
         ReaderPaceActualSeconds,
         ReaderPaceEstimatedSeconds,
     )
@@ -944,3 +980,8 @@ const val WidgetCornerRadiusStep = 4
 
 /** How home-screen widgets draw progress. */
 enum class WidgetProgressStyle { FLAT, SQUIGGLY }
+
+const val WidgetChartGridOpacityStep = 10
+
+/** How the reading-time widget draws the week. */
+enum class WidgetChartStyle { LINE, CURVE, BARS }

@@ -9,6 +9,7 @@ import android.graphics.Typeface
 import androidx.core.graphics.ColorUtils
 import androidx.core.graphics.createBitmap
 import com.vayana.core.database.model.ReadingSession
+import com.vayana.core.datastore.settings.WidgetChartStyle
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -77,8 +78,9 @@ class ReadingChartLabels(val days: List<String>) {
 }
 
 /**
- * The chart: a framed grid with three equal steps, the reading line in straight segments with a point per day (today's
- * larger and on the right edge), and the seven-day average as a horizontal line. [density] and [scaledDensity] turn
+ * The chart: a framed grid with three equal steps, the week in [style] (a line of straight segments or a smooth curve
+ * with a point per day, today's larger and on the right edge, or a bar per day), and the seven-day average as a
+ * horizontal line. [showAxisLabels] adds the day and hour labels when there is room. [density] and [scaledDensity] turn
  * dp and sp into pixels.
  */
 fun drawReadingTimeChart(
@@ -89,78 +91,101 @@ fun drawReadingTimeChart(
     heightPx: Int,
     density: Float,
     scaledDensity: Float,
+    style: WidgetChartStyle = WidgetChartStyle.LINE,
+    showAxisLabels: Boolean = true,
+    gridOpacity: Int = 100,
 ): Bitmap {
     val bitmap = createBitmap(widthPx.coerceAtLeast(1), heightPx.coerceAtLeast(1))
     val canvas = Canvas(bitmap)
-    val showLabels = heightPx >= MinLabelledHeightDp * density
-    val step = scaleStep(max(week.minutesByDay.max(), if (week.hasHistory) week.averageMinutes else 0))
-    val axis = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        typeface = Typeface.DEFAULT
-        textSize = AxisSp * scaledDensity
-        color = colors.textMuted
-    }
+    val showLabels = chartLabelsShown(showAxisLabels, heightPx, density)
+    // Points sit on the day lines; bars sit between them, one column per day.
+    val bars = style == WidgetChartStyle.BARS
+    val spans = if (bars) ReadingWeek.DaysShown else ReadingWeek.DaysShown - 1
+    val step = week.scaleStep()
+    val axis = axisPaint(scaledDensity).apply { color = colors.textMuted }
     val axisLabels = (0..Intervals).map { axisLabel(step * it) }
-    // The gutter fits the widest tick label, which starts at the bitmap's left edge: in line with the header text.
-    val left = if (showLabels) axisLabels.maxOf(axis::measureText) + AxisGapDp * density else PointRadiusInsetDp * density
-    val right = widthPx - RightInsetDp * density
+    val (leftInset, rightInset) = plotInsets(week, showLabels, density, scaledDensity)
+    val left = leftInset
+    val right = widthPx - rightInset
     val top = TopInsetDp * density
     val bottom = (if (showLabels) heightPx - LabelBandDp * density else heightPx - TopInsetDp * density)
         .coerceAtLeast(top + 1f)
 
     val yMax = step * Intervals.toFloat()
-    fun x(index: Int) = left + (right - left) * index / (ReadingWeek.DaysShown - 1)
+    fun x(index: Int) = left + (right - left) * (index + if (bars) 0.5f else 0f) / spans
     fun y(minutes: Number) = bottom - (bottom - top) * (minutes.toFloat() / yMax).coerceIn(0f, 1f)
 
+    // A softly rounded plot: everything inside it is clipped to the corners; the line and its points are not, so
+    // today's point on the right edge stays whole.
+    val corner = PlotCornerDp * density
+    val plot = Path().apply { addRoundRect(left, top, right, bottom, corner, corner, Path.Direction.CW) }
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     paint.style = Paint.Style.FILL
     paint.color = colors.plotBackground
-    canvas.drawRect(left, top, right, bottom, paint)
+    canvas.drawPath(plot, paint)
+    canvas.save()
+    canvas.clipPath(plot)
 
     // Graph paper: fine lines between the steps and between the days, then the steps and days a little bolder, then
     // the frame. Only as many fine lines as leave cells of MinCellDp, so a small widget stays calm.
     val rows = (((bottom - top) / Intervals / density / MinCellDp).toInt()).coerceIn(1, HorizontalSubdivisions)
-    val columns = (((right - left) / (ReadingWeek.DaysShown - 1) / density / MinCellDp).toInt())
-        .coerceIn(1, VerticalSubdivisions)
+    val columns = (((right - left) / spans / density / MinCellDp).toInt()).coerceIn(1, VerticalSubdivisions)
     paint.style = Paint.Style.STROKE
     paint.strokeWidth = MinorGridStrokeDp * density
-    paint.color = ColorUtils.blendARGB(colors.grid, colors.frame, MinorGridBlend)
+    val gridAlpha = (255 * gridOpacity.coerceIn(0, 100) / 100f).roundToInt()
+    paint.color = ColorUtils.setAlphaComponent(ColorUtils.blendARGB(colors.grid, colors.frame, MinorGridBlend), gridAlpha)
     for (line in 1 until Intervals * rows) {
         if (line % rows == 0) continue
         val ly = y(step * line / rows.toFloat())
         canvas.drawLine(left, ly, right, ly, paint)
     }
-    for (line in 1 until (ReadingWeek.DaysShown - 1) * columns) {
+    for (line in 1 until spans * columns) {
         if (line % columns == 0) continue
-        val lx = left + (right - left) * line / ((ReadingWeek.DaysShown - 1) * columns)
+        val lx = left + (right - left) * line / (spans * columns)
         canvas.drawLine(lx, top, lx, bottom, paint)
     }
     paint.strokeWidth = GridStrokeDp * density
-    paint.color = ColorUtils.blendARGB(colors.grid, colors.frame, GridBlend)
+    paint.color = ColorUtils.setAlphaComponent(ColorUtils.blendARGB(colors.grid, colors.frame, GridBlend), gridAlpha)
     for (interval in 1 until Intervals) canvas.drawLine(left, y(step * interval), right, y(step * interval), paint)
-    for (index in 1 until ReadingWeek.DaysShown - 1) canvas.drawLine(x(index), top, x(index), bottom, paint)
-
-    paint.strokeWidth = FrameStrokeDp * density
-    paint.color = colors.frame
-    canvas.drawRect(left, top, right, bottom, paint)
-
-    if (showLabels) {
-        // Centred on its grid line by the font's own metrics.
-        val centre = (axis.fontMetrics.ascent + axis.fontMetrics.descent) / 2
-        axisLabels.forEachIndexed { interval, text -> canvas.drawText(text, 0f, y(step * interval) - centre, axis) }
+    for (span in 1 until spans) {
+        val sx = left + (right - left) * span / spans
+        canvas.drawLine(sx, top, sx, bottom, paint)
     }
 
+    val last = ReadingWeek.DaysShown - 1
     val path = Path()
-    week.minutesByDay.forEachIndexed { index, minutes ->
-        if (index == 0) path.moveTo(x(index), y(minutes)) else path.lineTo(x(index), y(minutes))
-    }
-    val area = Path(path).apply {
-        lineTo(x(ReadingWeek.DaysShown - 1), bottom)
-        lineTo(x(0), bottom)
-        close()
-    }
     paint.style = Paint.Style.FILL
-    paint.color = ColorUtils.setAlphaComponent(colors.line, AreaAlpha)
-    canvas.drawPath(area, paint)
+    if (bars) {
+        val half = (right - left) / spans * BarWidthFraction / 2
+        val radius = BarRadiusDp * density
+        week.minutesByDay.forEachIndexed { index, minutes ->
+            if (minutes <= 0) return@forEachIndexed
+            val barTop = y(minutes)
+            paint.color = if (index == last) colors.line else ColorUtils.setAlphaComponent(colors.line, PastBarAlpha)
+            // Rounded at the top, square on the baseline.
+            canvas.drawRoundRect(x(index) - half, barTop, x(index) + half, bottom, radius, radius, paint)
+            canvas.drawRect(x(index) - half, (barTop + radius).coerceAtMost(bottom), x(index) + half, bottom, paint)
+        }
+    } else {
+        week.minutesByDay.forEachIndexed { index, minutes ->
+            when {
+                index == 0 -> path.moveTo(x(index), y(minutes))
+                // Control points level with each end, half a day apart: smooth, and never past the days it joins.
+                style == WidgetChartStyle.CURVE -> {
+                    val mid = (x(index - 1) + x(index)) / 2
+                    path.cubicTo(mid, y(week.minutesByDay[index - 1]), mid, y(minutes), x(index), y(minutes))
+                }
+                else -> path.lineTo(x(index), y(minutes))
+            }
+        }
+        val area = Path(path).apply {
+            lineTo(x(last), bottom)
+            lineTo(x(0), bottom)
+            close()
+        }
+        paint.color = ColorUtils.setAlphaComponent(colors.line, AreaAlpha)
+        canvas.drawPath(area, paint)
+    }
 
     if (week.hasHistory) {
         paint.style = Paint.Style.STROKE
@@ -170,12 +195,54 @@ fun drawReadingTimeChart(
         canvas.drawLine(left, y(week.averageMinutes), right, y(week.averageMinutes), paint)
         paint.pathEffect = null
     }
+    canvas.restore()
 
+    paint.style = Paint.Style.STROKE
+    paint.strokeWidth = FrameStrokeDp * density
+    paint.color = colors.frame
+    canvas.drawPath(plot, paint)
+
+    if (showLabels) {
+        // Centred on its grid line by the font's own metrics.
+        val centre = (axis.fontMetrics.ascent + axis.fontMetrics.descent) / 2
+        axisLabels.forEachIndexed { interval, text -> canvas.drawText(text, 0f, y(step * interval) - centre, axis) }
+    }
+
+    if (!bars) drawLineAndPoints(canvas, path, week, colors, density, style, ::x, ::y)
+
+    if (showLabels) {
+        val day = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = Typeface.DEFAULT
+            textSize = DaySp * scaledDensity
+            textAlign = Paint.Align.CENTER
+        }
+        labels.days.forEachIndexed { index, text ->
+            val isToday = index == last
+            day.color = if (isToday) colors.textPrimary else colors.textMuted
+            day.isFakeBoldText = isToday
+            canvas.drawText(text, x(index), bottom + DayBaselineDp * density, day)
+        }
+    }
+    return bitmap
+}
+
+private fun drawLineAndPoints(
+    canvas: Canvas,
+    path: Path,
+    week: ReadingWeek,
+    colors: ReadingChartColors,
+    density: Float,
+    style: WidgetChartStyle,
+    x: (Int) -> Float,
+    y: (Number) -> Float,
+) {
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     paint.style = Paint.Style.STROKE
     paint.strokeWidth = LineStrokeDp * density
     paint.color = colors.line
-    paint.strokeJoin = Paint.Join.MITER
-    paint.strokeCap = Paint.Cap.SQUARE
+    val curve = style == WidgetChartStyle.CURVE
+    paint.strokeJoin = if (curve) Paint.Join.ROUND else Paint.Join.MITER
+    paint.strokeCap = if (curve) Paint.Cap.ROUND else Paint.Cap.SQUARE
     canvas.drawPath(path, paint)
 
     val last = ReadingWeek.DaysShown - 1
@@ -196,21 +263,33 @@ fun drawReadingTimeChart(
     ring.strokeWidth = DotStrokeDp * density
     ring.color = colors.surface
     canvas.drawCircle(x(last), y(week.todayMinutes), TodayDotDp * density, ring)
+}
 
-    if (showLabels) {
-        val day = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = Typeface.DEFAULT
-            textSize = DaySp * scaledDensity
-            textAlign = Paint.Align.CENTER
-        }
-        labels.days.forEachIndexed { index, text ->
-            val isToday = index == last
-            day.color = if (isToday) colors.textPrimary else colors.textMuted
-            day.isFakeBoldText = isToday
-            canvas.drawText(text, x(index), bottom + DayBaselineDp * density, day)
-        }
+private fun ReadingWeek.scaleStep() = scaleStep(max(minutesByDay.max(), if (hasHistory) averageMinutes else 0))
+
+private fun axisPaint(scaledDensity: Float) = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+    typeface = Typeface.DEFAULT
+    textSize = AxisSp * scaledDensity
+}
+
+/** Whether the day and hour labels draw: asked for, and the chart tall enough to hold them. */
+internal fun chartLabelsShown(showAxisLabels: Boolean, heightPx: Int, density: Float): Boolean =
+    showAxisLabels && heightPx >= MinLabelledHeightDp * density
+
+/**
+ * How far the plot box sits in from the chart's left and right edges, in px. The left inset is the hour-label gutter
+ * (the widest label plus a gap) or, without labels, room for the first point; the widget pads its header by the same
+ * amounts so the header text lines up with the box.
+ */
+internal fun plotInsets(week: ReadingWeek, showLabels: Boolean, density: Float, scaledDensity: Float): Pair<Float, Float> {
+    val left = if (showLabels) {
+        val axis = axisPaint(scaledDensity)
+        val step = week.scaleStep()
+        (0..Intervals).maxOf { axis.measureText(axisLabel(step * it)) } + AxisGapDp * density
+    } else {
+        PointRadiusInsetDp * density
     }
-    return bitmap
+    return left to RightInsetDp * density
 }
 
 /** The y-axis step in minutes: the smallest of a few round values whose three intervals hold [maxMinutes]. */
@@ -247,6 +326,7 @@ private const val GridStrokeDp = 1.25f
 private const val MinorGridBlend = 0.45f
 private const val GridBlend = 0.75f
 private const val FrameStrokeDp = 1.5f
+private const val PlotCornerDp = 6f
 private const val AverageStrokeDp = 1.5f
 private const val LineStrokeDp = 2f
 private const val PastDotDp = 3f
@@ -256,3 +336,6 @@ private const val DashDp = 4f
 private const val AxisSp = 10f
 private const val DaySp = 10f
 private const val AreaAlpha = 31
+private const val BarWidthFraction = 0.56f
+private const val BarRadiusDp = 3f
+private const val PastBarAlpha = 150
