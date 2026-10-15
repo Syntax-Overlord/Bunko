@@ -3,6 +3,7 @@
 // `AndroidBridge` @JavascriptInterface (see FoliateBookEngine.kt).
 import './foliate/view.js'
 import { Overlayer } from './foliate/overlayer.js'
+import { measureBookPages } from './page-count.js'
 
 const DefaultAnnotationColor = '#6366f1'
 
@@ -34,19 +35,50 @@ addEventListener('vayana-pdf-password', event => {
 
 // Dynamic page-count estimate: foliate's paginator lays out each chapter into CSS columns
 // sized by the live font-size/line-height/margin, so `renderer.pages` for the chapter you're
-// on is already a real, current measurement. We sample it per chapter into `bytesPerPage` and
-// extrapolate a whole-book estimate from each section's known byte size — no extra rendering,
-// just arithmetic over numbers the renderer already computed for the current page turn.
+// on is already a real, current measurement. Byte-size extrapolation supplies a quick initial
+// estimate; a background layout pass replaces it with measured counts for every chapter.
+// Page turns then reuse the same prefix totals for the footer, contents and page jump.
 let sectionByteSizes = null
 const bytesPerPage = new Map()
 let pageEstimateCache = null
 let pageEstimateRevision = 0
 let pageJumpSnapshot = null
 let lastSentTocRevision = -1
+let pageCountGeneration = 0
+let pageCountTimer = null
+let pageCountStarted = false
 
 function resetPageEstimate() {
+    pageCountGeneration++
+    clearTimeout(pageCountTimer)
+    pageCountStarted = false
     bytesPerPage.clear()
     pageEstimateCache = null
+}
+
+function schedulePageCount() {
+    if (fixedLayout || pageCountStarted || !view?.renderer || view.renderer.scrolled || pageJumpSnapshot) return
+    pageCountStarted = true
+    const generation = pageCountGeneration
+    const currentView = view
+    pageCountTimer = setTimeout(async () => {
+        const cancelled = () => generation !== pageCountGeneration || currentView !== view
+        try {
+            const counts = await measureBookPages(currentView.renderer, currentView.book.sections,
+                cancelled, () => new Promise(resolve => setTimeout(resolve, 16)), applyBionicReadingToDoc)
+            if (!counts || cancelled()) return
+            for (const [index, pages] of counts) {
+                bytesPerPage.set(index, sectionByteSizes[index] / pages)
+            }
+            pageEstimateCache = null
+            // Publish the completed total even if the reader hasn't turned a page.
+            if (currentView.lastLocation) currentView.dispatchEvent(new CustomEvent('relocate', {
+                detail: currentView.lastLocation,
+            }))
+        } catch (error) {
+            post('log', { step: 'pageCount', message: String(error) })
+        }
+    }, 350)
 }
 
 function bookPageStats(sectionIndex) {
@@ -58,7 +90,7 @@ function bookPageStats(sectionIndex) {
     if (!Number.isFinite(pages) || pages <= 0 || !Number.isFinite(page)) return null
 
     if (!sectionByteSizes) {
-        sectionByteSizes = view.book.sections.map(s => s.linear !== 'no' && s.size > 0 ? s.size : 0)
+        sectionByteSizes = view.book.sections.map(s => s.linear !== 'no' ? Math.max(1, s.size || 0) : 0)
     }
     // paginator reserves one blank column at each end for the header/footer margins.
     const pagesInSection = Math.max(1, pages - 2)
@@ -445,6 +477,7 @@ async function open(bookUrl, lastLocatorCfi) {
             scheduleBadgeLayout()
             const { cfi, fraction, tocItem, section, time } = e.detail
             const pageStats = bookPageStats(section?.current ?? 0)
+            schedulePageCount()
             const tocChanged = pageStats && pageStats.tocRevision !== lastSentTocRevision
             post('relocate', {
                 cfi,
@@ -1134,16 +1167,22 @@ function applyStyle(css, sideMarginPercent) {
     resetPageEstimate()
     if (view?.renderer?.setStyles) view.renderer.setStyles(css)
     applyReaderMargin(sideMarginPercent)
+    schedulePageCount()
 }
 
 const BionicWordClass = 'vayana-bionic-word'
 let bionicReadingEnabled = false
 
 function setBionicReading(enabled) {
+    const changed = bionicReadingEnabled !== Boolean(enabled)
     bionicReadingEnabled = Boolean(enabled)
     if (!view) return
     for (const { doc } of view.renderer.getContents()) {
         if (doc) applyBionicReadingToDoc(doc)
+    }
+    if (changed) {
+        resetPageEstimate()
+        schedulePageCount()
     }
 }
 
@@ -3587,7 +3626,9 @@ async function searchFixedLayout(query, token) {
 
 window.VayanaReader = { open, setPageColors, setPdfLayout, next, prev, goLeft, goRight, goToFraction, preparePageJump, cancelPageJump, goToPage, goToHref, providePdfPassword, pageThumbnail, setReaderControlsGesture, applyStyle, setBionicReading, setPageTurnAnimation, setInkMarks, renderAnnotations, clearSelection, search, clearSearch, startSpeech, nextSpeechChunk, markSpeech, stopSpeech, chapterWordCounts, mergeRanges }
 addEventListener('resize', () => {
+    resetPageEstimate()
     applyReaderMargin(readerSideMarginPercent)
     scheduleFixedRefit()
+    schedulePageCount()
 })
 post('ready', {})

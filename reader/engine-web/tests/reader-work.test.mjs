@@ -119,6 +119,27 @@ test('warm page statistics reuse section totals and the contents map', () => {
     assert.notEqual(changed.tocRevision, second.tocRevision)
 })
 
+test('fully measured chapter counts keep the same total at the beginning and final page', () => {
+    const sizes = [500, 90000, 20000]
+    const counts = [2, 30, 8]
+    const context = vm.createContext({
+        fixedLayout: false,
+        view: { renderer: { pages: 4, page: 1 }, book: { sections: sizes.map(size => ({ size })) } },
+        sectionByteSizes: sizes,
+        bytesPerPage: new Map(sizes.map((size, index) => [index, size / counts[index]])),
+        pageEstimateCache: null, pageEstimateRevision: 0,
+        tocSectionIndexes: () => sizes.map((_, index) => [`chapter-${index}`, index]),
+    })
+    vm.runInContext(bridge.slice(bridge.indexOf('function bookPageStats'), bridge.indexOf('// TOC href -> section index')), context)
+    assert.equal(context.bookPageStats(0).totalPages, 40)
+    context.view.renderer.pages = 10
+    context.view.renderer.page = 8
+    const final = context.bookPageStats(2)
+    assert.equal(final.currentPage, 40)
+    assert.equal(final.totalPages, 40)
+    assert.equal(final.tocPages['chapter-2'], 33)
+})
+
 test('cached page statistics preserve the original estimates across sampled sections', () => {
     const sizes = Array.from({ length: 50 }, (_, index) => index % 11 === 0 ? 0 : 901 + index * 79)
     const sections = sizes.map(size => ({ linear: size ? 'yes' : 'no', size }))

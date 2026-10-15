@@ -1432,6 +1432,26 @@ export class Paginator extends HTMLElement {
         }]
         return []
     }
+    createPageCounter() {
+        const counter = document.createElement('foliate-paginator')
+        const { width, height } = this.getBoundingClientRect()
+        Object.assign(counter.style, {
+            position: 'fixed', left: '-100000px', top: '0',
+            width: `${width}px`, height: `${height}px`, visibility: 'hidden',
+            pointerEvents: 'none',
+        })
+        counter.setAttribute('aria-hidden', 'true')
+        counter.inert = true
+        for (const name of Paginator.observedAttributes) {
+            if (this.hasAttribute(name)) counter.setAttribute(name, this.getAttribute(name))
+        }
+        document.body.append(counter)
+        // Share the loader's reference-counted sections, but do not register another
+        // CSS transform listener on the book for every counting pass.
+        counter.open({ dir: this.bookDir, sections: this.sections })
+        counter.setStyles(this.#styles)
+        return counter
+    }
     setStyles(styles) {
         this.#styles = styles
         const $$styles = this.#styleMap.get(this.#view?.document)
@@ -1455,7 +1475,7 @@ export class Paginator extends HTMLElement {
     }
     destroy() {
         this.#observer.unobserve(this)
-        this.#view.destroy()
+        this.#view?.destroy()
         this.#view = null
         this.sections[this.#index]?.unload?.()
         this.#mediaQuery.removeEventListener('change', this.#mediaQueryListener)
