@@ -7,9 +7,13 @@ for EPUB rendering only (comic-book.js, fb2.js, mobi.js, pdf.js, fixed-layout.js
 and their dependents are intentionally not vendored; add them if/when those
 formats or features are implemented — see docs/DECISIONS.md).
 
-Search: `search.js` (foliate-js commit 78914ae, unmodified; no imports) backs in-book EPUB search, which `view.js`
+Search: `search.js` (foliate-js commit 78914ae; no imports) backs in-book EPUB search, which `view.js`
 loads with `import('./search.js')`. It was missing at first, which broke EPUB search without an error on screen;
 `tests/epub-search.test.mjs` now loads it.
+
+Local patch: `search.js` `makeExcerpt` slices the middle text nodes by index
+(`strs.slice(startIndex + 1, endIndex)`); upstream passes the node strings themselves,
+which drops the middle of a match spanning three or more text nodes.
 
 Local patch: `epubcfi.js` defaults both CFI generation and resolution to a filter
 that flattens elements marked `data-foliate-cfi-transparent`. The reader marks its

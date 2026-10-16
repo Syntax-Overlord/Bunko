@@ -485,6 +485,7 @@ async function open(bookUrl, lastLocatorCfi, savedPageCounts) {
         popularBadgeIndexDirty = true
         resetPopularBadgeResolutionRetries()
         annotationRevision++
+        searchToken++ // a search still running on the previous book must not post into this one
         publishedSelectionDocument = null
         publishedAnnotationId = null
         hasOpened = false
@@ -2327,6 +2328,17 @@ function clearSelection() {
 }
 
 let searchToken = 0
+// Settles once the latest EPUB search (or clear) has stopped touching foliate's highlights.
+let searchRun = Promise.resolve()
+
+// foliate's excerpt is `{ pre, match, post }`; the host reads one plain line.
+function searchExcerptText(excerpt) {
+    if (excerpt == null) return ''
+    const text = typeof excerpt === 'string'
+        ? excerpt
+        : `${excerpt.pre ?? ''}${excerpt.match ?? ''}${excerpt.post ?? ''}`
+    return text.replace(/\s+/g, ' ').trim()
+}
 
 async function search(query) {
     if (!view) return
@@ -2340,20 +2352,28 @@ async function search(query) {
         return
     }
     const myToken = ++searchToken
-    const results = []
-    try {
-        for await (const result of view.search({ query })) {
-            if (myToken !== searchToken) return // superseded by a newer search
-            if (result === 'done' || !result.subitems) continue
-            for (const { cfi, excerpt } of result.subitems) {
-                results.push({ cfi, excerpt, tocLabel: result.label ?? null })
+    const previous = searchRun
+    searchRun = (async () => {
+        // foliate draws a section's highlights before yielding it, so a superseded search still draws one more
+        // section after it is replaced. Let it stop first, so this one starts (and clears) after it.
+        await previous
+        if (myToken !== searchToken || !view) return
+        const results = []
+        try {
+            for await (const result of view.search({ query })) {
+                if (myToken !== searchToken) return // superseded by a newer search
+                if (result === 'done' || !result.subitems) continue
+                for (const { cfi, excerpt } of result.subitems) {
+                    results.push({ cfi, excerpt: searchExcerptText(excerpt), tocLabel: result.label ?? null })
+                }
             }
+        } catch (e) {
+            if (myToken === searchToken) post('error', { message: `Search failed: ${e.message}` })
+            return
         }
-    } catch (e) {
-        post('error', { message: `Search failed: ${e.message}` })
-        return
-    }
-    if (myToken === searchToken) post('searchResults', { query, results })
+        if (myToken === searchToken) post('searchResults', { query, results })
+    })()
+    return searchRun
 }
 
 function clearSearch() {
@@ -2364,6 +2384,13 @@ function clearSearch() {
         return
     }
     if (view?.clearSearch) view.clearSearch()
+    // Clear again once an in-flight search has stopped, in case it drew after the first clear.
+    const previous = searchRun
+    searchRun = (async () => {
+        await previous
+        if (view?.clearSearch) view.clearSearch()
+    })()
+    return searchRun
 }
 
 function annotationForRenderedValue(value) {
