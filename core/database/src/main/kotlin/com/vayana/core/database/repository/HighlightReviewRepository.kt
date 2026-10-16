@@ -108,7 +108,10 @@ private fun HighlightReviewEntity.toDomain() = HighlightReview(
     lastReviewedAt = lastReviewedAt,
 )
 
-/** Matches Kotlin's Char.isWhitespace for the stored selected text's leading and trailing characters. */
-private val ReviewWhitespace: String = buildString {
-    for (code in 0..0xffff) if (code.toChar().isWhitespace()) append(code.toChar())
-}
+/**
+ * Every char Kotlin's Char.isWhitespace accepts, for trimming the stored selected text's ends in SQL. A literal: building
+ * it by testing all 65,536 chars cost ~180 ms on the main thread the first time Library read the due count.
+ */
+internal const val ReviewWhitespace: String =
+    "\u0009\u000A\u000B\u000C\u000D\u001C\u001D\u001E\u001F         " +
+        "         　"
