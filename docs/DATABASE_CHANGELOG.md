@@ -2,6 +2,12 @@
 
 Every bump to `DATABASE_VERSION` (`core/database/.../VayanaDatabase.kt`) gets an entry here and a real Room `Migration`.
 
+## Version 39
+
+No schema changes. Migration 38→39 bumps every `sync_slice_versions` counter. Slices published before version 38
+left out records naming Home Library books (their reading sessions above all), but the counters never moved, so
+full and progress syncs kept reusing those files. The bump makes the next sync export every slice once.
+
 ## Version 38
 
 No table changes. Books mirrored from Home Library (`books.source = 'home_library'`) now sync to other devices, so
