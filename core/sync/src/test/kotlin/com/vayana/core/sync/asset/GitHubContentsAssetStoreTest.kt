@@ -1018,6 +1018,25 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
+    fun transferStatsCountEveryRequestAndItsPayload() = runBlocking {
+        val client = RecordingGitHubHttpClient(*singleCommitResponses())
+        val store = testStore(client)
+
+        store.commitSyncDocuments(
+            changes = listOf(SyncDocumentChange("vayana/snapshot-latest.json", "{}".toByteArray())),
+            message = "Sync",
+            guardPath = "vayana/snapshot-latest.json",
+            guardSha = ExistingSha,
+        )
+
+        val stats = store.transferStats()
+        assertEquals(client.requests.size, stats.requests)
+        assertEquals(client.requests.sumOf { it.body?.size ?: 0 }.toLong(), stats.upBytes)
+        assertTrue(stats.downBytes > 0)
+        assertEquals("githubRequests=${stats.requests}, downBytes=${stats.downBytes}, upBytes=${stats.upBytes}", store.requestStats())
+    }
+
+    @Test
     fun singleCommitDeletesStaleFilesInTheSameCommit() = runBlocking {
         val client = RecordingGitHubHttpClient(*singleCommitResponses())
 

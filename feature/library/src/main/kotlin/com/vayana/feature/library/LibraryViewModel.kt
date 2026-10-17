@@ -168,6 +168,8 @@ import com.vayana.core.sync.SyncOperationCoordinator
 import com.vayana.core.sync.SyncedBookDeletionApplier
 import com.vayana.core.sync.asset.deletePendingAndLog
 import com.vayana.core.sync.progress.ReadingProgressOnlySyncer
+import com.vayana.core.sync.usage.SyncDataUsageLog
+import com.vayana.core.sync.usage.SyncKind
 
 /** Result of one import batch, still kept for the final Snackbar summary. */
 data class ImportSummary(val imported: Int, val duplicates: Int, val unsupported: Int, val failed: Int)
@@ -522,6 +524,7 @@ class LibraryViewModel @Inject constructor(
     private val syncedBookDeletionApplier: SyncedBookDeletionApplier,
     private val permanentDeletionNotices: PermanentDeletionNotices,
     private val readingProgressOnlySyncer: ReadingProgressOnlySyncer,
+    private val syncDataUsageLog: SyncDataUsageLog,
     private val remoteBookDeletionNotices: RemoteBookDeletionNotices,
     private val resolvedBooks: ResolvedBooks,
     private val goodreadsMetadataFetcher: GoodreadsMetadataFetcher,
@@ -1419,391 +1422,400 @@ class LibraryViewModel @Inject constructor(
                 return@withContext GitHubSyncNowResult.ConfigIncomplete
             }
         fullSyncLog?.requestStats = store::requestStats
-        updateSyncProgress(
-            showProgress = showProgress,
-            GitHubSyncProgressStep.READING_CLOUD,
-            UiText.Res(R.string.sync_detail_reading_cloud),
-            completedSteps = 1,
-        )
-        if (mode == GitHubSyncMode.READING_PROGRESS_PULL_ONLY) {
-            val result = launchReadingProgressPull.run(
-                bookId = launchReadingProgressBookId,
-                syncTarget = syncConfig.launchReadingProgressSyncTarget(),
-            ) { skipRemoteSnapshotSha ->
-                // Reading history, its resets/deletions, and book deletions accompany positions.
-                // Notes, shelves, and vocabulary still wait for a user-started sync.
-                pullReadingProgress(store, skipRemoteSnapshotSha, tombstones = TombstoneMergeScope.READING_PROGRESS)
+        try {
+            updateSyncProgress(
+                showProgress = showProgress,
+                GitHubSyncProgressStep.READING_CLOUD,
+                UiText.Res(R.string.sync_detail_reading_cloud),
+                completedSteps = 1,
+            )
+            if (mode == GitHubSyncMode.READING_PROGRESS_PULL_ONLY) {
+                val result = launchReadingProgressPull.run(
+                    bookId = launchReadingProgressBookId,
+                    syncTarget = syncConfig.launchReadingProgressSyncTarget(),
+                ) { skipRemoteSnapshotSha ->
+                    // Reading history, its resets/deletions, and book deletions accompany positions.
+                    // Notes, shelves, and vocabulary still wait for a user-started sync.
+                    pullReadingProgress(store, skipRemoteSnapshotSha, tombstones = TombstoneMergeScope.READING_PROGRESS)
+                }
+                if (result.pullFailed) {
+                    finishSyncProgress(
+                        showProgress = showProgress,
+                        GitHubSyncProgressStep.FAILED,
+                        UiText.Res(R.string.sync_detail_progress_unreadable),
+                    )
+                }
+                return@withContext result
             }
-            if (result.pullFailed) {
+            val progressMerge = pullReadingProgress(store)
+            fullSyncLog?.phase(
+                "Pull latest snapshot",
+                "remoteSha=${progressMerge.remoteSnapshotSha?.take(10)}, remoteDevice=${progressMerge.remoteDeviceLabel}, " +
+                    "progressApplied=${progressMerge.applied}, conflicts=${progressMerge.conflictCount}, skipped=${progressMerge.skipped}, " +
+                    "failed=${progressMerge.failed}, missingRemote=${progressMerge.missingRemoteSnapshot}",
+            )
+            if (progressMerge.failed) {
                 finishSyncProgress(
                     showProgress = showProgress,
                     GitHubSyncProgressStep.FAILED,
                     UiText.Res(R.string.sync_detail_progress_unreadable),
                 )
+                return@withContext GitHubSyncNowResult.Complete(
+                    uploaded = 0,
+                    failed = 0,
+                    progressUpdated = 0,
+                    cloudBooksCreated = 0,
+                    cloudBooksUpdated = 0,
+                    conflicts = 0,
+                    skipped = 0,
+                    pullFailed = true,
+                    metadataSynced = false,
+                    failureMessage = progressMerge.failureMessage,
+                )
             }
-            return@withContext result
-        }
-        val progressMerge = pullReadingProgress(store)
-        fullSyncLog?.phase(
-            "Pull latest snapshot",
-            "remoteSha=${progressMerge.remoteSnapshotSha?.take(10)}, remoteDevice=${progressMerge.remoteDeviceLabel}, " +
-                "progressApplied=${progressMerge.applied}, conflicts=${progressMerge.conflictCount}, skipped=${progressMerge.skipped}, " +
-                "failed=${progressMerge.failed}, missingRemote=${progressMerge.missingRemoteSnapshot}",
-        )
-        if (progressMerge.failed) {
-            finishSyncProgress(
+            if (progressMerge.missingRemoteSnapshot && mode == GitHubSyncMode.READING_PROGRESS_ONLY) {
+                finishSyncProgress(
+                    showProgress = showProgress,
+                    GitHubSyncProgressStep.FAILED,
+                    UiText.Res(R.string.sync_detail_progress_missing),
+                )
+                return@withContext GitHubSyncNowResult.Complete(
+                    uploaded = 0,
+                    failed = 0,
+                    progressUpdated = 0,
+                    cloudBooksCreated = 0,
+                    cloudBooksUpdated = 0,
+                    progressUploaded = 0,
+                    conflicts = 0,
+                    skipped = 0,
+                    pullFailed = true,
+                    metadataSynced = false,
+                    failureMessage = progressMerge.failureMessage,
+                )
+            }
+            if (progressMerge.missingRemoteSnapshot && !allowInitialSync) {
+                finishSyncProgress(
+                    showProgress = showProgress,
+                    GitHubSyncProgressStep.FAILED,
+                    UiText.Res(R.string.sync_detail_progress_needs_confirmation),
+                )
+                return@withContext GitHubSyncNowResult.InitialSyncConfirmationRequired(progressMerge.failureMessage)
+            }
+            if (mode == GitHubSyncMode.READING_PROGRESS_ONLY) {
+                updateSyncProgress(
+                    showProgress = showProgress,
+                    step = GitHubSyncProgressStep.SAVING_SNAPSHOT,
+                    detail = UiText.Res(R.string.sync_detail_saving_progress),
+                    completedSteps = 4,
+                    progressUpdated = progressMerge.applied,
+                )
+                val progressPush = pushReadingProgressOnly(remoteSnapshot = progressMerge.remoteSnapshot, store = store)
+                fullSyncLog?.phase("Push reading progress", "pushed=${progressPush.pushed}, failed=${progressPush.failed}")
+                if (!progressPush.failed) deletePendingCloudAssets(store)
+                finishSyncProgress(
+                    showProgress = showProgress,
+                    step = if (progressPush.failed) GitHubSyncProgressStep.FAILED else GitHubSyncProgressStep.COMPLETE,
+                    detail = if (progressPush.failed) UiText.Res(R.string.sync_detail_progress_save_failed) else UiText.Res(R.string.sync_detail_progress_synced),
+                    progressUpdated = progressMerge.applied,
+                )
+                return@withContext GitHubSyncNowResult.Complete(
+                    uploaded = 0,
+                    failed = 0,
+                    progressUpdated = progressMerge.applied,
+                    cloudBooksCreated = 0,
+                    cloudBooksUpdated = 0,
+                    progressUploaded = progressPush.pushed,
+                    conflicts = progressMerge.conflictCount,
+                    skipped = progressMerge.skipped,
+                    pullFailed = progressMerge.failed,
+                    metadataSynced = !progressPush.failed,
+                    failureMessage = progressPush.failureMessage,
+                    progressAppliedSyncIds = progressMerge.appliedSyncIds,
+                    syncedDeviceLabel = progressMerge.remoteDeviceLabel,
+                    syncedAt = progressMerge.remoteSyncedAt,
+                    newerRemoteBuild = newerRemoteBuild(progressMerge),
+                )
+            }
+            updateSyncProgress(
                 showProgress = showProgress,
-                GitHubSyncProgressStep.FAILED,
-                UiText.Res(R.string.sync_detail_progress_unreadable),
+                step = GitHubSyncProgressStep.ADDING_CLOUD_BOOKS,
+                detail = UiText.Res(R.string.sync_detail_adding_cloud_books),
+                completedSteps = 2,
+                progressUpdated = progressMerge.applied,
             )
-            return@withContext GitHubSyncNowResult.Complete(
-                uploaded = 0,
-                failed = 0,
-                progressUpdated = 0,
-                cloudBooksCreated = 0,
-                cloudBooksUpdated = 0,
-                conflicts = 0,
-                skipped = 0,
-                pullFailed = true,
-                metadataSynced = false,
-                failureMessage = progressMerge.failureMessage,
+            val remoteSnapshot = progressMerge.remoteSnapshot
+            // Every slice is merged below; download them together instead of one after another.
+            val sliceDownloadFailure = remoteSnapshot?.prefetch()
+            fullSyncLog?.phase(
+                "Download slices",
+                (remoteSnapshot?.sliceStats() ?: "noRemoteSnapshot") + (sliceDownloadFailure?.let { ", failed=${it.javaClass.simpleName}: ${it.message}" } ?: ""),
             )
-        }
-        if (progressMerge.missingRemoteSnapshot && mode == GitHubSyncMode.READING_PROGRESS_ONLY) {
-            finishSyncProgress(
+            if (sliceDownloadFailure != null) {
+                finishSyncProgress(
+                    showProgress = showProgress,
+                    GitHubSyncProgressStep.FAILED,
+                    sliceDownloadFailure.syncFailureMessage(),
+                )
+                return@withContext GitHubSyncNowResult.Complete(
+                    uploaded = 0,
+                    failed = 0,
+                    progressUpdated = progressMerge.applied,
+                    cloudBooksCreated = 0,
+                    cloudBooksUpdated = 0,
+                    conflicts = progressMerge.conflictCount,
+                    skipped = progressMerge.skipped,
+                    pullFailed = true,
+                    metadataSynced = false,
+                    failureMessage = sliceDownloadFailure.syncFailureMessage(),
+                )
+            }
+            // Tombstones were already merged (all of them) by pullReadingProgress above, from this same snapshot.
+            val cloudLibraryMerge = if (remoteSnapshot == null) {
+                CloudLibraryMergeSummary()
+            } else {
+                mergeCloudLibrary(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.Books), store)
+            }
+            fullSyncLog?.phase(
+                "Merge books and covers",
+                "books=+${cloudLibraryMerge.created}/~${cloudLibraryMerge.updated}/=${cloudLibraryMerge.skipped}, " +
+                    "coversDownloaded=${cloudLibraryMerge.coversDownloaded}, failed=${cloudLibraryMerge.failed}",
+            )
+            val bookAliasMerge = if (remoteSnapshot == null) {
+                GenericSyncMergeSummary()
+            } else {
+                mergeCloudBookAliases(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.BookAliases))
+            }
+            val shelfMerge = if (remoteSnapshot == null) {
+                GenericSyncMergeSummary()
+            } else {
+                mergeCloudShelves(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.Shelves))
+            }
+            // Must run after cloudLibraryMerge/shelfMerge: records whose book or shelf was just
+            // created above can only resolve sync ids to local rows once those rows exist.
+            val shelfMembershipMerge = if (remoteSnapshot == null) {
+                GenericSyncMergeSummary()
+            } else {
+                mergeCloudShelfMemberships(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.ShelfMemberships))
+            }
+            val vocabularyCardMerge = if (remoteSnapshot == null) {
+                GenericSyncMergeSummary()
+            } else {
+                mergeCloudVocabularyCards(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.VocabularyCards))
+            }
+            val readingSessionMerge = if (remoteSnapshot == null) {
+                ReadingSessionMergeSummary()
+            } else {
+                mergeCloudReadingSessions(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.ReadingSessions))
+            }
+            val wordLookupCounterMerge = if (remoteSnapshot == null) {
+                WordLookupCounterMergeSummary()
+            } else {
+                mergeCloudWordLookupCounters(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.WordLookupCounters))
+            }
+            fullSyncLog?.phase(
+                "Merge shelves, vocabulary, sessions, counters",
+                "aliases=+${bookAliasMerge.created}, shelves=+${shelfMerge.created}/~${shelfMerge.updated}, " +
+                    "memberships=+${shelfMembershipMerge.created}, vocabulary=+${vocabularyCardMerge.created}/~${vocabularyCardMerge.updated}, " +
+                    "sessions=+${readingSessionMerge.created}, wordCounters=${wordLookupCounterMerge.merged}, " +
+                    "failed=${listOf(bookAliasMerge, shelfMerge, shelfMembershipMerge, vocabularyCardMerge, readingSessionMerge, wordLookupCounterMerge).anyFailed()}",
+            )
+            val annotationMerge = if (remoteSnapshot == null) {
+                AnnotationMergeSummary()
+            } else {
+                mergeCloudAnnotations(remoteSnapshot.annotationJsons())
+            }
+            fullSyncLog?.phase(
+                "Merge annotations",
+                "annotations=+${annotationMerge.created}/~${annotationMerge.updated}/=${annotationMerge.skipped}/conflicts=${annotationMerge.conflicts}, " +
+                    "failed=${annotationMerge.failed}",
+            )
+            val booksBeforeRepair = bookRepository.observeAll().first()
+            val repairedCovers = repairMissingCoversFromLocalFiles(booksBeforeRepair)
+            val localBooks = if (repairedCovers > 0) bookRepository.observeAll().first() else booksBeforeRepair
+            fullSyncLog?.phase("Repair missing covers", "coversRepaired=$repairedCovers")
+            val uploadCandidates = localBooks
+                .filter { book ->
+                    book.fileAvailability == BookFileAvailability.LOCAL &&
+                        !book.format.isOffline &&
+                        book.fileAssetId.isNullOrBlank()
+                }
+            val coverUploadCandidates = localBooks
+                .filter { book ->
+                    book.fileAvailability == BookFileAvailability.LOCAL &&
+                        book.coverNeedsUpload(storageRoots)
+                }
+
+            updateSyncProgress(
                 showProgress = showProgress,
-                GitHubSyncProgressStep.FAILED,
-                UiText.Res(R.string.sync_detail_progress_missing),
+                step = GitHubSyncProgressStep.UPLOADING_BOOKS,
+                detail = UiText.Res(
+                    R.string.sync_detail_uploading,
+                    UiText.Plural(R.plurals.sync_detail_book_count, uploadCandidates.size),
+                    UiText.Plural(R.plurals.sync_detail_cover_count, coverUploadCandidates.size),
+                ),
+                completedSteps = 3,
+                progressUpdated = progressMerge.applied,
+                cloudBooksCreated = cloudLibraryMerge.created,
+                cloudBooksUpdated = cloudLibraryMerge.updated,
+                downloadedCovers = cloudLibraryMerge.coversDownloaded,
             )
-            return@withContext GitHubSyncNowResult.Complete(
-                uploaded = 0,
-                failed = 0,
-                progressUpdated = 0,
-                cloudBooksCreated = 0,
-                cloudBooksUpdated = 0,
-                progressUploaded = 0,
-                conflicts = 0,
-                skipped = 0,
-                pullFailed = true,
-                metadataSynced = false,
-                failureMessage = progressMerge.failureMessage,
-            )
-        }
-        if (progressMerge.missingRemoteSnapshot && !allowInitialSync) {
-            finishSyncProgress(
-                showProgress = showProgress,
-                GitHubSyncProgressStep.FAILED,
-                UiText.Res(R.string.sync_detail_progress_needs_confirmation),
-            )
-            return@withContext GitHubSyncNowResult.InitialSyncConfirmationRequired(progressMerge.failureMessage)
-        }
-        if (mode == GitHubSyncMode.READING_PROGRESS_ONLY) {
+            var uploaded = 0
+            var failed = 0
+            var uploadedCovers = 0
+            uploadCandidates.forEach { book ->
+                val passphrase = syncConfig.passphrase.toCharArray()
+                val result = runCatchingCancellable {
+                    try {
+                        cloudBookAssetTransfer.uploadBookFile(book.id, passphrase, store)
+                    } finally {
+                        passphrase.fill('\u0000')
+                    }
+                }
+                result.onSuccess {
+                    uploaded += 1
+                }.onFailure {
+                    failed += 1
+                }
+                updateSyncProgress(
+                    showProgress = showProgress,
+                    step = GitHubSyncProgressStep.UPLOADING_BOOKS,
+                    detail = UiText.Res(R.string.sync_detail_uploaded_books, uploaded, uploadCandidates.size),
+                    completedSteps = 3,
+                    uploadedBooks = uploaded,
+                    failedBooks = failed,
+                    uploadedCovers = uploadedCovers,
+                    progressUpdated = progressMerge.applied,
+                    cloudBooksCreated = cloudLibraryMerge.created,
+                    cloudBooksUpdated = cloudLibraryMerge.updated,
+                    downloadedCovers = cloudLibraryMerge.coversDownloaded,
+                )
+            }
+            coverUploadCandidates.forEach { book ->
+                val passphrase = syncConfig.passphrase.toCharArray()
+                val result = runCatchingCancellable {
+                    try {
+                        cloudBookAssetTransfer.uploadCoverImage(book.id, passphrase, store)
+                    } finally {
+                        passphrase.fill('\u0000')
+                    }
+                }
+                result.onSuccess {
+                    uploadedCovers += 1
+                }
+                updateSyncProgress(
+                    showProgress = showProgress,
+                    step = GitHubSyncProgressStep.UPLOADING_BOOKS,
+                    detail = UiText.Res(R.string.sync_detail_uploaded_covers, uploadedCovers, coverUploadCandidates.size),
+                    completedSteps = 3,
+                    uploadedBooks = uploaded,
+                    failedBooks = failed,
+                    uploadedCovers = uploadedCovers,
+                    progressUpdated = progressMerge.applied,
+                    cloudBooksCreated = cloudLibraryMerge.created,
+                    cloudBooksUpdated = cloudLibraryMerge.updated,
+                    downloadedCovers = cloudLibraryMerge.coversDownloaded,
+                )
+            }
             updateSyncProgress(
                 showProgress = showProgress,
                 step = GitHubSyncProgressStep.SAVING_SNAPSHOT,
-                detail = UiText.Res(R.string.sync_detail_saving_progress),
+                detail = UiText.Res(R.string.sync_detail_saving_latest_snapshot),
                 completedSteps = 4,
+                uploadedBooks = uploaded,
+                failedBooks = failed,
+                uploadedCovers = uploadedCovers,
                 progressUpdated = progressMerge.applied,
+                cloudBooksCreated = cloudLibraryMerge.created,
+                cloudBooksUpdated = cloudLibraryMerge.updated,
+                downloadedCovers = cloudLibraryMerge.coversDownloaded,
             )
-            val progressPush = pushReadingProgressOnly(remoteSnapshot = progressMerge.remoteSnapshot, store = store)
-            fullSyncLog?.phase("Push reading progress", "pushed=${progressPush.pushed}, failed=${progressPush.failed}")
-            if (!progressPush.failed) deletePendingCloudAssets(store)
+            val snapshotProgress: (PortableSnapshotPublishProgress) -> Unit = { progress ->
+                updateSyncProgress(
+                    showProgress = showProgress,
+                    step = GitHubSyncProgressStep.SAVING_SNAPSHOT,
+                    detail = progress.toSyncProgressDetail(),
+                    completedSteps = 4,
+                    uploadedBooks = uploaded,
+                    failedBooks = failed,
+                    uploadedCovers = uploadedCovers,
+                    progressUpdated = progressMerge.applied,
+                    cloudBooksCreated = cloudLibraryMerge.created,
+                    cloudBooksUpdated = cloudLibraryMerge.updated,
+                    downloadedCovers = cloudLibraryMerge.coversDownloaded,
+                    stepProgress = progress.fraction,
+                )
+            }
+            fullSyncLog?.phase(
+                "Upload books and covers",
+                "books=$uploaded/${uploadCandidates.size}, failedBooks=$failed, covers=$uploadedCovers/${coverUploadCandidates.size}",
+            )
+            val entityMerges = listOf(
+                cloudLibraryMerge, bookAliasMerge, shelfMerge, shelfMembershipMerge,
+                vocabularyCardMerge, readingSessionMerge, wordLookupCounterMerge, annotationMerge,
+            )
+            // A publish exports this device's records: after a failed merge it would replace the cloud copy with one
+            // missing whatever didn't merge. Report the sync failed and leave the cloud as it is.
+            val metadataSave = if (entityMerges.anyFailed()) {
+                SnapshotMetadataSaveResult(synced = false, failureMessage = entityMerges.firstFailureMessage())
+            } else {
+                saveMetadataSnapshotWithRebase(
+                    store = store,
+                    syncConfig = syncConfig,
+                    expectedSha = progressMerge.remoteSnapshotSha,
+                    previousSnapshot = progressMerge.remoteSnapshot,
+                    conflicts = progressMerge.conflicts,
+                    onSnapshotProgress = snapshotProgress,
+                )
+            }
+            fullSyncLog?.phase(
+                "Publish snapshot",
+                "synced=${metadataSave.synced}, rebaseBooks=+${metadataSave.extraBooksCreated}/~${metadataSave.extraBooksUpdated}" +
+                    (metadataSave.failureMessage?.let { ", failure=${it.resolve(appContext.resources)}" } ?: ""),
+            )
+            if (metadataSave.synced) deletePendingCloudAssets(store)
+            // A rebase (409-conflict retry) may have pulled and merged additional remote data into the local DB after
+            // the counts above were computed; fold its deltas in so the reported summary reflects what actually synced.
+            val totalBooksCreated = cloudLibraryMerge.created + metadataSave.extraBooksCreated
+            val totalBooksUpdated = cloudLibraryMerge.updated + metadataSave.extraBooksUpdated
+            val totalSkipped = progressMerge.skipped + entityMerges.totalSkipped() + metadataSave.extraSkipped
+            val anyPullFailed = progressMerge.failed || entityMerges.anyFailed() || metadataSave.extraFailed
             finishSyncProgress(
                 showProgress = showProgress,
-                step = if (progressPush.failed) GitHubSyncProgressStep.FAILED else GitHubSyncProgressStep.COMPLETE,
-                detail = if (progressPush.failed) UiText.Res(R.string.sync_detail_progress_save_failed) else UiText.Res(R.string.sync_detail_progress_synced),
+                step = if (metadataSave.synced && failed == 0 && !anyPullFailed) {
+                    GitHubSyncProgressStep.COMPLETE
+                } else {
+                    GitHubSyncProgressStep.FAILED
+                },
+                detail = if (metadataSave.synced) UiText.Res(R.string.sync_detail_finished) else UiText.Res(R.string.sync_detail_snapshot_save_failed),
+                uploadedBooks = uploaded,
+                failedBooks = failed,
+                uploadedCovers = uploadedCovers,
                 progressUpdated = progressMerge.applied,
+                cloudBooksCreated = totalBooksCreated,
+                cloudBooksUpdated = totalBooksUpdated,
+                downloadedCovers = cloudLibraryMerge.coversDownloaded,
             )
-            return@withContext GitHubSyncNowResult.Complete(
-                uploaded = 0,
-                failed = 0,
+            GitHubSyncNowResult.Complete(
+                uploaded = uploaded,
+                failed = failed,
                 progressUpdated = progressMerge.applied,
-                cloudBooksCreated = 0,
-                cloudBooksUpdated = 0,
-                progressUploaded = progressPush.pushed,
-                conflicts = progressMerge.conflictCount,
-                skipped = progressMerge.skipped,
-                pullFailed = progressMerge.failed,
-                metadataSynced = !progressPush.failed,
-                failureMessage = progressPush.failureMessage,
-                progressAppliedSyncIds = progressMerge.appliedSyncIds,
-                syncedDeviceLabel = progressMerge.remoteDeviceLabel,
-                syncedAt = progressMerge.remoteSyncedAt,
+                cloudBooksCreated = totalBooksCreated,
+                cloudBooksUpdated = totalBooksUpdated,
+                conflicts = progressMerge.conflictCount + metadataSave.extraConflicts,
+                skipped = totalSkipped,
+                pullFailed = anyPullFailed && !allowInitialSync,
+                metadataSynced = metadataSave.synced,
+                failureMessage = metadataSave.failureMessage ?: entityMerges.firstFailureMessage(),
                 newerRemoteBuild = newerRemoteBuild(progressMerge),
             )
-        }
-        updateSyncProgress(
-            showProgress = showProgress,
-            step = GitHubSyncProgressStep.ADDING_CLOUD_BOOKS,
-            detail = UiText.Res(R.string.sync_detail_adding_cloud_books),
-            completedSteps = 2,
-            progressUpdated = progressMerge.applied,
-        )
-        val remoteSnapshot = progressMerge.remoteSnapshot
-        // Every slice is merged below; download them together instead of one after another.
-        val sliceDownloadFailure = remoteSnapshot?.prefetch()
-        fullSyncLog?.phase(
-            "Download slices",
-            (remoteSnapshot?.sliceStats() ?: "noRemoteSnapshot") + (sliceDownloadFailure?.let { ", failed=${it.javaClass.simpleName}: ${it.message}" } ?: ""),
-        )
-        if (sliceDownloadFailure != null) {
-            finishSyncProgress(
-                showProgress = showProgress,
-                GitHubSyncProgressStep.FAILED,
-                sliceDownloadFailure.syncFailureMessage(),
-            )
-            return@withContext GitHubSyncNowResult.Complete(
-                uploaded = 0,
-                failed = 0,
-                progressUpdated = progressMerge.applied,
-                cloudBooksCreated = 0,
-                cloudBooksUpdated = 0,
-                conflicts = progressMerge.conflictCount,
-                skipped = progressMerge.skipped,
-                pullFailed = true,
-                metadataSynced = false,
-                failureMessage = sliceDownloadFailure.syncFailureMessage(),
-            )
-        }
-        // Tombstones were already merged (all of them) by pullReadingProgress above, from this same snapshot.
-        val cloudLibraryMerge = if (remoteSnapshot == null) {
-            CloudLibraryMergeSummary()
-        } else {
-            mergeCloudLibrary(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.Books), store)
-        }
-        fullSyncLog?.phase(
-            "Merge books and covers",
-            "books=+${cloudLibraryMerge.created}/~${cloudLibraryMerge.updated}/=${cloudLibraryMerge.skipped}, " +
-                "coversDownloaded=${cloudLibraryMerge.coversDownloaded}, failed=${cloudLibraryMerge.failed}",
-        )
-        val bookAliasMerge = if (remoteSnapshot == null) {
-            GenericSyncMergeSummary()
-        } else {
-            mergeCloudBookAliases(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.BookAliases))
-        }
-        val shelfMerge = if (remoteSnapshot == null) {
-            GenericSyncMergeSummary()
-        } else {
-            mergeCloudShelves(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.Shelves))
-        }
-        // Must run after cloudLibraryMerge/shelfMerge: records whose book or shelf was just
-        // created above can only resolve sync ids to local rows once those rows exist.
-        val shelfMembershipMerge = if (remoteSnapshot == null) {
-            GenericSyncMergeSummary()
-        } else {
-            mergeCloudShelfMemberships(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.ShelfMemberships))
-        }
-        val vocabularyCardMerge = if (remoteSnapshot == null) {
-            GenericSyncMergeSummary()
-        } else {
-            mergeCloudVocabularyCards(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.VocabularyCards))
-        }
-        val readingSessionMerge = if (remoteSnapshot == null) {
-            ReadingSessionMergeSummary()
-        } else {
-            mergeCloudReadingSessions(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.ReadingSessions))
-        }
-        val wordLookupCounterMerge = if (remoteSnapshot == null) {
-            WordLookupCounterMergeSummary()
-        } else {
-            mergeCloudWordLookupCounters(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.WordLookupCounters))
-        }
-        fullSyncLog?.phase(
-            "Merge shelves, vocabulary, sessions, counters",
-            "aliases=+${bookAliasMerge.created}, shelves=+${shelfMerge.created}/~${shelfMerge.updated}, " +
-                "memberships=+${shelfMembershipMerge.created}, vocabulary=+${vocabularyCardMerge.created}/~${vocabularyCardMerge.updated}, " +
-                "sessions=+${readingSessionMerge.created}, wordCounters=${wordLookupCounterMerge.merged}, " +
-                "failed=${listOf(bookAliasMerge, shelfMerge, shelfMembershipMerge, vocabularyCardMerge, readingSessionMerge, wordLookupCounterMerge).anyFailed()}",
-        )
-        val annotationMerge = if (remoteSnapshot == null) {
-            AnnotationMergeSummary()
-        } else {
-            mergeCloudAnnotations(remoteSnapshot.annotationJsons())
-        }
-        fullSyncLog?.phase(
-            "Merge annotations",
-            "annotations=+${annotationMerge.created}/~${annotationMerge.updated}/=${annotationMerge.skipped}/conflicts=${annotationMerge.conflicts}, " +
-                "failed=${annotationMerge.failed}",
-        )
-        val booksBeforeRepair = bookRepository.observeAll().first()
-        val repairedCovers = repairMissingCoversFromLocalFiles(booksBeforeRepair)
-        val localBooks = if (repairedCovers > 0) bookRepository.observeAll().first() else booksBeforeRepair
-        fullSyncLog?.phase("Repair missing covers", "coversRepaired=$repairedCovers")
-        val uploadCandidates = localBooks
-            .filter { book ->
-                book.fileAvailability == BookFileAvailability.LOCAL &&
-                    !book.format.isOffline &&
-                    book.fileAssetId.isNullOrBlank()
+        } finally {
+            val kind = when {
+                mode == GitHubSyncMode.FULL -> SyncKind.FULL
+                launchReadingProgressBookId != null -> SyncKind.LAUNCH_CHECK
+                else -> SyncKind.BACKGROUND
             }
-        val coverUploadCandidates = localBooks
-            .filter { book ->
-                book.fileAvailability == BookFileAvailability.LOCAL &&
-                    book.coverNeedsUpload(storageRoots)
-            }
-
-        updateSyncProgress(
-            showProgress = showProgress,
-            step = GitHubSyncProgressStep.UPLOADING_BOOKS,
-            detail = UiText.Res(
-                R.string.sync_detail_uploading,
-                UiText.Plural(R.plurals.sync_detail_book_count, uploadCandidates.size),
-                UiText.Plural(R.plurals.sync_detail_cover_count, coverUploadCandidates.size),
-            ),
-            completedSteps = 3,
-            progressUpdated = progressMerge.applied,
-            cloudBooksCreated = cloudLibraryMerge.created,
-            cloudBooksUpdated = cloudLibraryMerge.updated,
-            downloadedCovers = cloudLibraryMerge.coversDownloaded,
-        )
-        var uploaded = 0
-        var failed = 0
-        var uploadedCovers = 0
-        uploadCandidates.forEach { book ->
-            val passphrase = syncConfig.passphrase.toCharArray()
-            val result = runCatchingCancellable {
-                try {
-                    cloudBookAssetTransfer.uploadBookFile(book.id, passphrase, store)
-                } finally {
-                    passphrase.fill('\u0000')
-                }
-            }
-            result.onSuccess {
-                uploaded += 1
-            }.onFailure {
-                failed += 1
-            }
-            updateSyncProgress(
-                showProgress = showProgress,
-                step = GitHubSyncProgressStep.UPLOADING_BOOKS,
-                detail = UiText.Res(R.string.sync_detail_uploaded_books, uploaded, uploadCandidates.size),
-                completedSteps = 3,
-                uploadedBooks = uploaded,
-                failedBooks = failed,
-                uploadedCovers = uploadedCovers,
-                progressUpdated = progressMerge.applied,
-                cloudBooksCreated = cloudLibraryMerge.created,
-                cloudBooksUpdated = cloudLibraryMerge.updated,
-                downloadedCovers = cloudLibraryMerge.coversDownloaded,
-            )
+            syncDataUsageLog.record(kind, store.transferStats())
         }
-        coverUploadCandidates.forEach { book ->
-            val passphrase = syncConfig.passphrase.toCharArray()
-            val result = runCatchingCancellable {
-                try {
-                    cloudBookAssetTransfer.uploadCoverImage(book.id, passphrase, store)
-                } finally {
-                    passphrase.fill('\u0000')
-                }
-            }
-            result.onSuccess {
-                uploadedCovers += 1
-            }
-            updateSyncProgress(
-                showProgress = showProgress,
-                step = GitHubSyncProgressStep.UPLOADING_BOOKS,
-                detail = UiText.Res(R.string.sync_detail_uploaded_covers, uploadedCovers, coverUploadCandidates.size),
-                completedSteps = 3,
-                uploadedBooks = uploaded,
-                failedBooks = failed,
-                uploadedCovers = uploadedCovers,
-                progressUpdated = progressMerge.applied,
-                cloudBooksCreated = cloudLibraryMerge.created,
-                cloudBooksUpdated = cloudLibraryMerge.updated,
-                downloadedCovers = cloudLibraryMerge.coversDownloaded,
-            )
-        }
-        updateSyncProgress(
-            showProgress = showProgress,
-            step = GitHubSyncProgressStep.SAVING_SNAPSHOT,
-            detail = UiText.Res(R.string.sync_detail_saving_latest_snapshot),
-            completedSteps = 4,
-            uploadedBooks = uploaded,
-            failedBooks = failed,
-            uploadedCovers = uploadedCovers,
-            progressUpdated = progressMerge.applied,
-            cloudBooksCreated = cloudLibraryMerge.created,
-            cloudBooksUpdated = cloudLibraryMerge.updated,
-            downloadedCovers = cloudLibraryMerge.coversDownloaded,
-        )
-        val snapshotProgress: (PortableSnapshotPublishProgress) -> Unit = { progress ->
-            updateSyncProgress(
-                showProgress = showProgress,
-                step = GitHubSyncProgressStep.SAVING_SNAPSHOT,
-                detail = progress.toSyncProgressDetail(),
-                completedSteps = 4,
-                uploadedBooks = uploaded,
-                failedBooks = failed,
-                uploadedCovers = uploadedCovers,
-                progressUpdated = progressMerge.applied,
-                cloudBooksCreated = cloudLibraryMerge.created,
-                cloudBooksUpdated = cloudLibraryMerge.updated,
-                downloadedCovers = cloudLibraryMerge.coversDownloaded,
-                stepProgress = progress.fraction,
-            )
-        }
-        fullSyncLog?.phase(
-            "Upload books and covers",
-            "books=$uploaded/${uploadCandidates.size}, failedBooks=$failed, covers=$uploadedCovers/${coverUploadCandidates.size}",
-        )
-        val entityMerges = listOf(
-            cloudLibraryMerge, bookAliasMerge, shelfMerge, shelfMembershipMerge,
-            vocabularyCardMerge, readingSessionMerge, wordLookupCounterMerge, annotationMerge,
-        )
-        // A publish exports this device's records: after a failed merge it would replace the cloud copy with one
-        // missing whatever didn't merge. Report the sync failed and leave the cloud as it is.
-        val metadataSave = if (entityMerges.anyFailed()) {
-            SnapshotMetadataSaveResult(synced = false, failureMessage = entityMerges.firstFailureMessage())
-        } else {
-            saveMetadataSnapshotWithRebase(
-                store = store,
-                syncConfig = syncConfig,
-                expectedSha = progressMerge.remoteSnapshotSha,
-                previousSnapshot = progressMerge.remoteSnapshot,
-                conflicts = progressMerge.conflicts,
-                onSnapshotProgress = snapshotProgress,
-            )
-        }
-        fullSyncLog?.phase(
-            "Publish snapshot",
-            "synced=${metadataSave.synced}, rebaseBooks=+${metadataSave.extraBooksCreated}/~${metadataSave.extraBooksUpdated}" +
-                (metadataSave.failureMessage?.let { ", failure=${it.resolve(appContext.resources)}" } ?: ""),
-        )
-        if (metadataSave.synced) deletePendingCloudAssets(store)
-        // A rebase (409-conflict retry) may have pulled and merged additional remote data into the local DB after
-        // the counts above were computed; fold its deltas in so the reported summary reflects what actually synced.
-        val totalBooksCreated = cloudLibraryMerge.created + metadataSave.extraBooksCreated
-        val totalBooksUpdated = cloudLibraryMerge.updated + metadataSave.extraBooksUpdated
-        val totalSkipped = progressMerge.skipped + entityMerges.totalSkipped() + metadataSave.extraSkipped
-        val anyPullFailed = progressMerge.failed || entityMerges.anyFailed() || metadataSave.extraFailed
-        finishSyncProgress(
-            showProgress = showProgress,
-            step = if (metadataSave.synced && failed == 0 && !anyPullFailed) {
-                GitHubSyncProgressStep.COMPLETE
-            } else {
-                GitHubSyncProgressStep.FAILED
-            },
-            detail = if (metadataSave.synced) UiText.Res(R.string.sync_detail_finished) else UiText.Res(R.string.sync_detail_snapshot_save_failed),
-            uploadedBooks = uploaded,
-            failedBooks = failed,
-            uploadedCovers = uploadedCovers,
-            progressUpdated = progressMerge.applied,
-            cloudBooksCreated = totalBooksCreated,
-            cloudBooksUpdated = totalBooksUpdated,
-            downloadedCovers = cloudLibraryMerge.coversDownloaded,
-        )
-        GitHubSyncNowResult.Complete(
-            uploaded = uploaded,
-            failed = failed,
-            progressUpdated = progressMerge.applied,
-            cloudBooksCreated = totalBooksCreated,
-            cloudBooksUpdated = totalBooksUpdated,
-            conflicts = progressMerge.conflictCount + metadataSave.extraConflicts,
-            skipped = totalSkipped,
-            pullFailed = anyPullFailed && !allowInitialSync,
-            metadataSynced = metadataSave.synced,
-            failureMessage = metadataSave.failureMessage ?: entityMerges.firstFailureMessage(),
-            newerRemoteBuild = newerRemoteBuild(progressMerge),
-        )
     }
 
     /** The snapshot's publishing build when it is newer than this app's; noted in the full-sync log either way. */

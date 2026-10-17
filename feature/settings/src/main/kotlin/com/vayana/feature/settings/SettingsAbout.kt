@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Book
 import androidx.compose.material.icons.outlined.BugReport
+import androidx.compose.material.icons.outlined.DataUsage
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.Inventory2
@@ -153,6 +154,7 @@ internal fun HelpAndAboutDetail(
     contentPadding: PaddingValues,
     onHelpClick: () -> Unit,
     onDiagnosticsClick: () -> Unit,
+    onDataUsageClick: () -> Unit,
 ) {
     PagedLazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -191,6 +193,12 @@ internal fun HelpAndAboutDetail(
                                 subtitle = stringResource(R.string.settings_open_diagnostics_subtitle),
                                 icon = Icons.Outlined.BugReport,
                                 onClick = onDiagnosticsClick,
+                            )
+                            SettingsNavigationCard(
+                                title = stringResource(R.string.settings_open_data_usage_title),
+                                subtitle = stringResource(R.string.settings_open_data_usage_subtitle),
+                                icon = Icons.Outlined.DataUsage,
+                                onClick = onDataUsageClick,
                             )
                         }
                     }

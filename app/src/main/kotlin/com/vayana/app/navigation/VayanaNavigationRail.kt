@@ -32,7 +32,8 @@ fun VayanaNavigationRail(
     val currentDestination = navController.currentBackStackEntryAsState().value?.destination
     val settingsSelected = currentDestination?.hasRoute(SettingsRoute::class) == true ||
         currentDestination?.hasRoute(HelpRoute::class) == true ||
-        currentDestination?.hasRoute(DiagnosticsRoute::class) == true
+        currentDestination?.hasRoute(DiagnosticsRoute::class) == true ||
+        currentDestination?.hasRoute(DataUsageRoute::class) == true
     val shelvesSelected = currentDestination?.hasRoute(ShelvesRoute::class) == true ||
         currentDestination?.hasRoute(ShelfDetailRoute::class) == true
     val deletedSelected = currentDestination?.hasRoute(RecentlyDeletedRoute::class) == true

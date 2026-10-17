@@ -49,6 +49,7 @@ import com.vayana.feature.help.HelpRoute as HelpScreenRoute
 import com.vayana.feature.reader.ReaderRoute as ReaderScreenRoute
 import com.vayana.feature.search.SearchRoute as SearchScreenRoute
 import com.vayana.feature.settings.DiagnosticsRoute as DiagnosticsScreenRoute
+import com.vayana.feature.settings.DataUsageRoute as DataUsageScreenRoute
 import com.vayana.feature.settings.SettingsRoute as SettingsScreenRoute
 import com.vayana.feature.statistics.HighlightReviewRoute as HighlightReviewScreenRoute
 import com.vayana.feature.statistics.LearnWordsRoute as LearnWordsScreenRoute
@@ -192,6 +193,7 @@ fun VayanaNavHost(
                 onOpenLibrary = { navController.popBackStack() },
                 onHelpClick = { navController.navigate(HelpRoute) },
                 onDiagnosticsClick = { navController.navigate(DiagnosticsRoute) },
+                onDataUsageClick = { navController.navigate(DataUsageRoute) },
             )
         }
         composable<HelpRoute> {
@@ -199,6 +201,9 @@ fun VayanaNavHost(
         }
         composable<DiagnosticsRoute> {
             DiagnosticsScreenRoute(onBack = { navController.popBackStack() })
+        }
+        composable<DataUsageRoute> {
+            DataUsageScreenRoute(onBack = { navController.popBackStack() })
         }
         composable<SearchRoute> {
             SearchScreenRoute(

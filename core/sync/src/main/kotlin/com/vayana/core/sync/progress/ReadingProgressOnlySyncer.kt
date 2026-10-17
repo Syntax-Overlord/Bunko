@@ -49,6 +49,8 @@ import com.vayana.core.sync.SyncOperationCoordinator
 import com.vayana.core.sync.SyncedBookDeletionApplier
 import com.vayana.core.sync.asset.CloudAssetDeletionProcessor
 import com.vayana.core.sync.asset.deletePendingAndLog
+import com.vayana.core.sync.usage.SyncDataUsageLog
+import com.vayana.core.sync.usage.SyncKind
 
 enum class ReadingProgressSyncStatus {
     /** Neither side had anything new; no network write was made. */
@@ -96,6 +98,7 @@ class ReadingProgressOnlySyncer @Inject constructor(
     private val remoteBookDeletionNotices: RemoteBookDeletionNotices,
     private val syncOperationCoordinator: SyncOperationCoordinator,
     private val syncedSnapshotSliceDao: com.vayana.core.database.dao.SyncedSnapshotSliceDao,
+    private val syncDataUsageLog: SyncDataUsageLog,
 ) {
     private val lastSyncedAtMillis = AtomicLong(0L)
     private val lastAppliedRemoteSha = AtomicReference<String?>(null)
@@ -146,156 +149,160 @@ class ReadingProgressOnlySyncer @Inject constructor(
                     failureMessage = throwable.message,
                 )
             }
-        val localBooks = bookRepository.observeAll().first()
-        val bookSyncIdsByLocalId = localBooks.associate { it.id to it.syncId }
-        val bookFileHashesByLocalId = localBooks.associate { it.id to it.fileHash }
-        val patches = localBooks.map { book ->
-            PortableReadingProgressPatch(
-                fileHash = book.fileHash,
-                lastLocator = book.lastLocator,
-                readingPercent = book.readingPercent,
-                lastReadAt = book.lastReadAt,
-                startedReadingAt = book.startedReadingAt,
-                finishedReadingAt = book.finishedReadingAt,
-                totalReadingSeconds = book.totalReadingSeconds,
-                readNextAddedAt = book.readNextAddedAt,
-                readNextUpdatedAt = book.readNextUpdatedAt,
-                            readNextPinned = book.readNextPinned,
-            )
-        }
-        val readingSessions = readingSessionRepository.observeAll().first()
-            .mapNotNull { it.toPortable(bookSyncIdsByLocalId, bookFileHashesByLocalId) }
-        val wordLookupCounters = wordLookupStatRepository.getAllForSync().map { it.toPortable() }
-        val tombstones = tombstoneDao.getAll()
-            .filter { tombstone -> isSyncedWithReadingProgress(tombstone.entityType) }
-            .map { it.toPortable() }
-        val localFingerprint = listOf(bookSyncIdsByLocalId, bookFileHashesByLocalId, patches, readingSessions, wordLookupCounters, tombstones).hashCode()
-
-        var lastFailure: Throwable? = null
-        repeat(MaxProgressOnlySyncAttempts) {
-            val remoteSnapshot = runCatchingCancellable {
-                // Slices still at the file this device published are neither downloaded nor merged again.
-                store.getLatestPortableSnapshotDocument().also { it.skipAlreadySynced(syncedSnapshotSliceDao.markedSlices()) }
+        try {
+            val localBooks = bookRepository.observeAll().first()
+            val bookSyncIdsByLocalId = localBooks.associate { it.id to it.syncId }
+            val bookFileHashesByLocalId = localBooks.associate { it.id to it.fileHash }
+            val patches = localBooks.map { book ->
+                PortableReadingProgressPatch(
+                    fileHash = book.fileHash,
+                    lastLocator = book.lastLocator,
+                    readingPercent = book.readingPercent,
+                    lastReadAt = book.lastReadAt,
+                    startedReadingAt = book.startedReadingAt,
+                    finishedReadingAt = book.finishedReadingAt,
+                    totalReadingSeconds = book.totalReadingSeconds,
+                    readNextAddedAt = book.readNextAddedAt,
+                    readNextUpdatedAt = book.readNextUpdatedAt,
+                                readNextPinned = book.readNextPinned,
+                )
             }
-                .getOrElse { throwable ->
-                    return@withContext if (throwable.isMissingRemoteSnapshot()) {
+            val readingSessions = readingSessionRepository.observeAll().first()
+                .mapNotNull { it.toPortable(bookSyncIdsByLocalId, bookFileHashesByLocalId) }
+            val wordLookupCounters = wordLookupStatRepository.getAllForSync().map { it.toPortable() }
+            val tombstones = tombstoneDao.getAll()
+                .filter { tombstone -> isSyncedWithReadingProgress(tombstone.entityType) }
+                .map { it.toPortable() }
+            val localFingerprint = listOf(bookSyncIdsByLocalId, bookFileHashesByLocalId, patches, readingSessions, wordLookupCounters, tombstones).hashCode()
+
+            var lastFailure: Throwable? = null
+            repeat(MaxProgressOnlySyncAttempts) {
+                val remoteSnapshot = runCatchingCancellable {
+                    // Slices still at the file this device published are neither downloaded nor merged again.
+                    store.getLatestPortableSnapshotDocument().also { it.skipAlreadySynced(syncedSnapshotSliceDao.markedSlices()) }
+                }
+                    .getOrElse { throwable ->
+                        return@withContext if (throwable.isMissingRemoteSnapshot()) {
+                            ReadingProgressSyncResult(
+                                status = ReadingProgressSyncStatus.CLOUD_MISSING,
+                                failureMessage = throwable.syncFailureMessage(),
+                            )
+                        } else {
+                            ReadingProgressSyncResult(
+                                status = ReadingProgressSyncStatus.FAILED,
+                                failureMessage = throwable.syncFailureMessage(),
+                            )
+                        }
+                    }
+                val booksJson = remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.Books)
+
+                // Remote content is unchanged since the last time we fully processed it: whatever we
+                // would apply locally, we already applied. Skip parsing and merging every book again.
+                // Local imports can make previously unresolvable remote sessions match. Revisit an
+                // unchanged remote snapshot whenever local state changed, or on an explicit retry.
+                val remoteAlreadyApplied = !force && remoteSnapshot.sha == lastAppliedRemoteSha.get() &&
+                    localFingerprint == lastSettledLocalFingerprint.get()
+                // Neither side moved since a run that had nothing to push: patching would only re-derive "no changes"
+                // (and download slices to do it), so stop here.
+                if (remoteAlreadyApplied && localFingerprint == lastSettledLocalFingerprint.get()) {
+                    return@withContext ReadingProgressSyncResult(status = ReadingProgressSyncStatus.NO_CHANGES)
+                }
+                var pulled = 0
+                if (!remoteAlreadyApplied) {
+                    remoteSnapshot.prefetch(
+                        listOf(
+                            RemotePortableSnapshotSlice.Tombstones,
+                            RemotePortableSnapshotSlice.ReadingSessions,
+                            RemotePortableSnapshotSlice.WordLookupCounters,
+                        ),
+                    )?.let { failure ->
+                        return@withContext ReadingProgressSyncResult(
+                            status = ReadingProgressSyncStatus.FAILED,
+                            failureMessage = failure.syncFailureMessage(),
+                        )
+                    }
+                    val parseAttempt = runCatchingCancellable { parsePortableReadingProgressSnapshot(booksJson) }
+                    parseAttempt.onFailure { throwable ->
+                        return@withContext ReadingProgressSyncResult(
+                            status = ReadingProgressSyncStatus.FAILED,
+                            failureMessage = throwable.message,
+                        )
+                    }
+                    pulled = pullRemoteTombstones(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.Tombstones))
+                    val parsedBooks = parseAttempt.getOrThrow()
+                    pulled += pullRemoteProgress(
+                        progresses = parsedBooks.progresses,
+                        syncedDeviceLabel = parsedBooks.deviceLabel,
+                        syncedAt = parsedBooks.exportedAt,
+                    )
+                    pulled += pullRemoteReadNext(parsedBooks.readNextStates)
+                    val sessionPull = runCatchingCancellable {
+                        pullRemoteReadingSessions(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.ReadingSessions),
+                            parsePortableBookFileHashes(booksJson))
+                    }.getOrElse { throwable ->
+                        // Never mark this snapshot applied when its reading history failed to import.
+                        return@withContext ReadingProgressSyncResult(ReadingProgressSyncStatus.FAILED,
+                            pulled = pulled, failureMessage = throwable.syncFailureMessage())
+                    }
+                    pulled += sessionPull
+                    pulled += pullRemoteWordLookupCounters(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.WordLookupCounters))
+                }
+
+                val attempt = runCatchingCancellable {
+                    val pushed = store.pushPortableReadingProgress(
+                        remote = remoteSnapshot,
+                        patches = patches,
+                        exportedAt = System.currentTimeMillis(),
+                        readingSessions = readingSessions,
+                        wordLookupCounters = wordLookupCounters,
+                        tombstones = tombstones,
+                        locallyUnchangedSliceKeys = syncedSnapshotSliceDao.locallyUnchangedSliceKeys(),
+                    ).pushed
+                    if (pushed > 0) {
+                        // The push changed the remote object, so our cached SHA is stale; force the
+                        // next call to re-fetch and re-compare rather than assuming it's unchanged.
+                        lastAppliedRemoteSha.set(null)
                         ReadingProgressSyncResult(
-                            status = ReadingProgressSyncStatus.CLOUD_MISSING,
-                            failureMessage = throwable.syncFailureMessage(),
+                            status = if (pulled > 0) ReadingProgressSyncStatus.SYNCED else ReadingProgressSyncStatus.PUSHED,
+                            pushed = pushed,
+                            pulled = pulled,
+                            detail = "${remoteSnapshot.sliceStats()}, ${store.requestStats()}",
                         )
                     } else {
+                        lastAppliedRemoteSha.set(remoteSnapshot.sha)
+                        // A pull may have just rewritten local rows, so only a pull-free run proves this state settled.
+                        lastSettledLocalFingerprint.set(localFingerprint.takeIf { pulled == 0 })
                         ReadingProgressSyncResult(
-                            status = ReadingProgressSyncStatus.FAILED,
-                            failureMessage = throwable.syncFailureMessage(),
+                            status = if (pulled > 0) ReadingProgressSyncStatus.PULLED else ReadingProgressSyncStatus.NO_CHANGES,
+                            pulled = pulled,
+                            detail = "${remoteSnapshot.sliceStats()}, ${store.requestStats()}",
                         )
                     }
                 }
-            val booksJson = remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.Books)
-
-            // Remote content is unchanged since the last time we fully processed it: whatever we
-            // would apply locally, we already applied. Skip parsing and merging every book again.
-            // Local imports can make previously unresolvable remote sessions match. Revisit an
-            // unchanged remote snapshot whenever local state changed, or on an explicit retry.
-            val remoteAlreadyApplied = !force && remoteSnapshot.sha == lastAppliedRemoteSha.get() &&
-                localFingerprint == lastSettledLocalFingerprint.get()
-            // Neither side moved since a run that had nothing to push: patching would only re-derive "no changes"
-            // (and download slices to do it), so stop here.
-            if (remoteAlreadyApplied && localFingerprint == lastSettledLocalFingerprint.get()) {
-                return@withContext ReadingProgressSyncResult(status = ReadingProgressSyncStatus.NO_CHANGES)
-            }
-            var pulled = 0
-            if (!remoteAlreadyApplied) {
-                remoteSnapshot.prefetch(
-                    listOf(
-                        RemotePortableSnapshotSlice.Tombstones,
-                        RemotePortableSnapshotSlice.ReadingSessions,
-                        RemotePortableSnapshotSlice.WordLookupCounters,
-                    ),
-                )?.let { failure ->
+                attempt.onSuccess { result ->
+                    // Local tombstones, including permanent book deletes, are on the remote now, so their cloud files can go.
+                    runCatchingCancellable {
+                        cloudAssetDeletionProcessor.deletePendingAndLog(store, diagnosticsLogStore, source = "ReadingProgressOnlySyncer")
+                    }
+                    return@withContext result
+                }
+                val throwable = attempt.exceptionOrNull()
+                lastFailure = throwable
+                if (throwable?.isGitHubConflict() != true) {
                     return@withContext ReadingProgressSyncResult(
                         status = ReadingProgressSyncStatus.FAILED,
-                        failureMessage = failure.syncFailureMessage(),
+                        failureMessage = throwable?.syncFailureMessage(),
                     )
                 }
-                val parseAttempt = runCatchingCancellable { parsePortableReadingProgressSnapshot(booksJson) }
-                parseAttempt.onFailure { throwable ->
-                    return@withContext ReadingProgressSyncResult(
-                        status = ReadingProgressSyncStatus.FAILED,
-                        failureMessage = throwable.message,
-                    )
-                }
-                pulled = pullRemoteTombstones(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.Tombstones))
-                val parsedBooks = parseAttempt.getOrThrow()
-                pulled += pullRemoteProgress(
-                    progresses = parsedBooks.progresses,
-                    syncedDeviceLabel = parsedBooks.deviceLabel,
-                    syncedAt = parsedBooks.exportedAt,
-                )
-                pulled += pullRemoteReadNext(parsedBooks.readNextStates)
-                val sessionPull = runCatchingCancellable {
-                    pullRemoteReadingSessions(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.ReadingSessions),
-                        parsePortableBookFileHashes(booksJson))
-                }.getOrElse { throwable ->
-                    // Never mark this snapshot applied when its reading history failed to import.
-                    return@withContext ReadingProgressSyncResult(ReadingProgressSyncStatus.FAILED,
-                        pulled = pulled, failureMessage = throwable.syncFailureMessage())
-                }
-                pulled += sessionPull
-                pulled += pullRemoteWordLookupCounters(remoteSnapshot.jsonFor(RemotePortableSnapshotSlice.WordLookupCounters))
             }
 
-            val attempt = runCatchingCancellable {
-                val pushed = store.pushPortableReadingProgress(
-                    remote = remoteSnapshot,
-                    patches = patches,
-                    exportedAt = System.currentTimeMillis(),
-                    readingSessions = readingSessions,
-                    wordLookupCounters = wordLookupCounters,
-                    tombstones = tombstones,
-                    locallyUnchangedSliceKeys = syncedSnapshotSliceDao.locallyUnchangedSliceKeys(),
-                ).pushed
-                if (pushed > 0) {
-                    // The push changed the remote object, so our cached SHA is stale; force the
-                    // next call to re-fetch and re-compare rather than assuming it's unchanged.
-                    lastAppliedRemoteSha.set(null)
-                    ReadingProgressSyncResult(
-                        status = if (pulled > 0) ReadingProgressSyncStatus.SYNCED else ReadingProgressSyncStatus.PUSHED,
-                        pushed = pushed,
-                        pulled = pulled,
-                        detail = "${remoteSnapshot.sliceStats()}, ${store.requestStats()}",
-                    )
-                } else {
-                    lastAppliedRemoteSha.set(remoteSnapshot.sha)
-                    // A pull may have just rewritten local rows, so only a pull-free run proves this state settled.
-                    lastSettledLocalFingerprint.set(localFingerprint.takeIf { pulled == 0 })
-                    ReadingProgressSyncResult(
-                        status = if (pulled > 0) ReadingProgressSyncStatus.PULLED else ReadingProgressSyncStatus.NO_CHANGES,
-                        pulled = pulled,
-                        detail = "${remoteSnapshot.sliceStats()}, ${store.requestStats()}",
-                    )
-                }
-            }
-            attempt.onSuccess { result ->
-                // Local tombstones, including permanent book deletes, are on the remote now, so their cloud files can go.
-                runCatchingCancellable {
-                    cloudAssetDeletionProcessor.deletePendingAndLog(store, diagnosticsLogStore, source = "ReadingProgressOnlySyncer")
-                }
-                return@withContext result
-            }
-            val throwable = attempt.exceptionOrNull()
-            lastFailure = throwable
-            if (throwable?.isGitHubConflict() != true) {
-                return@withContext ReadingProgressSyncResult(
-                    status = ReadingProgressSyncStatus.FAILED,
-                    failureMessage = throwable?.syncFailureMessage(),
-                )
-            }
+            ReadingProgressSyncResult(
+                status = ReadingProgressSyncStatus.FAILED,
+                failureMessage = lastFailure?.syncFailureMessage(),
+            )
+        } finally {
+            syncDataUsageLog.record(SyncKind.BACKGROUND, store.transferStats())
         }
-
-        ReadingProgressSyncResult(
-            status = ReadingProgressSyncStatus.FAILED,
-            failureMessage = lastFailure?.syncFailureMessage(),
-        )
     }
 
     /** Applies each book independently so one bad or unexpectedly-failing row doesn't block the rest. */

@@ -1,5 +1,6 @@
 package com.vayana.core.sync.asset
 
+import com.vayana.core.sync.usage.GitHubTransferStats
 import java.io.IOException
 import java.io.File
 import java.io.FilterOutputStream
@@ -49,8 +50,10 @@ class GitHubContentsAssetStore(
     private val bytesDown = java.util.concurrent.atomic.AtomicLong()
     private val bytesUp = java.util.concurrent.atomic.AtomicLong()
 
-    /** GitHub calls made through this store and their payload bytes, for sync diagnostics. */
-    fun requestStats(): String = "githubRequests=${requestCount.get()}, downBytes=${bytesDown.get()}, upBytes=${bytesUp.get()}"
+    /** GitHub calls made through this store and their payload bytes, for sync diagnostics and the data usage screen. */
+    fun transferStats(): GitHubTransferStats = GitHubTransferStats(requestCount.get(), bytesDown.get(), bytesUp.get())
+
+    fun requestStats(): String = transferStats().let { "githubRequests=${it.requests}, downBytes=${it.downBytes}, upBytes=${it.upBytes}" }
 
     private fun execute(request: GitHubHttpRequest): GitHubHttpResponse {
         // Every Contents API write (asset uploads, cloud file deletes) is a commit of its own: the branch head is no
