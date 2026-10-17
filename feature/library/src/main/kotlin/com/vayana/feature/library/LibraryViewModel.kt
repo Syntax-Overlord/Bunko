@@ -76,6 +76,7 @@ import com.vayana.core.database.repository.BookRepository
 import com.vayana.core.database.repository.bookSyncIdOfReadingProgressReset
 import com.vayana.core.database.repository.CloudBookMergeResult
 import com.vayana.core.database.repository.CloudBookRecord
+import com.vayana.core.database.repository.CloudHomeLibraryOrigin
 import com.vayana.core.database.repository.CloudReadingSessionRecord
 import com.vayana.core.database.repository.CloudShelfMembershipRecord
 import com.vayana.core.database.repository.CloudShelfRecord
@@ -2290,7 +2291,7 @@ class LibraryViewModel @Inject constructor(
         var lastFailure: Throwable? = null
         repeat(MaxProgressOnlyPushAttempts) { attemptIndex ->
             val attempt = runCatchingCancellable {
-                val localBooks = bookRepository.observeAll().first().filterNot { it.isHomeLibrary }
+                val localBooks = bookRepository.observeAll().first()
                 val bookSyncIdsByLocalId = localBooks.associate { it.id to it.syncId }
                 val bookFileHashesByLocalId = localBooks.associate { it.id to it.fileHash }
                 val progressTombstones = tombstoneDao.getAll()
@@ -3175,6 +3176,7 @@ private fun PortableCloudBook.toRecord(): CloudBookRecord? {
         physicalOwnership = physicalOwnership,
         borrowReturnAt = borrowReturnAt,
         gutenbergId = gutenbergId,
+        homeLibrary = homeLibrary?.let { CloudHomeLibraryOrigin(it.syncUuid, it.sourceUpdatedAt, it.sourceHasCover, it.sourceMetadata) },
     )
 }
 

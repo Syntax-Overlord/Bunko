@@ -546,6 +546,11 @@ private fun PortableBook.toJson(): JSONObject =
         .putOptional("physicalOwnership", physicalOwnership)
         .putOptional("borrowReturnAt", borrowReturnAt)
         .putOptional("gutenbergId", gutenbergId)
+        .putOptional("source", source)
+        .putOptional("syncUuid", syncUuid)
+        .putOptional("sourceUpdatedAt", sourceUpdatedAt)
+        .apply { if (sourceHasCover) put("sourceHasCover", true) }
+        .putOptional("sourceMetadata", sourceMetadata)
 
 private fun PortableAsset.toJson(): JSONObject =
     JSONObject()

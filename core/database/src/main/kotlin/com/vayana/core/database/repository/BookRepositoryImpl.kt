@@ -14,6 +14,7 @@ import com.vayana.core.database.search.ftsSearchMatch
 import com.vayana.core.database.model.Book
 import com.vayana.core.database.model.BookFileAvailability
 import com.vayana.core.database.model.BookFormat
+import com.vayana.core.database.model.BookSource
 import com.vayana.core.database.model.OfflinePages
 import com.vayana.core.database.model.PhysicalBookOwnership
 import com.vayana.core.database.model.normalizeBorrowReturnAt
@@ -792,23 +793,32 @@ class BookRepositoryImpl @Inject constructor(
                 existing.fileAvailability == BookFileAvailability.UPLOAD_PENDING.name
             ) {
                 val shouldApplyRemoteMetadata = record.updatedAt > existing.updatedAt
+                // Home Library owns a mirrored book's catalog: only a newer copy of it (by Home Library's own
+                // stamp) replaces this one, however recently the other device read the book.
+                val homeLibraryBook = existing.source == BookSource.HOME_LIBRARY || record.homeLibrary != null
+                val applyRemoteCatalog = if (homeLibraryBook) record.hasNewerHomeLibraryCatalogThan(existing) else shouldApplyRemoteMetadata
                 val readNext = existing.readNextState().mergedWith(record.readNextState())
                 val applyRemoteOfflineReading = shouldApplyRemoteMetadata &&
                     record.format.isOffline && BookFormat.valueOf(existing.format).isOffline
-                val base = if (applyRemoteOfflineReading) existing.withOfflineReadingFrom(record) else existing
+                val reading = if (applyRemoteOfflineReading) existing.withOfflineReadingFrom(record) else existing
+                val base = if (homeLibraryBook) {
+                    if (applyRemoteCatalog) reading.withHomeLibraryCatalogFrom(record) else reading.copy(format = existing.format)
+                } else {
+                    reading
+                }
                 val merged = base.copy(
-                    title = if (shouldApplyRemoteMetadata) record.title else existing.title,
-                    author = if (shouldApplyRemoteMetadata) record.author else existing.author,
-                    series = if (shouldApplyRemoteMetadata) record.series else existing.series,
+                    title = if (applyRemoteCatalog) record.title else existing.title,
+                    author = if (applyRemoteCatalog) record.author else existing.author,
+                    series = if (applyRemoteCatalog) record.series else existing.series,
                     seriesNumber = if (shouldApplyRemoteMetadata) record.seriesNumber else existing.seriesNumber,
                     description = if (shouldApplyRemoteMetadata) record.description else existing.description,
-                    tagsCsv = if (shouldApplyRemoteMetadata) record.tagsCsv.normalizedBookTagsCsv() else existing.tagsCsv,
-                    rating = if (shouldApplyRemoteMetadata) record.rating.coerceIn(0f, 5f) else existing.rating,
+                    tagsCsv = if (applyRemoteCatalog) record.tagsCsv.normalizedBookTagsCsv() else existing.tagsCsv,
+                    rating = if (applyRemoteCatalog) record.rating.coerceIn(0f, 5f) else existing.rating,
                     fileAssetId = if (applyRemoteFile) record.assetId else existing.fileAssetId,
                     fileAssetSha256 = if (applyRemoteFile) record.assetSha256 else existing.fileAssetSha256,
                     fileAssetSizeBytes = if (applyRemoteFile) record.assetSizeBytes else existing.fileAssetSizeBytes,
                     fileAssetUploadedAt = if (applyRemoteFile) record.assetUploadedAt else existing.fileAssetUploadedAt,
-                    fileHash = if (sourceChanged) record.fileHash else existing.fileHash,
+                    fileHash = if (sourceChanged) record.fileHash else base.fileHash,
                     format = if (sourceChanged) record.format.name else base.format,
                     filePath = if (sourceChanged) "" else existing.filePath,
                     fileAvailability = if (sourceChanged) BookFileAvailability.CLOUD_ONLY.name else existing.fileAvailability,
@@ -822,7 +832,7 @@ class BookRepositoryImpl @Inject constructor(
                     goodreadsUrl = existing.goodreadsUrl.mergeRemoteOptional(record.goodreadsUrl, shouldApplyRemoteMetadata),
                     goodreadsRating = existing.goodreadsRating.mergeRemoteOptional(record.goodreadsRating, shouldApplyRemoteMetadata),
                     goodreadsRatingsCount = existing.goodreadsRatingsCount.mergeRemoteOptional(record.goodreadsRatingsCount, shouldApplyRemoteMetadata),
-                    originalPublicationYear = existing.originalPublicationYear.mergeRemoteOptional(record.originalPublicationYear, shouldApplyRemoteMetadata),
+                    originalPublicationYear = existing.originalPublicationYear.mergeRemoteOptional(record.originalPublicationYear, applyRemoteCatalog),
                     gutenbergId = existing.gutenbergId ?: record.gutenbergId,
                     readNextAddedAt = readNext.addedAt,
                     readNextUpdatedAt = readNext.updatedAt,
@@ -1046,7 +1056,40 @@ private fun CloudBookRecord.toCloudOnlyEntity(id: Long, coverPath: String?): Boo
         borrowReturnAt = normalizeBorrowReturnAt(borrowReturnAt)
             .takeIf { format == BookFormat.PHYSICAL && physicalOwnership == PhysicalBookOwnership.BORROWED },
         gutenbergId = gutenbergId,
+        syncUuid = homeLibrary?.syncUuid,
+        source = homeLibrary?.let { BookSource.HOME_LIBRARY },
+        sourceUpdatedAt = homeLibrary?.sourceUpdatedAt,
+        sourceHasCover = homeLibrary?.sourceHasCover ?: false,
+        sourceMetadata = homeLibrary?.sourceMetadata,
     )
+
+/**
+ * Whether [this] record carries a newer Home Library catalog than [existing]. A row without provenance (synced by an
+ * older app version) takes any copy that has it; a record without provenance never overrides a mirrored row.
+ */
+private fun CloudBookRecord.hasNewerHomeLibraryCatalogThan(existing: BookEntity): Boolean {
+    val origin = homeLibrary ?: return false
+    if (existing.source != BookSource.HOME_LIBRARY) return true
+    return (origin.sourceUpdatedAt ?: 0L) > (existing.sourceUpdatedAt ?: 0L)
+}
+
+/** Home Library's catalog fields and provenance from [record]; everything Vayana tracks itself stays. */
+private fun BookEntity.withHomeLibraryCatalogFrom(record: CloudBookRecord): BookEntity {
+    val origin = record.homeLibrary ?: return this
+    return copy(
+        format = record.format.name,
+        fileHash = record.fileHash,
+        pageEstimate = record.pageEstimate,
+        physicalOwnership = physicalOwnership.takeIf { record.format == BookFormat.PHYSICAL }
+            ?: PhysicalBookOwnership.OWNED.name.takeIf { record.format == BookFormat.PHYSICAL },
+        borrowReturnAt = borrowReturnAt.takeIf { record.format == BookFormat.PHYSICAL },
+        syncUuid = origin.syncUuid,
+        source = BookSource.HOME_LIBRARY,
+        sourceUpdatedAt = origin.sourceUpdatedAt,
+        sourceHasCover = origin.sourceHasCover,
+        sourceMetadata = origin.sourceMetadata,
+    )
+}
 
 private fun CloudBookRecord.hasCoverAsset(): Boolean =
     coverAssetId != null &&

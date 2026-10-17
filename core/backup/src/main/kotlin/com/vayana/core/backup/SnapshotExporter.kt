@@ -138,6 +138,11 @@ class SnapshotExporter @Inject constructor(
         physicalOwnership = physicalOwnership,
         borrowReturnAt = normalizeBorrowReturnAt(borrowReturnAt),
         gutenbergId = gutenbergId,
+        source = source,
+        syncUuid = syncUuid,
+        sourceUpdatedAt = sourceUpdatedAt,
+        sourceHasCover = sourceHasCover,
+        sourceMetadata = sourceMetadata,
     )
 
     private fun AnnotationEntity.toPortable(bookSyncIdsByLocalId: Map<Long, String>): PortableAnnotation? {

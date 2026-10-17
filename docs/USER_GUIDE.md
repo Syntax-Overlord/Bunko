@@ -156,6 +156,8 @@ If the developer's Home Library app is installed on the same device and sharing 
 - Enable **Sync with Home Library** in Settings.
 - Mirrored catalog fields are read-only; Home Library remains the owner of that data.
 - Vayana keeps its own reading progress, dates, Read Next state, notes, and statistics.
+- With [GitHub sync](#github-sync), these books and their reading progress and time also reach your other devices,
+  even ones without Home Library. There they stay read-only, and a book removed from Home Library stays on them.
 - Shelf location and shared metadata appear in search and Book details.
 - **View in Home Library** returns to the source record.
 

@@ -130,7 +130,7 @@ private fun HomeBookRow.toNewEntity(): BookEntity {
     val format = homeLibraryFormat(formatCode)
     val now = System.currentTimeMillis()
     return BookEntity(
-        syncId = "homelibrary-$syncUuid",
+        syncId = BookSource.homeLibrarySyncId(syncUuid),
         title = displayTitle(),
         author = displayAuthors(),
         series = seriesName,

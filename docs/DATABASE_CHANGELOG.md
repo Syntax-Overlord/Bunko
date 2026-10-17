@@ -2,6 +2,12 @@
 
 Every bump to `DATABASE_VERSION` (`core/database/.../VayanaDatabase.kt`) gets an entry here and a real Room `Migration`.
 
+## Version 38
+
+No table changes. Books mirrored from Home Library (`books.source = 'home_library'`) now sync to other devices, so
+the `full_sync_books_*` triggers (`FullSyncChangeTracker`) and the `slice_version_books_insert`/`_delete` triggers
+(`SyncSliceVersions`) no longer skip them. Migration 37→38 drops and recreates both trigger sets.
+
 ## Version 37
 
 Adds `sync_slice_versions` (`sliceKey` primary key, `version`): a change counter per snapshot slice, seeded at 0 and

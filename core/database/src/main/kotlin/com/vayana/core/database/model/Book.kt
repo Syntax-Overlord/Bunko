@@ -139,4 +139,7 @@ data class Book(
 /** Owners of mirrored books (`books.source`). */
 object BookSource {
     const val HOME_LIBRARY = "home_library"
+
+    /** A mirrored book's sync id: derived from Home Library's uuid, so every device mirrors the same book as one. */
+    fun homeLibrarySyncId(syncUuid: String): String = "homelibrary-$syncUuid"
 }

@@ -8,7 +8,6 @@ import com.vayana.core.database.MIGRATION_29_30
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import org.junit.runner.RunWith
@@ -56,22 +55,6 @@ class Migration29To30Test {
     }
 
     @Test
-    fun mirroredBooksNeverRecommendAFullSyncButOwnBooksStillDo() {
-        val connection = upgradedConnection()
-
-        connection.execSQL("INSERT INTO books (id, title, syncUuid, source) VALUES (5, 'Mirrored', 'u5', 'home_library')")
-        connection.execSQL("UPDATE books SET title = 'Retitled' WHERE id = 5")
-        assertFalse(connection.fullSyncRequired())
-
-        connection.execSQL("INSERT INTO books (id, title) VALUES (6, 'Own')")
-        assertTrue(connection.fullSyncRequired())
-
-        connection.clearFullSyncRecommendation()
-        connection.execSQL("UPDATE books SET title = 'Own, edited' WHERE id = 6")
-        assertTrue(connection.fullSyncRequired())
-    }
-
-    @Test
     fun neverSetSourceStaysNullForOwnRows() {
         val connection = upgradedConnection()
         connection.execSQL("INSERT INTO books (id, title) VALUES (7, 'Own')")
@@ -80,13 +63,6 @@ class Migration29To30Test {
             assertTrue(statement.step())
             assertNull(statement.getTextOrNull(0))
         }
-    }
-
-    private fun SQLiteConnection.fullSyncRequired(): Boolean = prepare(
-        "SELECT EXISTS(SELECT 1 FROM full_sync_state WHERE id = 0 AND required = 1)",
-    ).use { statement ->
-        statement.step()
-        statement.getLong(0) == 1L
     }
 
     private fun SQLiteConnection.clearFullSyncRecommendation() {

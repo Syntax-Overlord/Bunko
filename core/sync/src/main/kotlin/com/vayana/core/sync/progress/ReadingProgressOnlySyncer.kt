@@ -146,7 +146,7 @@ class ReadingProgressOnlySyncer @Inject constructor(
                     failureMessage = throwable.message,
                 )
             }
-        val localBooks = bookRepository.observeAll().first().filterNot { it.isHomeLibrary }
+        val localBooks = bookRepository.observeAll().first()
         val bookSyncIdsByLocalId = localBooks.associate { it.id to it.syncId }
         val bookFileHashesByLocalId = localBooks.associate { it.id to it.fileHash }
         val patches = localBooks.map { book ->

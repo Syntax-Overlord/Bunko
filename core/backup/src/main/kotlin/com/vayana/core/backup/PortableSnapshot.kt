@@ -78,6 +78,12 @@ data class PortableBook(
     val readingDisposition: String = "ACTIVE",
     val dispositionReason: String? = null,
     val dispositionUpdatedAt: Long? = null,
+    /** Home Library mirror provenance: Home Library owns these books' catalog fields (see BookSource). */
+    val source: String? = null,
+    val syncUuid: String? = null,
+    val sourceUpdatedAt: Long? = null,
+    val sourceHasCover: Boolean = false,
+    val sourceMetadata: String? = null,
 )
 
 data class PortableAsset(

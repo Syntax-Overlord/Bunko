@@ -159,19 +159,16 @@ class RoomHomeLibraryStoreTest {
     }
 
     @Test
-    fun mirroredBooksStayOutOfTheGitHubSnapshotAndTheFullSyncFlag() = runBlocking<Unit> {
+    fun mirroredBooksReachTheGitHubSnapshotAndRecommendAFullSync() = runBlocking<Unit> {
         val before = database.fullSyncStateDao().observeRequired().first()
 
         store.apply(changes(row("u1")))
-        store.apply(changes(row("u1", updatedAt = 300, title = "Changed")))
 
         assertEquals(false, before)
-        assertEquals(false, database.fullSyncStateDao().observeRequired().first())
-        assertTrue(database.bookDao().getAllForSync().isEmpty())
-
-        database.bookDao().insert(ownEpub())
         assertEquals(true, database.fullSyncStateDao().observeRequired().first())
-        assertEquals(listOf("My EPUB"), database.bookDao().getAllForSync().map { it.title })
+        val synced = database.bookDao().getAllForSync().single()
+        assertEquals(BookSource.homeLibrarySyncId("u1"), synced.syncId)
+        assertEquals("u1", synced.syncUuid)
     }
 
     @Test

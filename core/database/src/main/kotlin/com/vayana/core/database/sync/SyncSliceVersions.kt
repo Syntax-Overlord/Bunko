@@ -52,9 +52,8 @@ object SyncSliceVersions {
                     bump(listOf(Annotations), "NOT (${isQuote("OLD")} AND ${isQuote("NEW")})"),
             ),
         )
-        // Home Library mirrors are rewritten by their own sync and never exported.
-        add(trigger("books", "insert", bump(BookDependents), "NEW.`source` IS NOT 'home_library'"))
-        add(trigger("books", "delete", bump(BookDependents), "OLD.`source` IS NOT 'home_library'"))
+        add(trigger("books", "insert", bump(BookDependents)))
+        add(trigger("books", "delete", bump(BookDependents)))
         add(
             trigger(
                 "books", "update", bump(BookDependents),

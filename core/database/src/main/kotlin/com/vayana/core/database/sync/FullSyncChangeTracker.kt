@@ -31,16 +31,12 @@ object FullSyncChangeTracker {
         "customCoverPath", "goodreadsCoverPath", "physicalOwnership", "borrowReturnAt", "gutenbergId",
     ).joinToString(" OR ") { column -> "OLD.`$column` IS NOT NEW.`$column`" }
 
-    // Rows mirrored from Home Library (`books.source`, added in version 30) are rewritten by its sync and excluded from
-    // the snapshot: they must not recommend a full sync. Migrations that run before that column exists build the
-    // triggers without the condition, because SQLite resolves a trigger's columns when it fires.
-    private fun triggers(skipMirroredBooks: Boolean, hasDisposition: Boolean): List<String> {
-        val ownBook = if (skipMirroredBooks) "NEW.`source` IS NOT 'home_library'" else null
-        val bookInsertCondition = ownBook?.let { " WHEN $it" }.orEmpty()
+    // Rows mirrored from Home Library sync too (since version 38), so their catalog updates recommend a full sync.
+    private fun triggers(hasDisposition: Boolean): List<String> {
         val changes = if (hasDisposition) "$BookMetadataChanged OR OLD.`readingDisposition` IS NOT NEW.`readingDisposition` OR OLD.`dispositionReason` IS NOT NEW.`dispositionReason` OR OLD.`dispositionUpdatedAt` IS NOT NEW.`dispositionUpdatedAt`" else BookMetadataChanged
-        val bookUpdateCondition = " WHEN " + listOfNotNull(ownBook, "($changes)").joinToString(" AND ")
+        val bookUpdateCondition = " WHEN ($changes)"
         return listOf(
-            "CREATE TRIGGER IF NOT EXISTS `full_sync_books_insert` AFTER INSERT ON `books`$bookInsertCondition " +
+            "CREATE TRIGGER IF NOT EXISTS `full_sync_books_insert` AFTER INSERT ON `books` " +
                 "BEGIN $MarkRequired END",
             "CREATE TRIGGER IF NOT EXISTS `full_sync_books_metadata_update` AFTER UPDATE ON `books`$bookUpdateCondition " +
                 "BEGIN $MarkRequired END",
@@ -62,20 +58,19 @@ object FullSyncChangeTracker {
         trackedTableTrigger("vocabulary_cards", "delete"),
     )
 
-    /** Pass `skipMirroredBooks = false` only from a migration to a version before `books.source` exists. */
-    fun create(connection: SQLiteConnection, skipMirroredBooks: Boolean = true) {
+    fun create(connection: SQLiteConnection) {
         connection.execSQL(CreateTable)
         val hasDisposition = connection.prepare("PRAGMA table_info(`books`)").use { statement ->
             var present = false
             while (statement.step()) if (statement.getText(1) == "readingDisposition") present = true
             present
         }
-        triggers(skipMirroredBooks, hasDisposition).forEach(connection::execSQL)
+        triggers(hasDisposition).forEach(connection::execSQL)
     }
 
-    fun recreate(connection: SQLiteConnection, skipMirroredBooks: Boolean = true) {
+    fun recreate(connection: SQLiteConnection) {
         triggerNames.forEach { name -> connection.execSQL("DROP TRIGGER IF EXISTS `$name`") }
-        create(connection, skipMirroredBooks)
+        create(connection)
     }
 
     private val triggerNames = buildList {

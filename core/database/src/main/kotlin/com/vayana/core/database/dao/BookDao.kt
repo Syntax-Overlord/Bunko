@@ -293,8 +293,8 @@ interface BookDao {
     )
     fun observeSearchIds(match: String, limit: Int, bookId: Long? = null, shelfId: Long? = null): Flow<List<Long>>
 
-    /** Vayana's own books; rows mirrored from Home Library are rebuilt from it and never enter a snapshot. */
-    @Query("SELECT * FROM books WHERE source IS NOT 'home_library' ORDER BY syncId ASC")
+    /** Every book, Home Library mirrors included: their reading data must reach devices without Home Library. */
+    @Query("SELECT * FROM books ORDER BY syncId ASC")
     suspend fun getAllForSync(): List<BookEntity>
 
     @Query("SELECT * FROM books WHERE source = 'home_library'")

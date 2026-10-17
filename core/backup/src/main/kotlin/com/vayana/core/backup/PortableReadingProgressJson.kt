@@ -1,6 +1,7 @@
 package com.vayana.core.backup
 
 import com.vayana.core.database.model.BookFormat
+import com.vayana.core.database.model.BookSource
 import com.vayana.core.database.model.PhysicalBookOwnership
 import org.json.JSONArray
 import org.json.JSONObject
@@ -74,6 +75,16 @@ data class PortableCloudBook(
     val readingDisposition: String = "ACTIVE",
     val dispositionReason: String? = null,
     val dispositionUpdatedAt: Long? = null,
+    /** Set only for a book mirrored from Home Library; see [PortableHomeLibraryOrigin]. */
+    val homeLibrary: PortableHomeLibraryOrigin? = null,
+)
+
+/** Where a Home Library book's catalog came from, so each device keeps the newest copy of what Home Library owns. */
+data class PortableHomeLibraryOrigin(
+    val syncUuid: String,
+    val sourceUpdatedAt: Long?,
+    val sourceHasCover: Boolean,
+    val sourceMetadata: String?,
 )
 
 data class PortableReadingProgressPatch(
@@ -404,10 +415,27 @@ fun parsePortableCloudBooks(jsonText: String): List<PortableCloudBook> {
                     borrowReturnAt = book.optPositiveLongOrNull("borrowReturnAt")
                         .takeIf { format.equals(BookFormat.PHYSICAL.name, ignoreCase = true) },
                     gutenbergId = book.optPositiveLongOrNull("gutenbergId"),
+                    homeLibrary = book.optHomeLibraryOrigin(syncId, format),
                 ),
             )
         }
     }
+}
+
+/**
+ * Trusted only when consistent: a book read outside the app, whose sync id is the one the Home Library mirror itself
+ * derives from the uuid. Anything else syncs as an ordinary book, so a stray uuid can never claim another mirrored row.
+ */
+private fun JSONObject.optHomeLibraryOrigin(syncId: String, format: String): PortableHomeLibraryOrigin? {
+    if (optString("source") != BookSource.HOME_LIBRARY || !format.isOfflineBookFormat()) return null
+    val syncUuid = optBoundedString("syncUuid", MaxSyncIdChars) ?: return null
+    if (syncId != BookSource.homeLibrarySyncId(syncUuid)) return null
+    return PortableHomeLibraryOrigin(
+        syncUuid = syncUuid,
+        sourceUpdatedAt = optPositiveLongOrNull("sourceUpdatedAt"),
+        sourceHasCover = optBoolean("sourceHasCover", false),
+        sourceMetadata = optBoundedString("sourceMetadata", MaxDescriptionChars),
+    )
 }
 
 private fun String.isOfflineBookFormat(): Boolean =

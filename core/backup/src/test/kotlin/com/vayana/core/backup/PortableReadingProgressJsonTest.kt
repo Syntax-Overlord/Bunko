@@ -21,6 +21,23 @@ class PortableReadingProgressJsonTest {
         assertEquals(logs, parsePortableReadingSessions(patched.jsonText))
     }
 
+    @Test fun homeLibraryProvenanceRoundTripsAndIsTrustedOnlyWhenConsistent() {
+        val mirrored = testPortableSnapshot().books.single().copy(
+            syncId = "homelibrary-u1", format = "PHYSICAL", fileHash = "physical:u1", source = "home_library",
+            syncUuid = "u1", sourceUpdatedAt = 400, sourceHasCover = true, sourceMetadata = """{"shelf":"A"}""",
+        )
+        fun parsed(book: PortableBook) = parsePortableCloudBooks(
+            testPortableSnapshot().copy(books = listOf(book)).toJsonString(),
+        ).single().homeLibrary
+
+        assertEquals(PortableHomeLibraryOrigin("u1", 400, true, """{"shelf":"A"}"""), parsed(mirrored))
+        // A uuid that doesn't match the sync id, or a book with a file, is just an ordinary book.
+        assertEquals(null, parsed(mirrored.copy(syncId = "homelibrary-other")))
+        assertEquals(null, parsed(mirrored.copy(format = "EPUB", fileAsset = PortableAsset("a", "physical:u1", 1, 1))))
+        assertEquals(null, parsed(mirrored.copy(source = "elsewhere")))
+        assertEquals(null, parsed(mirrored.copy(source = null, syncUuid = null)))
+    }
+
     @Test fun dispositionPinsAndReviewQuestionsRemainPortable() {
         val json = """{"books":[{"syncId":"book","title":"Paper","format":"PHYSICAL","fileHash":"hash","updatedAt":300,"readNextAddedAt":100,"readNextUpdatedAt":200,"readNextPinned":true,"readingDisposition":"DNF","dispositionReason":"Stopped","dispositionUpdatedAt":250}],"annotations":[{"syncId":"note","bookSyncId":"book","type":"HIGHLIGHT","colorKey":"yellow","locator":"page:1","selectedText":"Answer","createdAt":100,"updatedAt":200,"reviewQuestion":"Question?"}]}"""
         val book = parsePortableCloudBooks(json).single()

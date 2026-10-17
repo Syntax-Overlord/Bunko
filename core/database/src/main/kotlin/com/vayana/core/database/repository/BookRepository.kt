@@ -93,6 +93,16 @@ data class CloudBookRecord(
     val readingDisposition: String = "ACTIVE",
     val dispositionReason: String? = null,
     val dispositionUpdatedAt: Long? = null,
+    /** Set for a book mirrored from Home Library on some device: Home Library owns its catalog fields. */
+    val homeLibrary: CloudHomeLibraryOrigin? = null,
+)
+
+/** A Home Library book's provenance; [sourceUpdatedAt] versions the catalog fields Home Library owns. */
+data class CloudHomeLibraryOrigin(
+    val syncUuid: String,
+    val sourceUpdatedAt: Long?,
+    val sourceHasCover: Boolean,
+    val sourceMetadata: String?,
 )
 
 enum class CloudBookMergeResult {

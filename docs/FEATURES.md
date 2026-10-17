@@ -292,8 +292,14 @@ Offline books. Home Library owns the data; Vayana never writes to it.
   `homelibrary-<uuid>-<updated_at>.<ext>`; a changed `updated_at` fetches a new file and removes the old one.
 - **Not connected:** not installed, `SecurityException` or an unknown provider stops syncing quietly; Settings (and Offline
   books, once it holds mirrored books) says "Home Library not connected".
-- **Kept out of GitHub sync:** mirrored rows are excluded from the snapshot (`BookDao.getAllForSync`) and from the full-sync
-  change triggers, so they never recommend a full sync or reach other devices.
+- **GitHub sync (since DB v38):** mirrored books sync like any offline book, so a device without Home Library gets
+  them with their reading sessions, progress, dates and time taken. A snapshot book carries its provenance
+  (`source`, `syncUuid`, `sourceUpdatedAt`, `sourceHasCover`, `sourceMetadata`); it is trusted only when the sync id is
+  `BookSource.homeLibrarySyncId(syncUuid)`. On merge, Home Library's catalog fields (title, author, series, tags,
+  rating, format, page count, publication year, provenance) come from the remote copy only when its `sourceUpdatedAt`
+  is newer, so reading on another device never puts back an older catalog; reading data merges as for other offline
+  books. On a device without Home Library the book is read-only and Offline books says "Home Library not connected".
+  Deletions don't propagate: a book Home Library removes leaves the mirroring device only.
 
 **Tests:** `core/homelibrary/.../HomeLibrarySyncEngineTest.kt` (fake provider), `RoomHomeLibraryStoreTest.kt` (real Room,
 rollback), `HomeLibraryProviderTest.kt` (fake ContentProvider, ContentObserver), `feature/library/.../Migration29To30Test.kt`.
