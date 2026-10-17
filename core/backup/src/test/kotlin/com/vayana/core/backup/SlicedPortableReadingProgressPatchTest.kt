@@ -54,6 +54,30 @@ class SlicedPortableReadingProgressPatchTest {
     }
 
     @Test
+    fun aCompactSnapshotGetsPositionsPatchedInItsBooksSlice() {
+        val booksSlice = JSONObject(manifest).let { root -> JSONObject().put("books", root.getJSONArray("books")).toString() }
+        val compactManifest = JSONObject(manifest).apply {
+            remove("books")
+            getJSONObject("slices").put("books", "vayana/snapshot-slices/1000/books.zip")
+        }.toString()
+
+        val result = patchSlicedPortableReadingProgress(
+            manifestJson = compactManifest,
+            sliceJsonByKey = mapOf("books" to booksSlice),
+            patches = listOf(patch(lastReadAt = 2000)),
+            exportedAt = 3000,
+        )
+
+        assertEquals(1, result.patched)
+        val (booksPath, booksJson) = result.sliceWrites.entries.single()
+        assertTrue(booksPath.startsWith("vayana/snapshot-slices/3000/books."))
+        assertEquals("epubcfi(/6/8)", JSONObject(booksJson).getJSONArray("books").getJSONObject(0).getString("lastLocator"))
+        val root = JSONObject(result.manifestJson)
+        assertEquals(false, root.has("books"))
+        assertEquals(booksPath, root.getJSONObject("slices").getString("books"))
+    }
+
+    @Test
     fun nothingNewerLeavesManifestAndSlicesUntouched() {
         val result = patchSlicedPortableReadingProgress(
             manifestJson = manifest,

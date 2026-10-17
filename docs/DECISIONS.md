@@ -171,3 +171,14 @@ fails the build. Deliberately left in English: diagnostics log messages and the 
 the developer), protocol and parsing strings (HTTP headers, Goodreads page parsing, PDF metadata keys, SQL, CSS), the
 WordNet attribution, and the default device name `My Vayana` / committer `Vayana Sync` — the device label becomes the
 sync snapshot path, so translating the default would move a device's snapshot when its language changes.
+
+## Compact sync snapshots, rolled out in two steps
+
+**Readers learn the compact format before any writer uses it.** Every progress push re-uploaded the whole manifest
+(about 240 KB with 100 books, three quarters of it static catalog text such as descriptions) plus the reading-sessions
+slice. Zipping books into their own slice and every other slice cuts a push to roughly a third (books 240 KB → 64 KB).
+Released versions up to 0.92 only accept `.zip` paths for the annotation slices and have no books slice, so a device
+writing the compact format would break their sync. This version reads both (any slice may be `.zip`; a manifest may
+point "books" at a slice, and a progress push patches positions there) while still writing the old format.
+`WriteCompactSnapshotSlices` (core/backup `PortableSnapshotJson.kt`) switches writing over; flip it only once every
+syncing device runs a version that reads the compact format.

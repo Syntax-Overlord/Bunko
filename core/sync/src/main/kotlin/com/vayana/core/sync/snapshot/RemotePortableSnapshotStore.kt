@@ -4,6 +4,7 @@ import com.vayana.core.backup.PortableReadingProgressPatch
 import com.vayana.core.backup.PortableReadingSession
 import com.vayana.core.backup.PortableSnapshot
 import com.vayana.core.backup.PortableSnapshotLatestPath
+import com.vayana.core.backup.isCompressedPortableSnapshotSlice
 import com.vayana.core.backup.PortableTombstone
 import com.vayana.core.backup.PortableWordLookupCounter
 import com.vayana.core.backup.patchPortableReadingProgressOnly
@@ -202,6 +203,10 @@ private suspend fun GitHubContentsAssetStore.getSnapshotSliceCached(path: String
     }
 }
 
+/** A slice file's bytes: zipped when its path says so, which is also how every reader decides to unzip it. */
+internal fun snapshotSliceBytes(path: String, jsonText: String): ByteArray =
+    if (path.endsWith(".zip")) zipSnapshotJson(jsonText) else jsonText.toByteArray(Charsets.UTF_8)
+
 internal fun zipSnapshotJson(json: String): ByteArray {
     val bytes = json.toByteArray(Charsets.UTF_8)
     // Validate expanded size before any publish writes: a small ZIP can otherwise be unreadable by every device.
@@ -343,6 +348,10 @@ suspend fun GitHubContentsAssetStore.pushPortableReadingProgress(
     val tombstonesToPush = unlessHeld(RemotePortableSnapshotSlice.Tombstones, tombstones)
     // Only slices with local data to merge are worth downloading; the rest can't change.
     val neededSlices = buildList {
+        // Positions live in "books": a snapshot in the compact format keeps them in a slice instead of the manifest.
+        if (patches.isNotEmpty() && remote.slicePathOrNull(RemotePortableSnapshotSlice.Books.key) != null) {
+            add(RemotePortableSnapshotSlice.Books)
+        }
         if (sessionsToPush.isNotEmpty()) add(RemotePortableSnapshotSlice.ReadingSessions)
         if (countersToPush.isNotEmpty()) add(RemotePortableSnapshotSlice.WordLookupCounters)
         if (tombstonesToPush.isNotEmpty()) add(RemotePortableSnapshotSlice.Tombstones)
@@ -362,11 +371,12 @@ suspend fun GitHubContentsAssetStore.pushPortableReadingProgress(
     )
     if (result.changed > 0) {
         val manifestBytes = result.manifestJson.toByteArray(Charsets.UTF_8)
-        val changes = result.sliceWrites.map { (path, jsonText) -> SyncDocumentChange(path, jsonText.toByteArray(Charsets.UTF_8)) } +
+        val sliceBytes = result.sliceWrites.mapValues { (path, jsonText) -> snapshotSliceBytes(path, jsonText) }
+        val changes = sliceBytes.map { (path, bytes) -> SyncDocumentChange(path, bytes) } +
             SyncDocumentChange(PortableSnapshotLatestPath, manifestBytes)
         // One commit for the new slices and the pointer to them; per-file writes only for an empty repository.
         if (!commitSyncDocuments(changes, "Sync Vayana reading progress $exportedAt", PortableSnapshotLatestPath, remote.sha)) {
-            result.sliceWrites.forEach { (path, jsonText) -> putNewSyncDocument(path, jsonText.toByteArray(Charsets.UTF_8)) }
+            sliceBytes.forEach { (path, bytes) -> putNewSyncDocument(path, bytes) }
             putSyncDocumentIfUnchanged(PortableSnapshotLatestPath, manifestBytes, remote.sha)
         }
         result.sliceWrites.forEach { (path, jsonText) -> SnapshotSliceCache.put("$cacheScope|$path", jsonText) }
@@ -413,7 +423,6 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
         SnapshotSliceUpload(
             sliceKey = requireNotNull(document.sliceKey),
             path = if (zipped) document.path.removeSuffix(".json") + ".zip" else document.path,
-            zipped = zipped,
             jsonText = document.jsonText,
         )
     }
@@ -454,7 +463,7 @@ suspend fun GitHubContentsAssetStore.putPortableSnapshotDocuments(
     val sliceBytesByPath = LinkedHashMap<String, ByteArray>()
     sliceUploads.forEachIndexed { index, upload ->
         report(PortableSnapshotPublishStage.SNAPSHOT_SLICE, completed = index + 1, path = upload.path)
-        sliceBytesByPath[upload.path] = if (upload.zipped) zipSnapshotJson(upload.jsonText) else upload.jsonText.toByteArray(Charsets.UTF_8)
+        sliceBytesByPath[upload.path] = snapshotSliceBytes(upload.path, upload.jsonText)
     }
     val publishStartedAt = System.nanoTime()
     // Pruning makes room for a new slice directory; a publish that reused every slice added none. Its deletes ride
@@ -553,12 +562,11 @@ private fun sliceExportTimeOrNull(path: String): Long? =
 private data class SnapshotSliceUpload(
     val sliceKey: String,
     val path: String,
-    val zipped: Boolean,
     val jsonText: String,
 )
 
-/** Community quotes are thousands of near-identical records: zipped they shrink several times over. */
-private fun isZippedSlice(key: String): Boolean = key == RemotePortableSnapshotSlice.CommunityQuotes.key
+/** Community quotes always (thousands of near-identical records); every slice in the compact format. */
+private fun isZippedSlice(key: String): Boolean = isCompressedPortableSnapshotSlice(key)
 
 private const val SnapshotSlicesRoot = "vayana/snapshot-slices"
 private const val RetainedSnapshotSliceSets = 3

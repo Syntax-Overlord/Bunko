@@ -1034,6 +1034,23 @@ class PortableReadingProgressJsonTest {
     }
 
     @Test
+    fun compactFormatMovesBooksIntoASliceThatReadersParse() {
+        val documents = testPortableSnapshot().toSlicedJsonDocuments(compact = true)
+        val manifest = documents.last { it.path == PortableSnapshotLatestPath }.jsonText
+        val paths = portableSnapshotSlicePaths(manifest)
+        val booksJson = documents.single { it.path == paths.getValue("books") }.jsonText
+
+        assertEquals(false, JSONObject(manifest).has("books"))
+        assertEquals(mapOf("book-a" to "hash-a"), parsePortableBookFileHashes(booksJson))
+        assertEquals("epubcfi(/6/2)", parsePortableReadingProgresses(booksJson).single().lastLocator)
+        assertEquals(mapOf("book-a" to "hash-a"), parsePortableBookFileHashes(mergePortableSnapshotSlices(manifest, mapOf("books" to booksJson))))
+        // The default (today's) format keeps books in the manifest and writes no books slice.
+        val current = testPortableSnapshot().toSlicedJsonDocuments(compact = false)
+        assertEquals(null, current.firstOrNull { it.sliceKey == "books" })
+        assertEquals(mapOf("book-a" to "hash-a"), parsePortableBookFileHashes(current.last().jsonText))
+    }
+
+    @Test
     fun mergesSlicedSnapshotDocumentsForLegacyParsers() {
         val documents = testPortableSnapshot().toSlicedJsonDocuments()
         val manifest = documents.last { it.path == PortableSnapshotLatestPath }.jsonText

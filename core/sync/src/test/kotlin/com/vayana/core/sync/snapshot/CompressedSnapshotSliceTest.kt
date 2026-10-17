@@ -37,6 +37,26 @@ class CompressedSnapshotSliceTest {
     }
 
     @Test
+    fun aSliceIsWrittenZippedExactlyWhenItsPathSaysSo() {
+        val json = """{"books":[{"syncId":"book-a"}]}"""
+
+        assertEquals(json, unzipSnapshotJson(snapshotSliceBytes("vayana/snapshot-slices/1000/books.zip", json)))
+        assertEquals(json, snapshotSliceBytes("vayana/snapshot-slices/1000/books.json", json).toString(Charsets.UTF_8))
+    }
+
+    @Test
+    fun remoteDocumentReadsBooksFromACompressedBooksSlice() = runBlocking {
+        val document = remotePortableSnapshotDocumentFrom(
+            latestJson = """{"slices":{"books":"vayana/snapshot-slices/1000/books.zip"}}""",
+            sha = "sha",
+            slicePaths = mapOf("books" to "vayana/snapshot-slices/1000/books.zip"),
+            loadSlice = { """{"books":[{"syncId":"book-a"}]}""" },
+        )
+
+        assertEquals("""{"books":[{"syncId":"book-a"}]}""", document.jsonFor(RemotePortableSnapshotSlice.Books))
+    }
+
+    @Test
     fun refusesToCompressASliceTheReaderCannotExpand() {
         val json = "x".repeat(16 * 1024 * 1024 + 1)
         assertFailsWith<IllegalArgumentException> { zipSnapshotJson(json) }

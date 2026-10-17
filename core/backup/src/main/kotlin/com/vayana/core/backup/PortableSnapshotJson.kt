@@ -226,6 +226,17 @@ private const val MaxSnapshotPathChars = 240
 const val PortableSnapshotLatestPath = "vayana/snapshot-latest.json"
 const val CurrentPortableSnapshotSliceVersion = 1
 
+/**
+ * The compact snapshot format: books leave the manifest for their own slice, and every slice is written zipped
+ * (books 240 KB -> 64 KB, so each progress push uploads about a third). Every reader since this version understands
+ * it; turn it on once all devices run such a version, since older ones can't read a zipped or books slice.
+ */
+const val WriteCompactSnapshotSlices = false
+
+/** Whether a slice is published zipped. Community quotes always are; the rest under [WriteCompactSnapshotSlices]. */
+fun isCompressedPortableSnapshotSlice(sliceKey: String): Boolean =
+    sliceKey == PortableSnapshotSlice.CommunityQuotes.key || WriteCompactSnapshotSlices
+
 fun PortableSnapshot.toJsonString(): String =
     JSONObject()
         .put("formatVersion", formatVersion)
@@ -256,8 +267,9 @@ class PortableSnapshotDocument(
     val jsonText: String by lazy(render)
 }
 
-fun PortableSnapshot.toSlicedJsonDocuments(): List<PortableSnapshotDocument> {
-    val slices = PortableSnapshotSlice.entries.filter { it.key !in unchangedSliceKeys }.map { slice ->
+fun PortableSnapshot.toSlicedJsonDocuments(compact: Boolean = WriteCompactSnapshotSlices): List<PortableSnapshotDocument> {
+    val exported = PortableSnapshotSlice.entries.filter { compact || it != PortableSnapshotSlice.Books }
+    val slices = exported.filter { it.key !in unchangedSliceKeys }.map { slice ->
         val records = sliceRecords(slice)
         PortableSnapshotDocument(
             path = slice.path(exportedAt),
@@ -281,13 +293,13 @@ fun PortableSnapshot.toSlicedJsonDocuments(): List<PortableSnapshotDocument> {
                     .put("builtAt", build.builtAt)
             },
         )
-        .put("books", books.toJsonArray { it.toJson() })
+        .apply { if (!compact) put("books", books.toJsonArray { it.toJson() }) }
         .put("settings", JSONObject(settings))
         .put("syncConflicts", syncConflicts.toJsonArray { it.toJson() })
         .put(
             "slices",
             JSONObject().also { root ->
-                PortableSnapshotSlice.entries.forEach { slice -> root.put(slice.key, slice.path(exportedAt)) }
+                exported.forEach { slice -> root.put(slice.key, slice.path(exportedAt)) }
             },
         )
     // Compact, like every sync document: indentation was a fifth of each upload, and every reader parses JSON.
@@ -393,11 +405,11 @@ data class SlicedPortableReadingProgressPatchResult(
 }
 
 /**
- * Progress-only push for a sliced snapshot: reading positions are patched in the manifest's "books", while
- * sessions, word-lookup counters and tombstones are patched in their own slices. A changed slice is written
- * to a fresh `snapshot-slices/<exportedAt>/` path (slice paths are never rewritten in place, so a reader
- * holding the previous manifest keeps a consistent view) and the manifest is repointed at it. Unchanged
- * slices keep their existing paths.
+ * Progress-only push for a sliced snapshot: reading positions are patched in "books" (the manifest's, or the books
+ * slice's when [sliceJsonByKey] holds one), while sessions, word-lookup counters and tombstones are patched in their
+ * own slices. A changed slice is written to a fresh `snapshot-slices/<exportedAt>/` path (slice paths are never
+ * rewritten in place, so a reader holding the previous manifest keeps a consistent view) and the manifest is
+ * repointed at it. Unchanged slices keep their existing paths. A path ending in `.zip` is to be written zipped.
  */
 fun patchSlicedPortableReadingProgress(
     manifestJson: String,
@@ -408,13 +420,15 @@ fun patchSlicedPortableReadingProgress(
     wordLookupCounters: List<PortableWordLookupCounter> = emptyList(),
     tombstones: List<PortableTombstone> = emptyList(),
 ): SlicedPortableReadingProgressPatchResult {
-    val bookPatch = patchPortableReadingProgressOnly(jsonText = manifestJson, patches = patches, exportedAt = exportedAt)
     val sliceWrites = linkedMapOf<String, String>()
+    val booksSlice = sliceJsonByKey[PortableSnapshotSlice.Books.key]
+    val bookPatch = patchPortableReadingProgressOnly(jsonText = booksSlice ?: manifestJson, patches = patches, exportedAt = exportedAt)
+    if (booksSlice != null && bookPatch.patched > 0) sliceWrites[PortableSnapshotSlice.Books.publishPath(exportedAt)] = bookPatch.jsonText
     fun patchSlice(slice: PortableSnapshotSlice, patch: (String) -> PortableReadingProgressPatchResult): PortableReadingProgressPatchResult {
         val base = sliceJsonByKey[slice.key] ?: JSONObject().put(slice.jsonArrayName, JSONArray()).toString()
         val result = patch(base)
         if (result.sessionsAdded + result.wordLookupCountersMerged + result.tombstonesMerged > 0) {
-            sliceWrites[slice.path(exportedAt)] = result.jsonText
+            sliceWrites[slice.publishPath(exportedAt)] = result.jsonText
         }
         return result
     }
@@ -432,10 +446,10 @@ fun patchSlicedPortableReadingProgress(
     val manifest = if (!changed) {
         manifestJson
     } else {
-        val root = JSONObject(bookPatch.jsonText)
+        val root = JSONObject(if (booksSlice != null) manifestJson else bookPatch.jsonText)
         val slices = root.optJSONObject("slices") ?: JSONObject().also { root.put("slices", it) }
         PortableSnapshotSlice.entries.forEach { slice ->
-            val path = slice.path(exportedAt)
+            val path = slice.publishPath(exportedAt)
             if (path in sliceWrites) slices.put(slice.key, path)
         }
         root.put("exportedAt", exportedAt)
@@ -471,12 +485,14 @@ private fun PortableSnapshot.sliceRecords(slice: PortableSnapshotSlice): JSONArr
         PortableSnapshotSlice.WordLookupCounters -> wordLookupCounters.toJsonArray { it.toJson() }
         PortableSnapshotSlice.BookAliases -> bookAliases.toJsonArray { it.toJson() }
         PortableSnapshotSlice.Tombstones -> tombstones.toJsonArray { it.toJson() }
+        PortableSnapshotSlice.Books -> books.toJsonArray { it.toJson() }
     }
 
 /**
  * One file of a sliced snapshot. Community (Goodreads) quotes travel apart from personal annotations, in the same
  * "annotations" array shape: they are almost all of the records but rarely change, so editing one highlight no
  * longer re-sends thousands of quotes. Older snapshots keep quotes inside [Annotations], which still reads fine.
+ * [Books] is only written in the compact format ([WriteCompactSnapshotSlices]); otherwise books stay in the manifest.
  */
 private enum class PortableSnapshotSlice(val key: String, val jsonArrayName: String, private val fileName: String) {
     Annotations("annotations", "annotations", "annotations.json"),
@@ -487,13 +503,18 @@ private enum class PortableSnapshotSlice(val key: String, val jsonArrayName: Str
     VocabularyCards("vocabularyCards", "vocabularyCards", "vocabulary-cards.json"),
     WordLookupCounters("wordLookupCounters", "wordLookupCounters", "word-lookup-counters.json"),
     BookAliases("bookAliases", "bookAliases", "book-aliases.json"),
-    Tombstones("tombstones", "tombstones", "tombstones.json");
+    Tombstones("tombstones", "tombstones", "tombstones.json"),
+    Books("books", "books", "books.json");
 
     fun path(exportedAt: Long): String = "vayana/snapshot-slices/$exportedAt/$fileName"
 
-    fun isValidPath(path: String): Boolean = path.length <= MaxSnapshotPathChars && (
-        pathRegex.matches(path) || ((this == Annotations || this == CommunityQuotes) && compressedPathRegex.matches(path))
-    )
+    /** Where a progress push writes this slice: zipped (`.zip`) when the format says so. */
+    fun publishPath(exportedAt: Long): String =
+        if (isCompressedPortableSnapshotSlice(key)) path(exportedAt).removeSuffix(".json") + ".zip" else path(exportedAt)
+
+    // Any slice may be zipped: readers decide by the extension, so the writer can switch format without breaking them.
+    fun isValidPath(path: String): Boolean = path.length <= MaxSnapshotPathChars &&
+        (pathRegex.matches(path) || compressedPathRegex.matches(path))
 
     private val pathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*/${Regex.escape(fileName)}$")
     private val compressedPathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*/${Regex.escape(fileName.removeSuffix(".json"))}\\.zip$")
