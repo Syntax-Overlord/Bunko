@@ -64,7 +64,7 @@ internal fun ManualPhysicalSessionDialog(book: Book, currentPage: Int, busy: Boo
     var startPage by rememberSaveable(book.id) { mutableStateOf(currentPage.toString()) }
     var endPage by rememberSaveable(book.id) { mutableStateOf(currentPage.toString()) }
     var total by rememberSaveable(book.id) { mutableStateOf(book.pageCount?.toString().orEmpty()) }
-    // Null until the reader flips the switch; until then it follows whether this log is their latest reading.
+    // Null until the reader flips the switch; until then it follows the pages and dates entered.
     var progressChoice by rememberSaveable(book.id) { mutableStateOf<Boolean?>(null) }
     val syncId = rememberSaveable(book.id) { "session-${UUID.randomUUID()}" }
     var showDate by rememberSaveable { mutableStateOf(false) }
@@ -74,7 +74,7 @@ internal fun ManualPhysicalSessionDialog(book: Book, currentPage: Int, busy: Boo
     val draft = ManualPhysicalSessionDraft(dateMillis, startHour, startMinute, hours, minutes, startPage, endPage, effectiveTotal)
     val zone = ZoneId.systemDefault()
     val candidate = remember(draft, zone) { draft.prepare(zone) }
-    val updateProgress = progressChoice ?: candidate?.isLatestReading(book.lastReadAt) ?: true
+    val updateProgress = progressChoice ?: candidate?.updatesProgressByDefault(book.lastReadAt, currentPage) ?: true
     var resolved by remember(candidate) { mutableStateOf(candidate?.completedBy(System.currentTimeMillis())) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(candidate, lifecycle, resolved == null) {

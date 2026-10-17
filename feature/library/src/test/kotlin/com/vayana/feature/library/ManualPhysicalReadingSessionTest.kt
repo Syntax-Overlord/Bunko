@@ -66,15 +66,22 @@ class ManualPhysicalReadingSessionTest {
 
     @Test
     fun yesterdaysLogMovesProgressOnABookNotReadSince() {
-        val log = assertNotNull(draft().resolve(now, zone))
-        assertTrue(log.isLatestReading(lastReadAt = null))
-        assertTrue(log.isLatestReading(lastReadAt = log.endedAt - 86_400_000L))
-        assertTrue(log.isLatestReading(lastReadAt = log.endedAt))
+        val log = assertNotNull(draft().resolve(now, zone)) // pages 40 to 50
+        assertTrue(log.updatesProgressByDefault(lastReadAt = null, currentPage = 50))
+        assertTrue(log.updatesProgressByDefault(lastReadAt = log.endedAt - 86_400_000L, currentPage = 50))
+        assertTrue(log.updatesProgressByDefault(lastReadAt = log.endedAt, currentPage = 50))
     }
 
     @Test
-    fun backfilledLogKeepsNewerProgressByDefault() {
+    fun logPastTheCurrentPageMovesProgressEvenWhenOlder() {
         val log = assertNotNull(draft().resolve(now, zone))
-        assertFalse(log.isLatestReading(lastReadAt = log.endedAt + 1))
+        assertTrue(log.updatesProgressByDefault(lastReadAt = log.endedAt + 1, currentPage = 49))
+    }
+
+    @Test
+    fun olderBackfillBehindTheCurrentPageKeepsProgress() {
+        val log = assertNotNull(draft().resolve(now, zone))
+        assertFalse(log.updatesProgressByDefault(lastReadAt = log.endedAt + 1, currentPage = 50))
+        assertFalse(log.updatesProgressByDefault(lastReadAt = log.endedAt + 1, currentPage = 120))
     }
 }

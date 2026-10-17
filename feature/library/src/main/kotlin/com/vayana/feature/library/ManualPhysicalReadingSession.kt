@@ -15,10 +15,11 @@ internal data class ManualPhysicalReadingSession(
     fun completedBy(now: Long): ManualPhysicalReadingSession? = takeIf { endedAt <= now }
 
     /**
-     * Whether saving should move the book's current page by default: only when this is the latest reading, so a
-     * backfilled older session never rolls newer progress back, while yesterday's log on an unread book still counts.
+     * Whether saving should move the book's current page by default: when this log goes past the current page, or is
+     * the latest reading. An older backfill that ends behind the current page never rolls progress back.
      */
-    fun isLatestReading(lastReadAt: Long?): Boolean = lastReadAt == null || endedAt >= lastReadAt
+    fun updatesProgressByDefault(lastReadAt: Long?, currentPage: Int): Boolean =
+        endPage > currentPage || lastReadAt == null || endedAt >= lastReadAt
 }
 
 internal data class ManualPhysicalSessionDraft(
