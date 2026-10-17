@@ -127,6 +127,8 @@ internal fun GoodreadsBrowserDialog(
         onDismissRequest = ::close,
         properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = false, decorFitsSystemWindows = false),
     ) {
+        // Stepping through many quote pages takes a while; the display timing out would pause the page reader.
+        KeepScreenOnWhile(status != null)
         BackHandler {
             val view = pageReader.webView
             when {

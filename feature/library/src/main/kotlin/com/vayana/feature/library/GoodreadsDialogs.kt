@@ -34,6 +34,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -47,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextOverflow
@@ -170,6 +172,18 @@ internal fun GoodreadsInfoLine(book: Book, communityQuoteCount: Int?, modifier: 
 
 private val GoodreadsChipHeight = 32.dp
 
+/** Keeps the screen on while [active], so a long Goodreads import isn't left waiting behind a dark screen. */
+@Composable
+internal fun KeepScreenOnWhile(active: Boolean) {
+    val view = LocalView.current
+    DisposableEffect(view, active) {
+        if (!active) return@DisposableEffect onDispose {}
+        val previous = view.keepScreenOn
+        view.keepScreenOn = true
+        onDispose { view.keepScreenOn = previous }
+    }
+}
+
 /** Progress/error surface for refreshing an already-linked book; first-time imports start in the browser. */
 @Composable
 internal fun GoodreadsImportStatusDialog(
@@ -178,6 +192,7 @@ internal fun GoodreadsImportStatusDialog(
     onDismiss: () -> Unit,
 ) {
     val working = state as? GoodreadsImportState.Working
+    KeepScreenOnWhile(working != null)
     val failed = state as? GoodreadsImportState.Failed
     val quoteProgress = working?.quoteProgress?.takeIf { it.total > GoodreadsQuoteProgressThreshold }
     ExpressiveDialogSurface(
