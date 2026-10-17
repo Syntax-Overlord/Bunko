@@ -31,9 +31,13 @@ export async function measureBookPages(renderer, sections, isCancelled, yieldWor
     }
 }
 
-// Everything that changes how many pages a chapter takes. Colours never do, so a theme switch keeps its counts.
+// Everything that changes how many pages a chapter takes. Colours never do, so a theme switch keeps its counts:
+// colour declarations go, and with them the rules a dark theme adds only to recolour text and backgrounds.
 export function pageLayoutKey(css, sideMargin, width, height, bionic) {
-    return JSON.stringify([String(css ?? '').replace(/#[0-9a-f]{6}\b/gi, ''), sideMargin, width, height, Boolean(bionic)])
+    const layoutCss = String(css ?? '')
+        .replace(/(?<=^|[{;])\s*(?:color|background|background-color)\s*:[^;}]*;?/gi, '')
+        .replace(/[^{}]*\{\s*\}/g, '')
+    return JSON.stringify([layoutCss, sideMargin, width, height, Boolean(bionic)])
 }
 
 // Counts saved for this layout, or a fresh measurement that is saved under it. `measured` says which.

@@ -101,3 +101,17 @@ test('a cancelled count leaves no saved layout behind', async () => {
     assert.deepEqual(result, { counts: null, measured: false })
     assert.equal(cache.size, 0)
 })
+
+test('switching to a dark theme keeps the layout key; layout changes still change it', () => {
+    // The shapes FoliateBookEngine.styleCss emits for a light and a dark theme.
+    const light = 'html{background:#FFFFFF !important;}body{background:#FFFFFF !important;color:#111111 !important;' +
+        'font-size:100% !important;line-height:1.5 !important;}a{text-decoration:underline !important;}'
+    const dark = light.replace(/#FFFFFF/g, '#121212').replace('#111111', '#EEEEEE') +
+        'body *{color:inherit !important;}' +
+        'body :where(div,p,span,h1,a,em){background-color:transparent !important;}'
+    assert.equal(pageLayoutKey(dark, 10, 400, 800, false), pageLayoutKey(light, 10, 400, 800, false))
+    assert.notEqual(pageLayoutKey(light.replace('1.5', '1.6'), 10, 400, 800, false), pageLayoutKey(light, 10, 400, 800, false))
+    // A text stroke is drawn in currentColor but thickens glyphs: it must not be stripped as a colour.
+    const bold = light + 'body{-webkit-text-stroke:0.3px currentColor !important;}'
+    assert.notEqual(pageLayoutKey(bold, 10, 400, 800, false), pageLayoutKey(light, 10, 400, 800, false))
+})
