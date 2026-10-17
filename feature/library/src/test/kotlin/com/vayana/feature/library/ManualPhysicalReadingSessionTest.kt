@@ -5,6 +5,8 @@ import java.time.ZoneId
 import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.test.assertNull
 import kotlin.test.assertNotNull
 
@@ -60,5 +62,19 @@ class ManualPhysicalReadingSessionTest {
             minutes = "20", endPage = "30").resolve(now, zone))
         assertEquals(date.atTime(0, 10).atZone(zone).toInstant().toEpochMilli(), log.endedAt)
         assertEquals(30, log.endPage)
+    }
+
+    @Test
+    fun yesterdaysLogMovesProgressOnABookNotReadSince() {
+        val log = assertNotNull(draft().resolve(now, zone))
+        assertTrue(log.isLatestReading(lastReadAt = null))
+        assertTrue(log.isLatestReading(lastReadAt = log.endedAt - 86_400_000L))
+        assertTrue(log.isLatestReading(lastReadAt = log.endedAt))
+    }
+
+    @Test
+    fun backfilledLogKeepsNewerProgressByDefault() {
+        val log = assertNotNull(draft().resolve(now, zone))
+        assertFalse(log.isLatestReading(lastReadAt = log.endedAt + 1))
     }
 }

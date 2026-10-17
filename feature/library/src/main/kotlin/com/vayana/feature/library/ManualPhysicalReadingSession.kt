@@ -13,6 +13,12 @@ internal data class ManualPhysicalReadingSession(
     val pageCount: Int?,
 ) {
     fun completedBy(now: Long): ManualPhysicalReadingSession? = takeIf { endedAt <= now }
+
+    /**
+     * Whether saving should move the book's current page by default: only when this is the latest reading, so a
+     * backfilled older session never rolls newer progress back, while yesterday's log on an unread book still counts.
+     */
+    fun isLatestReading(lastReadAt: Long?): Boolean = lastReadAt == null || endedAt >= lastReadAt
 }
 
 internal data class ManualPhysicalSessionDraft(

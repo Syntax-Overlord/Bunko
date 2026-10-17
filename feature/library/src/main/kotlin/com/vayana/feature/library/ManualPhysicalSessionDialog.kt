@@ -64,8 +64,8 @@ internal fun ManualPhysicalSessionDialog(book: Book, currentPage: Int, busy: Boo
     var startPage by rememberSaveable(book.id) { mutableStateOf(currentPage.toString()) }
     var endPage by rememberSaveable(book.id) { mutableStateOf(currentPage.toString()) }
     var total by rememberSaveable(book.id) { mutableStateOf(book.pageCount?.toString().orEmpty()) }
-    var updateProgress by rememberSaveable(book.id) { mutableStateOf(dateMillis == today) }
-    var progressChoiceExplicit by rememberSaveable(book.id) { mutableStateOf(false) }
+    // Null until the reader flips the switch; until then it follows whether this log is their latest reading.
+    var progressChoice by rememberSaveable(book.id) { mutableStateOf<Boolean?>(null) }
     val syncId = rememberSaveable(book.id) { "session-${UUID.randomUUID()}" }
     var showDate by rememberSaveable { mutableStateOf(false) }
     var showTime by rememberSaveable { mutableStateOf(false) }
@@ -74,6 +74,7 @@ internal fun ManualPhysicalSessionDialog(book: Book, currentPage: Int, busy: Boo
     val draft = ManualPhysicalSessionDraft(dateMillis, startHour, startMinute, hours, minutes, startPage, endPage, effectiveTotal)
     val zone = ZoneId.systemDefault()
     val candidate = remember(draft, zone) { draft.prepare(zone) }
+    val updateProgress = progressChoice ?: candidate?.isLatestReading(book.lastReadAt) ?: true
     var resolved by remember(candidate) { mutableStateOf(candidate?.completedBy(System.currentTimeMillis())) }
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     LaunchedEffect(candidate, lifecycle, resolved == null) {
@@ -116,7 +117,7 @@ internal fun ManualPhysicalSessionDialog(book: Book, currentPage: Int, busy: Boo
                 endPage.toIntOrNull()?.let { end -> effectiveTotal.toIntOrNull()?.let { end > it } } == true, enabled = !busy)
         Row(
             Modifier.fillMaxWidth().toggleable(value = updateProgress, enabled = !busy, role = Role.Switch,
-                onValueChange = { updateProgress = it; progressChoiceExplicit = true }),
+                onValueChange = { progressChoice = it }),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
@@ -152,11 +153,7 @@ internal fun ManualPhysicalSessionDialog(book: Book, currentPage: Int, busy: Boo
         })
         DatePickerDialog(onDismissRequest = { showDate = false }, confirmButton = {
             TextButton(onClick = {
-                // Changing the date must not silently override the reader's explicit progress choice.
-                state.selectedDateMillis?.let {
-                    dateMillis = it
-                    if (!progressChoiceExplicit) updateProgress = it == today
-                }
+                state.selectedDateMillis?.let { dateMillis = it }
                 showDate = false
             }, enabled = state.selectedDateMillis != null) { Text(stringResource(R.string.library_reading_date_save)) }
         }, dismissButton = { TextButton(onClick = { showDate = false }) { Text(stringResource(R.string.library_edit_metadata_cancel)) } }) {
