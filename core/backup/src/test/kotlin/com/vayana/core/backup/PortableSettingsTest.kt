@@ -16,6 +16,8 @@ class PortableSettingsTest {
         assertTrue(SettingsRegistry.DailyReadingGoalMinutes.key in PortableSettings.allowlist)
         assertTrue(SettingsRegistry.DefaultCoverSource.key in PortableSettings.allowlist)
         assertTrue(SettingsRegistry.FinishedPercent.key in PortableSettings.allowlist)
+        assertTrue(SettingsRegistry.ReadAloudRate.key in PortableSettings.allowlist)
+        assertTrue(SettingsRegistry.ReadAloudPitch.key in PortableSettings.allowlist)
 
         assertFalse(SettingsRegistry.KindleDeviceName.key in PortableSettings.allowlist)
         assertFalse(SettingsRegistry.GithubSyncEnabled.key in PortableSettings.allowlist)

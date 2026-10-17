@@ -378,16 +378,17 @@ private fun PortableSnapshotPublishProgress.toSyncProgressDetail(): UiText =
     }
 
 private fun String?.toSnapshotSliceLabel(): UiText = UiText.Res(
-    when (this?.substringAfterLast('/')) {
-        "annotations.json", "annotations.zip" -> R.string.sync_slice_annotations
-        "community-quotes.json", "community-quotes.zip" -> R.string.sync_slice_community_quotes
-        "shelves.json" -> R.string.sync_slice_shelves
-        "shelf-memberships.json" -> R.string.sync_slice_shelf_memberships
-        "reading-sessions.json" -> R.string.sync_slice_reading_sessions
-        "vocabulary-cards.json" -> R.string.sync_slice_vocabulary_cards
-        "word-lookup-counters.json" -> R.string.sync_slice_word_lookup_counters
-        "book-aliases.json" -> R.string.sync_slice_book_aliases
-        "tombstones.json" -> R.string.sync_slice_deleted_items
+    // Plain or zipped, a slice is named by its file's base name.
+    when (this?.substringAfterLast('/')?.substringBeforeLast('.')) {
+        "annotations" -> R.string.sync_slice_annotations
+        "community-quotes" -> R.string.sync_slice_community_quotes
+        "shelves" -> R.string.sync_slice_shelves
+        "shelf-memberships" -> R.string.sync_slice_shelf_memberships
+        "reading-sessions" -> R.string.sync_slice_reading_sessions
+        "vocabulary-cards" -> R.string.sync_slice_vocabulary_cards
+        "word-lookup-counters" -> R.string.sync_slice_word_lookup_counters
+        "book-aliases" -> R.string.sync_slice_book_aliases
+        "tombstones" -> R.string.sync_slice_deleted_items
         else -> R.string.sync_slice_library_metadata
     }
 )

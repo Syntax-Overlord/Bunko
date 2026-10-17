@@ -178,7 +178,8 @@ sync snapshot path, so translating the default would move a device's snapshot wh
 (about 240 KB with 100 books, three quarters of it static catalog text such as descriptions) plus the reading-sessions
 slice. Zipping books into their own slice and every other slice cuts a push to roughly a third (books 240 KB → 64 KB).
 Released versions up to 0.92 only accept `.zip` paths for the annotation slices and have no books slice, so a device
-writing the compact format would break their sync. This version reads both (any slice may be `.zip`; a manifest may
-point "books" at a slice, and a progress push patches positions there) while still writing the old format.
-`WriteCompactSnapshotSlices` (core/backup `PortableSnapshotJson.kt`) switches writing over; flip it only once every
-syncing device runs a version that reads the compact format.
+writing the compact format breaks their sync. The first step (426eacaf) taught the snapshot parser both, but the
+GitHub store's own path check still refused zipped slice files, so that build alone could not read the format; the
+second step fixes the store check, slice-file pruning and progress labels, and switches writing on
+(`PortableSnapshotFormat.compact`, core/backup `PortableSnapshotJson.kt`). Every syncing device needs that build.
+Store tests of the plain format pin it off, since snapshots written before it stay in the plain format until republished.

@@ -226,16 +226,19 @@ private const val MaxSnapshotPathChars = 240
 const val PortableSnapshotLatestPath = "vayana/snapshot-latest.json"
 const val CurrentPortableSnapshotSliceVersion = 1
 
-/**
- * The compact snapshot format: books leave the manifest for their own slice, and every slice is written zipped
- * (books 240 KB -> 64 KB, so each progress push uploads about a third). Every reader since this version understands
- * it; turn it on once all devices run such a version, since older ones can't read a zipped or books slice.
- */
-const val WriteCompactSnapshotSlices = false
+/** Which snapshot format this device writes. Readers understand both. */
+object PortableSnapshotFormat {
+    /**
+     * The compact format: books leave the manifest for their own slice, and every slice is written zipped (books
+     * 240 KB -> 64 KB, so each progress push uploads about a third). Versions up to 0.92 can't read it. Only tests of
+     * the plain format, which older snapshots still use, switch it off.
+     */
+    @Volatile var compact: Boolean = true
+}
 
-/** Whether a slice is published zipped. Community quotes always are; the rest under [WriteCompactSnapshotSlices]. */
+/** Whether a slice is published zipped. Community quotes always are; the rest in the compact format. */
 fun isCompressedPortableSnapshotSlice(sliceKey: String): Boolean =
-    sliceKey == PortableSnapshotSlice.CommunityQuotes.key || WriteCompactSnapshotSlices
+    sliceKey == PortableSnapshotSlice.CommunityQuotes.key || PortableSnapshotFormat.compact
 
 fun PortableSnapshot.toJsonString(): String =
     JSONObject()
@@ -267,7 +270,7 @@ class PortableSnapshotDocument(
     val jsonText: String by lazy(render)
 }
 
-fun PortableSnapshot.toSlicedJsonDocuments(compact: Boolean = WriteCompactSnapshotSlices): List<PortableSnapshotDocument> {
+fun PortableSnapshot.toSlicedJsonDocuments(compact: Boolean = PortableSnapshotFormat.compact): List<PortableSnapshotDocument> {
     val exported = PortableSnapshotSlice.entries.filter { compact || it != PortableSnapshotSlice.Books }
     val slices = exported.filter { it.key !in unchangedSliceKeys }.map { slice ->
         val records = sliceRecords(slice)
@@ -492,7 +495,7 @@ private fun PortableSnapshot.sliceRecords(slice: PortableSnapshotSlice): JSONArr
  * One file of a sliced snapshot. Community (Goodreads) quotes travel apart from personal annotations, in the same
  * "annotations" array shape: they are almost all of the records but rarely change, so editing one highlight no
  * longer re-sends thousands of quotes. Older snapshots keep quotes inside [Annotations], which still reads fine.
- * [Books] is only written in the compact format ([WriteCompactSnapshotSlices]); otherwise books stay in the manifest.
+ * [Books] is only written in the compact format ([PortableSnapshotFormat]); otherwise books stay in the manifest.
  */
 private enum class PortableSnapshotSlice(val key: String, val jsonArrayName: String, private val fileName: String) {
     Annotations("annotations", "annotations", "annotations.json"),

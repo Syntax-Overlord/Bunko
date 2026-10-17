@@ -4,6 +4,7 @@ import com.vayana.core.backup.PortableAnnotation
 import com.vayana.core.backup.PortableAppBuild
 import com.vayana.core.backup.PortableReadingSession
 import com.vayana.core.backup.PortableSnapshot
+import com.vayana.core.backup.PortableSnapshotFormat
 import com.vayana.core.backup.PortableTombstone
 import com.vayana.core.backup.PortableWordLookupCounter
 import com.vayana.core.backup.portableSnapshotSliceDataHash
@@ -19,6 +20,7 @@ import com.vayana.core.sync.snapshot.RemotePortableSnapshotDocument
 import com.vayana.core.sync.snapshot.RemotePortableSnapshotSlice
 import com.vayana.core.sync.snapshot.SyncedSnapshotSlice
 import java.util.Base64
+import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertContentEquals
@@ -34,6 +36,37 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
 
 class GitHubContentsAssetStoreTest {
+    // These script the plain format's requests (inline JSON slices); compact-format tests switch it back on themselves.
+    @BeforeTest
+    fun usePlainSnapshotFormat() {
+        PortableSnapshotFormat.compact = false
+    }
+
+    @AfterTest
+    fun restoreSnapshotFormat() {
+        PortableSnapshotFormat.compact = true
+    }
+
+    @Test
+    fun compactPublishZipsEverySliceAndMovesBooksOutOfTheManifest() = runBlocking {
+        PortableSnapshotFormat.compact = true
+        val client = RecordingGitHubHttpClient(
+            GitHubHttpResponse(200, "[]".toByteArray()), // prune: no slices folder yet
+            *singleCommitResponses(blobs = 10),
+        )
+
+        testStore(client).putPortableSnapshotDocuments(emptySnapshot(2000), "vayana/snapshots/phone.json", ExistingSha)
+
+        val tree = client.requests.single { it.url.endsWith("/git/trees") }.bodyText()
+        listOf("books", "reading-sessions", "annotations", "community-quotes", "tombstones").forEach { name ->
+            assertTrue(tree.contains(""""path":"vayana/snapshot-slices/2000/$name.zip","mode":"100644","type":"blob","sha":"$BlobSha""""), name)
+        }
+        assertTrue(!tree.contains("reading-sessions.json"))
+        assertTrue(tree.contains("books.zip"))
+        // The manifest travels inline as an escaped JSON string.
+        assertTrue(!tree.contains("\\\"books\\\":["), "the manifest no longer carries the books")
+    }
+
     @Test
     fun fileUploadStreamsValidJsonAndCanReplayAfterConflict() = runBlocking {
         val file = java.io.File.createTempFile("asset-upload-test", ".bin")
@@ -526,6 +559,21 @@ class GitHubContentsAssetStoreTest {
             )
         }
         assertTrue(client.requests.isEmpty())
+    }
+
+    @Test
+    fun anyZippedSliceIsReadableButAZipOutsideTheSliceFolderIsNot() = runBlocking {
+        val store = testStore(RecordingGitHubHttpClient())
+
+        listOf("vayana/snapshots/pixel.zip", "vayana/snapshot-slices/12345/Books.zip").forEach { path ->
+            val failure = assertFailsWith<IllegalArgumentException> { store.getSyncDocument(path) }
+            assertEquals("Invalid sync document path", failure.message)
+        }
+        listOf("vayana/snapshot-slices/12345/reading-sessions.zip", "vayana/snapshot-slices/12345/books.zip").forEach { path ->
+            // Passes validation; the recording client then has no response for it.
+            val failure = runCatching { store.getSyncDocument(path) }.exceptionOrNull()
+            assertTrue(failure?.message != "Invalid sync document path", path)
+        }
     }
 
     @Test

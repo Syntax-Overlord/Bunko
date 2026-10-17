@@ -574,16 +574,8 @@ private const val AnnotationsZipEntryName = "annotations.json"
 private const val MaxUncompressedSliceBytes = 16 * 1024 * 1024
 private const val ZipBufferBytes = 16 * 1024
 private const val MaxInitialZipBufferBytes = 256 * 1024
-private val SnapshotSliceFileNames = setOf(
-    "annotations.json",
-    "annotations.zip",
-    "community-quotes.json",
-    "community-quotes.zip",
-    "shelves.json",
-    "shelf-memberships.json",
-    "reading-sessions.json",
-    "vocabulary-cards.json",
-    "word-lookup-counters.json",
-    "book-aliases.json",
-    "tombstones.json",
-)
+/** Every slice file name, plain or zipped: old sets are pruned whichever format wrote them. */
+private val SnapshotSliceFileNames = listOf(
+    "annotations", "community-quotes", "shelves", "shelf-memberships", "reading-sessions", "vocabulary-cards",
+    "word-lookup-counters", "book-aliases", "tombstones", "books",
+).flatMapTo(mutableSetOf()) { name -> listOf("$name.json", "$name.zip") }

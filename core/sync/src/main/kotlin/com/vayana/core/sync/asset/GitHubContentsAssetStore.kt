@@ -753,7 +753,7 @@ private fun validateSyncDocumentPath(path: String) {
             path.startsWith("vayana/snapshot-slices/"),
     ) { "Invalid sync document path" }
     require(
-        path.endsWith(".json") || path.matches(CompressedAnnotationsPathRegex),
+        path.endsWith(".json") || path.matches(CompressedSlicePathRegex),
     ) { "Invalid sync document path" }
     require(".." !in path && "//" !in path) { "Invalid sync document path" }
     require(path.matches(SyncDocumentPathRegex)) { "Invalid sync document path" }
@@ -992,7 +992,8 @@ private val GitHubNameRegex = Regex("^[A-Za-z0-9_.-]{1,100}$")
 private val GitHubBranchRegex = Regex("^[A-Za-z0-9._/-]{1,255}$")
 private val GitHubObjectShaRegex = Regex("^[a-f0-9]{40,64}$")
 private val SyncDocumentPathRegex = Regex("^[A-Za-z0-9._/-]{1,240}$")
-private val CompressedAnnotationsPathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*/(annotations|community-quotes)\\.zip$")
+// Any slice may be zipped (the compact snapshot format); which names are slices is checked when a manifest is read.
+private val CompressedSlicePathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*/[a-z-]+\\.zip$")
 private val BranchTreeShaRegex = Regex(""""tree"\s*:\s*\{\s*"sha"\s*:\s*"([a-f0-9]{40,64})"""")
 private val SnapshotSliceDirectoryPathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*$")
 private val AuthorizationTokenRegex = Regex(""""token"\s*:\s*"[^"]+"""")

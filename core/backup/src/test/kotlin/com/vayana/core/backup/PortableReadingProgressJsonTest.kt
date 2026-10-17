@@ -985,7 +985,8 @@ class PortableReadingProgressJsonTest {
         val manifest = JSONObject(manifestDocument.jsonText)
         val slices = manifest.getJSONObject("slices")
 
-        assertEquals(10, documents.size)
+        // Nine record slices, books (compact format) and the manifest.
+        assertEquals(11, documents.size)
         assertEquals(PortableSnapshotLatestPath, manifestDocument.path)
         assertEquals(CurrentPortableSnapshotSliceVersion, manifest.getInt("sliceVersion"))
         assertEquals("vayana/snapshot-slices/12345/annotations.json", slices.getString("annotations"))
@@ -993,7 +994,8 @@ class PortableReadingProgressJsonTest {
         assertEquals("vayana/snapshot-slices/12345/community-quotes.json", slices.getString("communityQuotes"))
         assertEquals(false, manifest.has("annotations"))
         assertEquals(false, manifest.has("readingSessions"))
-        assertEquals(1, manifest.getJSONArray("books").length())
+        assertEquals(false, manifest.has("books"))
+        assertEquals("vayana/snapshot-slices/12345/books.json", slices.getString("books"))
     }
 
     @Test

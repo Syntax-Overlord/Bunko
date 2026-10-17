@@ -37,7 +37,7 @@ class SlicedPortableReadingProgressPatchTest {
 
         assertEquals(1, result.patched)
         assertEquals(1, result.sessionsAdded)
-        val newSessionsPath = "vayana/snapshot-slices/3000/reading-sessions.json"
+        val newSessionsPath = "vayana/snapshot-slices/3000/reading-sessions.zip"
         assertEquals(setOf(newSessionsPath), result.sliceWrites.keys)
         val sessions = JSONObject(result.sliceWrites.getValue(newSessionsPath)).getJSONArray("readingSessions")
         assertEquals(listOf("s-old", "s-new"), (0 until sessions.length()).map { sessions.getJSONObject(it).getString("syncId") })
@@ -70,7 +70,7 @@ class SlicedPortableReadingProgressPatchTest {
 
         assertEquals(1, result.patched)
         val (booksPath, booksJson) = result.sliceWrites.entries.single()
-        assertTrue(booksPath.startsWith("vayana/snapshot-slices/3000/books."))
+        assertEquals("vayana/snapshot-slices/3000/books.zip", booksPath)
         assertEquals("epubcfi(/6/8)", JSONObject(booksJson).getJSONArray("books").getJSONObject(0).getString("lastLocator"))
         val root = JSONObject(result.manifestJson)
         assertEquals(false, root.has("books"))
@@ -103,7 +103,7 @@ class SlicedPortableReadingProgressPatchTest {
         )
 
         assertEquals(1, result.wordLookupCountersMerged)
-        val path = "vayana/snapshot-slices/3000/word-lookup-counters.json"
+        val path = "vayana/snapshot-slices/3000/word-lookup-counters.zip"
         assertEquals(path, JSONObject(result.manifestJson).getJSONObject("slices").getString("wordLookupCounters"))
         assertEquals(1, JSONObject(result.sliceWrites.getValue(path)).getJSONArray("wordLookupCounters").length())
     }
