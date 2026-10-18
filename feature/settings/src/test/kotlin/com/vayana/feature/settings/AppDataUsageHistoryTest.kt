@@ -36,7 +36,7 @@ class AppDataUsageHistoryTest {
 
     private fun history() = AppDataUsageHistory(
         File(dir, "app-usage-daily.ndjson"),
-        { start, _ -> android[java.time.Instant.ofEpochMilli(start).atZone(zone).toLocalDate()] ?: NetworkSplit() },
+        { _, _, _ -> AndroidDays(android, mobileReported = true) },
         { zone },
         { today },
     )
@@ -65,6 +65,23 @@ class AppDataUsageHistoryTest {
         history().update()
 
         assertEquals(NetworkSplit(400, 50), history().read().single { it.date == today }.split)
+    }
+
+    @Test
+    fun tilesComeFromTheSameDaysAsTheChart() {
+        val days = listOf(
+            DayUsage(today, NetworkSplit(100, 10)),
+            DayUsage(today.minusDays(3), NetworkSplit(200, 20)),
+            DayUsage(today.minusDays(20), NetworkSplit(1_000, 0)),
+            DayUsage(today.minusDays(40), NetworkSplit(9_999, 9_999)),
+        )
+
+        val periods = days.periods(today, mobileReported = true).associateBy { it.period }
+
+        assertEquals(100L to 10L, periods.getValue(UsagePeriod.TODAY).let { it.wifiBytes to it.mobileBytes })
+        assertEquals(300L to 30L, periods.getValue(UsagePeriod.WEEK).let { it.wifiBytes to it.mobileBytes })
+        assertEquals(1_300L to 30L, periods.getValue(UsagePeriod.MONTH).let { it.wifiBytes to it.mobileBytes })
+        assertEquals(null, days.periods(today, mobileReported = false).first().mobileBytes)
     }
 
     @Test

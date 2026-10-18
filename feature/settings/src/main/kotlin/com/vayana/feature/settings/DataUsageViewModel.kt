@@ -1,7 +1,5 @@
 package com.vayana.feature.settings
 
-import android.content.Context
-import android.net.ConnectivityManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vayana.core.common.DispatcherProvider
@@ -12,7 +10,6 @@ import com.vayana.core.sync.usage.SyncDataUsageLog
 import com.vayana.core.sync.usage.dailyUsage
 import com.vayana.core.sync.usage.since
 import dagger.hilt.android.lifecycle.HiltViewModel
-import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.LocalDate
 import java.time.ZoneId
 import javax.inject.Inject
@@ -38,7 +35,6 @@ internal data class DataUsageState(val app: List<AppPeriodUsage>, val sync: Sync
 
 @HiltViewModel
 internal class DataUsageViewModel @Inject constructor(
-    @ApplicationContext private val context: Context,
     private val syncDataUsageLog: SyncDataUsageLog,
     private val appDataUsageHistory: AppDataUsageHistory,
     private val dispatchers: DispatcherProvider,
@@ -55,15 +51,12 @@ internal class DataUsageViewModel @Inject constructor(
             _state.value = withContext(dispatchers.io) {
                 val zone = ZoneId.systemDefault()
                 val today = LocalDate.now(zone)
+                appDataUsageHistory.update()
+                val history = appDataUsageHistory.read()
                 DataUsageState(
-                    app = UsagePeriod.entries.map { period ->
-                        val start = today.minusDays(period.days - 1).atStartOfDay(zone).toInstant().toEpochMilli()
-                        // Android only returns whole 2-hour buckets inside the range, so end past now to include the
-                        // bucket still filling up; otherwise today reads 0 B for up to two hours after a sync.
-                        context.appDataUsage(start, System.currentTimeMillis() + CurrentBucketMillis, period)
-                    },
+                    app = history.periods(today, appDataUsageHistory.mobileReported),
                     sync = syncDataUsageLog.readAll().summary(today, zone),
-                    history = appDataUsageHistory.run { update(); read() },
+                    history = history,
                 )
             }
         }
@@ -81,11 +74,12 @@ internal fun List<SyncDataUsageEntry>.summary(today: LocalDate, zone: ZoneId): S
     )
 }
 
-private fun Context.appDataUsage(start: Long, end: Long, period: UsagePeriod): AppPeriodUsage {
-    @Suppress("DEPRECATION") // NetworkStatsManager still takes the ConnectivityManager network types.
-    return AppPeriodUsage(period, appBytes(start, end, ConnectivityManager.TYPE_WIFI), appBytes(start, end, ConnectivityManager.TYPE_MOBILE))
-}
+/** Today, 7 and 30 days from the same saved days as the chart, so the tiles and bars always agree. */
+internal fun List<DayUsage>.periods(today: LocalDate, mobileReported: Boolean): List<AppPeriodUsage> =
+    UsagePeriod.entries.map { period ->
+        val days = lastDays(period.days.toInt(), today)
+        AppPeriodUsage(period, days.sumOf { it.split.wifiBytes }, days.sumOf { it.split.mobileBytes }.takeIf { mobileReported })
+    }
 
 private const val ChartDays = 14
-private const val CurrentBucketMillis = 2L * 60 * 60 * 1000
 private const val RecentSyncs = 50

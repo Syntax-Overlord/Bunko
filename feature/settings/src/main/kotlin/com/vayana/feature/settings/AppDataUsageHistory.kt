@@ -18,33 +18,45 @@ import org.json.JSONObject
 
 /**
  * The app's Wi-Fi and mobile bytes per day, kept on this device only (never synced) so Data usage can show months
- * of history after Android has dropped its own. Each [update] re-reads the last [RefreshDays] days from Android,
- * which settles the still-open days and backfills any missed while the app wasn't opened.
+ * of history after Android has dropped its own. Each [update] re-reads the last [RefreshDays] days from Android in
+ * one query per network, which settles the still-open days and backfills any missed while the app wasn't opened.
  */
 @Singleton
 class AppDataUsageHistory internal constructor(
     private val file: File,
-    private val dayUsage: (start: Long, end: Long) -> NetworkSplit?,
+    private val readDays: (start: Long, end: Long, zone: ZoneId) -> AndroidDays?,
     private val zone: () -> ZoneId = ZoneId::systemDefault,
     private val today: () -> LocalDate = { LocalDate.now(zone()) },
 ) {
     @Inject constructor(@ApplicationContext context: Context) :
-        this(File(context.filesDir, "diagnostics/app-usage-daily.ndjson"), { start, end -> context.appSplit(start, end) })
+        this(File(context.filesDir, "diagnostics/app-usage-daily.ndjson"), { start, end, zone -> context.androidDays(start, end, zone) })
 
     private val lock = Any()
 
+    /** Whether Android reported mobile data on the last [update] (Android 8–9 may not). */
+    @Volatile var mobileReported: Boolean = true
+        private set
+
     fun update() = synchronized(lock) {
-        val days = readLocked().toMutableMap()
         val zone = zone()
         val today = today()
+        val first = today.minusDays(RefreshDays - 1L)
+        // Ending a bucket past now takes in the 2-hour bucket still filling up.
+        val android = readDays(first.atStartOfDay(zone).toInstant().toEpochMilli(), System.currentTimeMillis() + BucketMillis, zone)
+            ?: return@synchronized
+        mobileReported = android.mobileReported
+        val days = readLocked().toMutableMap()
+        var changed = false
         for (offset in 0 until RefreshDays) {
-            val date = today.minusDays(offset.toLong())
-            val start = date.atStartOfDay(zone).toInstant().toEpochMilli()
-            val end = date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
-            // Older days Android no longer holds come back empty: keep what was stored then.
-            val split = dayUsage(start, end) ?: continue
-            if (split.totalBytes > 0 || date !in days) days[date] = split
+            val date = first.plusDays(offset.toLong())
+            // A day Android no longer holds comes back empty: keep what was saved then.
+            val split = android.days[date] ?: NetworkSplit()
+            if ((split.totalBytes > 0 || date !in days) && days[date] != split) {
+                days[date] = split
+                changed = true
+            }
         }
+        if (!changed) return@synchronized
         runCatching {
             file.parentFile?.mkdirs()
             file.writeText(days.toSortedMap().entries.joinToString("") { (date, split) -> split.toLine(date) + "\n" })
@@ -68,6 +80,7 @@ class AppDataUsageHistory internal constructor(
 
     private companion object {
         const val RefreshDays = 35
+        const val BucketMillis = 2L * 60 * 60 * 1000
     }
 }
 
@@ -87,21 +100,31 @@ internal fun List<DayUsage>.lastDays(count: Int, today: LocalDate): List<DayUsag
     return (count - 1 downTo 0).map { back -> today.minusDays(back.toLong()).let { byDate[it] ?: DayUsage(it, NetworkSplit()) } }
 }
 
+/** The app's bytes per local day as Android reports them. */
+class AndroidDays(val days: Map<LocalDate, NetworkSplit>, val mobileReported: Boolean)
+
 /** Null when Android can't say for Wi-Fi; mobile it can't report (Android 8–9) counts as 0. */
-private fun Context.appSplit(start: Long, end: Long): NetworkSplit? {
-    val wifi = appBytes(start, end, @Suppress("DEPRECATION") ConnectivityManager.TYPE_WIFI) ?: return null
-    return NetworkSplit(wifi, appBytes(start, end, @Suppress("DEPRECATION") ConnectivityManager.TYPE_MOBILE) ?: 0L)
+@Suppress("DEPRECATION") // NetworkStatsManager still takes the ConnectivityManager network types.
+private fun Context.androidDays(start: Long, end: Long, zone: ZoneId): AndroidDays? {
+    val wifi = bytesPerDay(start, end, ConnectivityManager.TYPE_WIFI, zone) ?: return null
+    val mobile = bytesPerDay(start, end, ConnectivityManager.TYPE_MOBILE, zone)
+    val days = (wifi.keys + mobile.orEmpty().keys).associateWith { date -> NetworkSplit(wifi[date] ?: 0L, mobile?.get(date) ?: 0L) }
+    return AndroidDays(days, mobileReported = mobile != null)
 }
 
-/** The app's own traffic needs no permission to read; mobile without a subscriber id fails before Android 10. */
-internal fun Context.appBytes(start: Long, end: Long, networkType: Int): Long? = runCatching {
+/**
+ * One query for the whole range, its 2-hour buckets added up by the local day each starts on. The app's own traffic
+ * needs no permission to read; mobile without a subscriber id fails before Android 10.
+ */
+private fun Context.bytesPerDay(start: Long, end: Long, networkType: Int, zone: ZoneId): Map<LocalDate, Long>? = runCatching {
     getSystemService(NetworkStatsManager::class.java).queryDetailsForUid(networkType, null, start, end, Process.myUid()).use { stats ->
         val bucket = NetworkStats.Bucket()
-        var bytes = 0L
+        val days = HashMap<LocalDate, Long>()
         while (stats.hasNextBucket()) {
             stats.getNextBucket(bucket)
-            bytes += bucket.rxBytes + bucket.txBytes
+            val date = java.time.Instant.ofEpochMilli(bucket.startTimeStamp).atZone(zone).toLocalDate()
+            days[date] = (days[date] ?: 0L) + bucket.rxBytes + bucket.txBytes
         }
-        bytes
+        days
     }
 }.getOrNull()
