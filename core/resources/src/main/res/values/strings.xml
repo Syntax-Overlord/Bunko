@@ -1290,7 +1290,6 @@
 
     <string name="reader_contents">Contents</string>
     <string name="reader_more_tools">More tools</string>
-    <string name="reader_close_controls">Return to reading</string>
     <string name="reader_notes">Notes</string>
     <string name="reader_notes_empty">No notes or highlights in this book yet.</string>
     <string name="reader_selection_highlight_yellow">Yellow</string>

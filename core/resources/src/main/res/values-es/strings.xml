@@ -1102,7 +1102,6 @@
 
     <string name="reader_contents">Índice</string>
     <string name="reader_more_tools">Más herramientas</string>
-    <string name="reader_close_controls">Volver a la lectura</string>
     <string name="reader_notes">Notas</string>
     <string name="reader_notes_empty">Aún no hay notas ni subrayados en este libro.</string>
     <string name="reader_selection_highlight_yellow">Amarillo</string>

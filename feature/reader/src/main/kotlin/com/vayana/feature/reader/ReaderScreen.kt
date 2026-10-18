@@ -1443,7 +1443,7 @@ private fun ReaderScreen(
                 onSaveJournal = onSaveJournal,
                 selectedPanel = selectedPanel,
                 onPanelSelected = { selectedPanel = it },
-                onBack = { chromeVisible = false },
+                onExitBook = onBack,
                 onOpenTocEntry = {
                     chromeVisible = false
                     onOpenTocEntry(it)
@@ -2207,7 +2207,7 @@ private fun ReaderChrome(
     onSaveJournal: suspend (String) -> Unit,
     selectedPanel: ReaderPanel,
     onPanelSelected: (ReaderPanel) -> Unit,
-    onBack: () -> Unit,
+    onExitBook: () -> Unit,
     onOpenTocEntry: (String) -> Unit,
     onProgressChange: (Float) -> Unit,
     onAnnotationClick: (Annotation) -> Unit,
@@ -2288,10 +2288,11 @@ private fun ReaderChrome(
                     ),
             )
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onBack) {
+                // Exits the book: back gestures are unreliable on some E-Ink devices, and a tap on the page already closes these controls.
+                IconButton(onClick = onExitBook) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Outlined.ArrowBack,
-                        contentDescription = stringResource(R.string.reader_close_controls),
+                        contentDescription = stringResource(R.string.library_back_to_library_content_description),
                     )
                 }
                 Text(
@@ -2896,10 +2897,12 @@ private fun StylePanel(
     LaunchedEffect(settings.readerSideMarginPercent) {
         pendingSideMargin = settings.readerSideMarginPercent
     }
+    // Short enough that the page stays visible above the panel, so style changes can be judged as they land.
+    val maxPanelHeight = (LocalConfiguration.current.screenHeightDp * StylePanelMaxScreenFraction).dp
     Column(
         modifier = Modifier
             .padding(horizontal = Spacing.lg, vertical = Spacing.md)
-            .heightIn(max = Sizes.contentMaxWidth)
+            .heightIn(max = maxPanelHeight)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(Spacing.sm),
     ) {
@@ -3477,6 +3480,7 @@ private fun SettingsSnapshot.readerBackgroundColor(): Color = when {
 
 private const val ReaderHudStandardAlpha = 0.9f
 private const val SimilarReaderChromeColorDelta = 0.12f
+private const val StylePanelMaxScreenFraction = 0.3f
 private const val EnglishDictionaryDownloadUrl = "https://en-word.net/static/english-wordnet-2025.zip"
 private const val VolumeKeyLongPressMillis = 500L
 

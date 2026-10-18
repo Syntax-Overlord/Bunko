@@ -1093,7 +1093,6 @@
 
     <string name="reader_contents">Inhalt</string>
     <string name="reader_more_tools">Weitere Werkzeuge</string>
-    <string name="reader_close_controls">Zurück zum Lesen</string>
     <string name="reader_notes">Notizen</string>
     <string name="reader_notes_empty">In diesem Buch gibt es noch keine Notizen oder Markierungen.</string>
     <string name="reader_selection_highlight_yellow">Gelb</string>

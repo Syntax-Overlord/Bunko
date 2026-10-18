@@ -1093,7 +1093,6 @@
 
     <string name="reader_contents">ഉള്ളടക്കം</string>
     <string name="reader_more_tools">കൂടുതൽ ഉപകരണങ്ങൾ</string>
-    <string name="reader_close_controls">വായനയിലേക്ക് മടങ്ങുക</string>
     <string name="reader_notes">കുറിപ്പുകൾ</string>
     <string name="reader_notes_empty">ഈ പുസ്തകത്തിൽ ഇതുവരെ കുറിപ്പുകളോ അടയാളങ്ങളോ ഇല്ല.</string>
     <string name="reader_selection_highlight_yellow">മഞ്ഞ</string>
