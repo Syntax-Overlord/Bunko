@@ -168,6 +168,7 @@ import com.vayana.core.sync.SyncOperationCoordinator
 import com.vayana.core.sync.SyncedBookDeletionApplier
 import com.vayana.core.sync.asset.deletePendingAndLog
 import com.vayana.core.sync.progress.ReadingProgressOnlySyncer
+import com.vayana.core.sync.isOfflineSyncFailure
 import com.vayana.core.sync.usage.SyncDataUsageLog
 import com.vayana.core.sync.usage.SyncKind
 
@@ -1285,12 +1286,13 @@ class LibraryViewModel @Inject constructor(
         }
         if (result is GitHubSyncNowResult.Complete && (result.pullFailed || !result.metadataSynced)) {
             withContext(dispatchers.io) {
+                val reason = result.failureMessage?.resolve(appContext.resources)
                 diagnosticsLogStore.record(
-                    category = DiagnosticCategory.SYNC,
+                    category = if (isOfflineSyncFailure(reason)) DiagnosticCategory.SYNC_LOG else DiagnosticCategory.SYNC,
                     source = "LibraryViewModel.syncNow",
                     message = buildString {
                         append(if (result.pullFailed) "Cloud progress pull failed" else "Metadata sync failed")
-                        result.failureMessage?.let { append(": ").append(it.resolve(appContext.resources)) }
+                        reason?.let { append(": ").append(it) }
                     },
                 )
             }
@@ -3356,8 +3358,8 @@ private fun DiagnosticsLogStore.recordLaunchProgressCheck(
     detail: String? = null,
 ) {
     record(
-        // Only a failed check is an issue; skips and "no newer progress" are the normal outcomes.
-        category = if ("failed" in message) DiagnosticCategory.SYNC else DiagnosticCategory.SYNC_LOG,
+        // Only a failed check is an issue; skips, "no newer progress" and being offline are the normal outcomes.
+        category = if ("failed" in message && !isOfflineSyncFailure(detail)) DiagnosticCategory.SYNC else DiagnosticCategory.SYNC_LOG,
         source = "LibraryViewModel.launchReadingProgress",
         message = bookId?.let { "$message for book $it" } ?: message,
         detail = detail,

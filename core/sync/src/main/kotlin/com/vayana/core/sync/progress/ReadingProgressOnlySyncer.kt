@@ -47,6 +47,7 @@ import com.vayana.core.database.repository.isSyncedWithReadingProgress
 import com.vayana.core.sync.RemoteBookDeletionNotices
 import com.vayana.core.sync.SyncOperationCoordinator
 import com.vayana.core.sync.SyncedBookDeletionApplier
+import com.vayana.core.sync.isOfflineSyncFailure
 import com.vayana.core.sync.asset.CloudAssetDeletionProcessor
 import com.vayana.core.sync.asset.deletePendingAndLog
 import com.vayana.core.sync.usage.SyncDataUsageLog
@@ -122,7 +123,8 @@ class ReadingProgressOnlySyncer @Inject constructor(
             }
             if (result.status.isIssue) {
                 diagnosticsLogStore.record(
-                    category = DiagnosticCategory.SYNC,
+                    // Offline is the normal outcome of syncing without a network, not a problem to look into.
+                    category = if (isOfflineSyncFailure(result.failureMessage)) DiagnosticCategory.SYNC_LOG else DiagnosticCategory.SYNC,
                     source = "ReadingProgressOnlySyncer",
                     message = "${result.status}: ${result.failureMessage ?: "no further detail"}",
                 )

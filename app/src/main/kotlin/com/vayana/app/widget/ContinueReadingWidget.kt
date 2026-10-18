@@ -176,9 +176,11 @@ class ContinueReadingWidgetUpdater @Inject constructor(
             setViewVisibility(R.id.widget_progress_text, if (layout.pill) View.VISIBLE else View.GONE)
             if (layout.titleLines > 0) setInt(R.id.widget_title, "setMaxLines", layout.titleLines)
             // Sized covers (Android 12+ only) stay 2:3 rather than squashing to the row's height.
-            layout.coverWidthDp?.takeIf { Build.VERSION.SDK_INT >= Build.VERSION_CODES.S }?.let { width ->
-                setViewLayoutWidth(R.id.widget_cover, width, TypedValue.COMPLEX_UNIT_DIP)
-                setViewLayoutHeight(R.id.widget_cover, width * CoverAspect, TypedValue.COMPLEX_UNIT_DIP)
+            // A plain if, not takeIf: lint only recognises the version check in this form.
+            val coverWidth = layout.coverWidthDp
+            if (coverWidth != null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                setViewLayoutWidth(R.id.widget_cover, coverWidth, TypedValue.COMPLEX_UNIT_DIP)
+                setViewLayoutHeight(R.id.widget_cover, coverWidth * CoverAspect, TypedValue.COMPLEX_UNIT_DIP)
             }
             // A large row's cover takes the widget's full height, as wide as the cover's own shape makes it.
             if (layout.coverFillsHeight && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
