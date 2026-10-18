@@ -13,13 +13,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -100,16 +100,16 @@ private fun DataUsageScreen(state: DataUsageState?, onBack: () -> Unit, modifier
             item { SettingsContentContainer { SyncSummaryCard(state.sync) } }
             item {
                 SettingsContentContainer {
-                    Text(
-                        stringResource(R.string.data_usage_sync_recent),
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    )
+                    UsageCard(stringResource(R.string.data_usage_sync_recent)) {
+                        if (state.sync.recent.isEmpty()) {
+                            Text(stringResource(R.string.data_usage_sync_empty), style = MaterialTheme.typography.bodyMedium)
+                        }
+                        state.sync.recent.forEachIndexed { index, entry ->
+                            if (index > 0) HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                            SyncRow(entry)
+                        }
+                    }
                 }
-            }
-            if (state.sync.recent.isEmpty()) {
-                item { SettingsContentContainer { Text(stringResource(R.string.data_usage_sync_empty), style = MaterialTheme.typography.bodyMedium) } }
-            } else {
-                items(state.sync.recent, key = { it.at }) { entry -> SettingsContentContainer { SyncRow(entry) } }
             }
         }
     }
