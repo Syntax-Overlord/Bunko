@@ -17,6 +17,9 @@
     <string name="about_website">Vayana releases</string>
     <string name="about_support_dev">Support Dev</string>
     <string name="about_share">Share Vayana</string>
+    <string name="about_link_source">Source</string>
+    <string name="about_link_guide">Guide</string>
+    <string name="about_link_releases">Releases</string>
     <string name="about_share_text">Vayana is a calm Android reader for books, notes, highlights, vocabulary, and reading progress — check it out!</string>
     <string name="about_other_apps">Other apps by the developer</string>
     <string name="about_app_ultra">Ultra</string>

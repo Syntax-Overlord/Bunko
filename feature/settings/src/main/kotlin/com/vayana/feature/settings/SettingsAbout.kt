@@ -5,7 +5,6 @@ import android.content.Intent
 import android.net.Uri
 import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -27,6 +26,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
+import androidx.compose.material.icons.outlined.NewReleases
+import androidx.compose.foundation.layout.heightIn
+import com.vayana.core.designsystem.component.ConnectedButton
+import com.vayana.core.designsystem.component.VayanaConnectedButtonGroup
+import com.vayana.core.designsystem.component.morphingButtonShapes
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Alarm
 import androidx.compose.material.icons.outlined.AutoAwesome
@@ -37,16 +42,13 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.IosShare
 import androidx.compose.material.icons.outlined.Inventory2
-import androidx.compose.material.icons.outlined.Language
 import androidx.compose.material.icons.outlined.LocalCafe
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -58,6 +60,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -81,7 +84,6 @@ import com.vayana.core.designsystem.tokens.Paddings
 import com.vayana.core.designsystem.tokens.Radii
 import com.vayana.core.designsystem.tokens.Sizes
 import com.vayana.core.designsystem.tokens.Spacing
-import com.vayana.core.designsystem.tokens.Strokes
 import com.vayana.core.resources.R
 import java.io.File
 import android.graphics.Bitmap
@@ -174,42 +176,15 @@ internal fun HelpAndAboutDetail(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(Spacing.md),
                 ) {
-                    Surface(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(Radii.large),
-                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                        tonalElevation = Elevations.none,
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(Paddings.card),
-                            verticalArrangement = Arrangement.spacedBy(Spacing.md),
-                        ) {
-                            SettingsNavigationCard(
-                                title = stringResource(R.string.settings_open_help_title),
-                                subtitle = stringResource(R.string.settings_open_help_subtitle),
-                                icon = Icons.AutoMirrored.Outlined.HelpOutline,
-                                onClick = onHelpClick,
-                            )
-                            SettingsNavigationCard(
-                                title = stringResource(R.string.settings_open_diagnostics_title),
-                                subtitle = stringResource(R.string.settings_open_diagnostics_subtitle),
-                                icon = Icons.Outlined.BugReport,
-                                onClick = onDiagnosticsClick,
-                            )
-                            SettingsNavigationCard(
-                                title = stringResource(R.string.settings_open_data_usage_title),
-                                subtitle = stringResource(R.string.settings_open_data_usage_subtitle),
-                                icon = Icons.Outlined.DataUsage,
-                                onClick = onDataUsageClick,
-                            )
-                            SettingsNavigationCard(
-                                title = stringResource(R.string.privacy_title),
-                                subtitle = stringResource(R.string.privacy_open_subtitle),
-                                icon = Icons.Outlined.Shield,
-                                onClick = onPrivacyClick,
-                            )
-                        }
-                    }
+                    AboutEntryGroup(
+                        listOf(
+                            AboutEntry(stringResource(R.string.settings_open_help_title), stringResource(R.string.settings_open_help_subtitle), Icons.AutoMirrored.Outlined.HelpOutline, onHelpClick),
+                            AboutEntry(stringResource(R.string.settings_open_diagnostics_title), stringResource(R.string.settings_open_diagnostics_subtitle), Icons.Outlined.BugReport, onDiagnosticsClick),
+                            AboutEntry(stringResource(R.string.settings_open_data_usage_title), stringResource(R.string.settings_open_data_usage_subtitle), Icons.Outlined.DataUsage, onDataUsageClick),
+                            AboutEntry(stringResource(R.string.privacy_title), stringResource(R.string.privacy_open_subtitle), Icons.Outlined.Shield, onPrivacyClick),
+                        ),
+                    )
+                    Spacer(modifier = Modifier.height(Spacing.xs))
                     Text(
                         text = stringResource(R.string.settings_about_section_title),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
@@ -222,6 +197,7 @@ internal fun HelpAndAboutDetail(
     }
 }
 
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 private fun SettingsAboutSection() {
     val context = LocalContext.current
@@ -244,8 +220,8 @@ private fun SettingsAboutSection() {
     ) {
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(Radii.large),
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
+            shape = RoundedCornerShape(Radii.extraLargeIncreased),
+            color = MaterialTheme.colorScheme.surfaceContainerHigh,
             tonalElevation = Elevations.none,
         ) {
             Column(
@@ -301,9 +277,16 @@ private fun SettingsAboutSection() {
                         color = MaterialTheme.colorScheme.onSurface,
                     )
                 }
+                Spacer(modifier = Modifier.height(Spacing.md))
+                VayanaConnectedButtonGroup(
+                    buttons = listOf(
+                        ConnectedButton(stringResource(R.string.about_link_source), Icons.Outlined.Code) { uriHandler.openUri(VAYANA_GITHUB_URL) },
+                        ConnectedButton(stringResource(R.string.about_link_guide), Icons.AutoMirrored.Outlined.MenuBook) { uriHandler.openUri(documentationUrl) },
+                        ConnectedButton(stringResource(R.string.about_link_releases), Icons.Outlined.NewReleases) { uriHandler.openUri(VAYANA_RELEASES_URL) },
+                    ),
+                    iconAboveLabel = true,
+                )
                 Spacer(modifier = Modifier.height(Spacing.sm))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f))
-                Spacer(modifier = Modifier.height(Spacing.xs))
                 Text(
                     text = stringResource(R.string.about_credit),
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
@@ -319,55 +302,25 @@ private fun SettingsAboutSection() {
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            OutlinedButton(
-                onClick = { uriHandler.openUri(VAYANA_GITHUB_URL) },
-                modifier = Modifier.weight(1f),
-            ) {
-                Icon(imageVector = Icons.Outlined.Code, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall))
-                Spacer(modifier = Modifier.width(Spacing.xs))
-                Text(text = stringResource(R.string.about_github), textAlign = TextAlign.Center)
-            }
-            OutlinedButton(
+            FilledTonalButton(
                 onClick = { showShareDialog = true },
-                modifier = Modifier.weight(1f),
+                shapes = morphingButtonShapes(),
+                modifier = Modifier.weight(1f).heightIn(min = ButtonDefaults.MediumContainerHeight),
             ) {
-                Icon(imageVector = Icons.Outlined.IosShare, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall))
-                Spacer(modifier = Modifier.width(Spacing.xs))
-                Text(text = shareTitle, textAlign = TextAlign.Center)
+                Icon(imageVector = Icons.Outlined.IosShare, contentDescription = null, modifier = Modifier.size(Sizes.icon))
+                Spacer(modifier = Modifier.width(Spacing.sm))
+                Text(text = shareTitle, style = MaterialTheme.typography.titleSmall, maxLines = 1)
             }
-        }
-        FilledTonalButton(
-            onClick = { uriHandler.openUri(documentationUrl) },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(imageVector = Icons.AutoMirrored.Outlined.HelpOutline, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall))
-            Spacer(modifier = Modifier.width(Spacing.xs))
-            Text(text = stringResource(R.string.about_documentation), textAlign = TextAlign.Center)
-        }
-        FilledTonalButton(
-            onClick = { uriHandler.openUri(VAYANA_RELEASES_URL) },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(imageVector = Icons.Outlined.Language, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall))
-            Spacer(modifier = Modifier.width(Spacing.xs))
-            Text(text = stringResource(R.string.about_website), textAlign = TextAlign.Center)
-        }
-        Button(
-            onClick = { uriHandler.openUri(VAYANA_SUPPORT_URL) },
-            modifier = Modifier.fillMaxWidth(),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = SupportButtonYellow,
-                contentColor = Color.Black,
-            ),
-            border = BorderStroke(Strokes.outline, Color.Black),
-        ) {
-            Icon(imageVector = Icons.Outlined.LocalCafe, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall))
-            Spacer(modifier = Modifier.width(Spacing.xs))
-            Text(
-                text = stringResource(R.string.about_support_dev),
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-            )
+            Button(
+                onClick = { uriHandler.openUri(VAYANA_SUPPORT_URL) },
+                shapes = morphingButtonShapes(),
+                modifier = Modifier.weight(1f).heightIn(min = ButtonDefaults.MediumContainerHeight),
+                colors = ButtonDefaults.buttonColors(containerColor = SupportButtonYellow, contentColor = Color.Black),
+            ) {
+                Icon(imageVector = Icons.Outlined.LocalCafe, contentDescription = null, modifier = Modifier.size(Sizes.icon))
+                Spacer(modifier = Modifier.width(Spacing.sm))
+                Text(text = stringResource(R.string.about_support_dev), style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold, maxLines = 1)
+            }
         }
         OtherAppsCard()
     }
@@ -382,6 +335,38 @@ private fun SettingsAboutSection() {
                 coroutineScope.launch { context.shareApp(shareTitle, message, imageRes) }
             },
         )
+    }
+}
+
+private data class AboutEntry(val title: String, val subtitle: String, val icon: ImageVector, val onClick: () -> Unit)
+
+/** M3 Expressive segmented list: rows a hair apart, the group's outer corners round and the inner ones tight. */
+@Composable
+private fun AboutEntryGroup(entries: List<AboutEntry>) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs / 2)) {
+        entries.forEachIndexed { index, entry ->
+            val top = if (index == 0) Radii.extraLargeIncreased else Radii.extraSmall
+            val bottom = if (index == entries.lastIndex) Radii.extraLargeIncreased else Radii.extraSmall
+            Surface(
+                onClick = entry.onClick,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom),
+                color = MaterialTheme.colorScheme.surfaceContainer,
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = Spacing.lg, vertical = Spacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
+                ) {
+                    SettingsIconBubble(icon = entry.icon, selected = false)
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(entry.title, style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.SemiBold))
+                        Text(entry.subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Icon(Icons.AutoMirrored.Outlined.KeyboardArrowRight, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
     }
 }
 
@@ -431,12 +416,8 @@ private fun OtherAppsCard() {
 
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radii.large),
+        shape = RoundedCornerShape(Radii.extraLargeIncreased),
         color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(
-            width = Strokes.outline,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f),
-        ),
         tonalElevation = Elevations.none,
     ) {
         Column(
@@ -470,9 +451,8 @@ private fun OtherAppsCard() {
                         Surface(
                             onClick = { uriHandler.openUri(app.playStoreUrl) },
                             modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(Radii.medium),
+                            shape = RoundedCornerShape(Radii.large),
                             color = tint.copy(alpha = 0.12f),
-                            border = BorderStroke(Strokes.outline, tint.copy(alpha = 0.3f)),
                         ) {
                             Column(
                                 modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.md),
