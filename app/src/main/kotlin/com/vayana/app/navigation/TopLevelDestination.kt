@@ -40,6 +40,9 @@ data object DiagnosticsRoute
 data object DataUsageRoute
 
 @Serializable
+data object PrivacyRoute
+
+@Serializable
 data object SearchRoute
 
 @Serializable
@@ -125,6 +128,7 @@ internal fun NavDestination.isSelectedFor(destination: TopLevelDestination): Boo
             hasRoute(HelpRoute::class) ||
             hasRoute(DiagnosticsRoute::class) ||
             hasRoute(DataUsageRoute::class) ||
+            hasRoute(PrivacyRoute::class) ||
             hasRoute(SearchRoute::class) ||
             hasRoute(RecentlyDeletedRoute::class) ||
             hasRoute(ShelvesRoute::class) ||

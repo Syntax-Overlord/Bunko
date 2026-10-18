@@ -135,6 +135,7 @@ fun SettingsRoute(
     onHelpClick: () -> Unit,
     onDiagnosticsClick: () -> Unit,
     onDataUsageClick: () -> Unit,
+    onPrivacyClick: () -> Unit,
     onOpenLibrary: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -166,6 +167,7 @@ fun SettingsRoute(
         onHelpClick = onHelpClick,
         onDiagnosticsClick = onDiagnosticsClick,
         onDataUsageClick = onDataUsageClick,
+        onPrivacyClick = onPrivacyClick,
         onUpdate = viewModel::update,
         onReset = viewModel::reset,
         onResetAll = viewModel::resetAll,
@@ -208,6 +210,7 @@ private fun SettingsScreen(
     onHelpClick: () -> Unit,
     onDiagnosticsClick: () -> Unit,
     onDataUsageClick: () -> Unit,
+    onPrivacyClick: () -> Unit,
     onUpdate: (Setting<Any>, Any) -> Unit,
     onReset: (Setting<out Any>) -> Unit,
     onResetAll: () -> Unit,
@@ -249,6 +252,7 @@ private fun SettingsScreen(
                     onHelpClick = onHelpClick,
                     onDiagnosticsClick = onDiagnosticsClick,
                     onDataUsageClick = onDataUsageClick,
+                    onPrivacyClick = onPrivacyClick,
                 )
             }
             destination.group == null -> {

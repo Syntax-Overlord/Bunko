@@ -259,6 +259,15 @@ class GitHubContentsAssetStore(
             ?: throw GitHubAssetStoreException("GitHub $endpoint response was missing a valid SHA", response.statusCode, response.safeBodyText())
     }
 
+    /** Whether the sync repository is private, as GitHub reports it; null when GitHub can't be asked. */
+    suspend fun repositoryIsPrivate(): Boolean? = withContext(dispatcher) {
+        runCatching {
+            val response = executeRead(GitHubHttpRequest(method = "GET", url = gitUrl("").trimEnd('/'), headers = jsonHeaders()))
+            if (response.statusCode != HttpURLConnection.HTTP_OK) return@runCatching null
+            RepositoryPrivateRegex.find(response.bodyText())?.groupValues?.get(1)?.toBooleanStrict()
+        }.getOrNull()
+    }
+
     private fun gitUrl(endpoint: String): String =
         "${repository.apiBaseUrl.trimEnd('/')}/repos/${repository.owner}/${repository.name}/$endpoint"
 
@@ -1041,6 +1050,7 @@ private val GitHubObjectShaRegex = Regex("^[a-f0-9]{40,64}$")
 // "GET <url> HTTP/1.1\r\n" around the method and URL, and ": " plus "\r\n" on every header line.
 private const val RequestLineOverhead = 12
 private const val HeaderLineOverhead = 4
+private val RepositoryPrivateRegex = Regex("""^\s*\{.*?"private"\s*:\s*(true|false)""", RegexOption.DOT_MATCHES_ALL)
 private val SyncDocumentPathRegex = Regex("^[A-Za-z0-9._/-]{1,240}$")
 // Any slice may be zipped (the compact snapshot format); which names are slices is checked when a manifest is read.
 private val CompressedSlicePathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*/[a-z-]+\\.zip$")

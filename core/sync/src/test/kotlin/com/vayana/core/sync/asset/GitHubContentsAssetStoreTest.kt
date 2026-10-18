@@ -1024,6 +1024,15 @@ class GitHubContentsAssetStoreTest {
     }
 
     @Test
+    fun repositoryVisibilityComesFromTheRepositoryNotItsOwner() = runBlocking {
+        val body = """{"id":1,"name":"vayana-sync","private":true,"owner":{"login":"me","site_admin":false,"private":false}}"""
+        assertEquals(true, testStore(RecordingGitHubHttpClient(GitHubHttpResponse(200, body.toByteArray()))).repositoryIsPrivate())
+        val public = body.replace("\"private\":true", "\"private\":false")
+        assertEquals(false, testStore(RecordingGitHubHttpClient(GitHubHttpResponse(200, public.toByteArray()))).repositoryIsPrivate())
+        assertEquals(null, testStore(RecordingGitHubHttpClient(GitHubHttpResponse(404, "{}".toByteArray()))).repositoryIsPrivate())
+    }
+
+    @Test
     fun transferStatsCountEveryRequestAndItsPayload() = runBlocking {
         val client = RecordingGitHubHttpClient(*singleCommitResponses())
         val store = testStore(client)
