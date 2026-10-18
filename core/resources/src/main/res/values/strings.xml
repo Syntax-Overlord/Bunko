@@ -940,6 +940,10 @@
     <string name="data_usage_not_available">n/a</string>
     <string name="data_usage_not_available_note">n/a: this Android version only shares mobile data with apps allowed to read the phone\'s state.</string>
     <string name="data_usage_sync_section">Sync</string>
+    <string name="data_usage_history_section">App data history</string>
+    <string name="data_usage_history_chart">Last 30 days</string>
+    <string name="data_usage_history_chart_description">App data per day for the last 30 days: %1$s in total, %2$s on mobile.</string>
+    <string name="data_usage_history_note">Saved once a day on this device only, never synced, so months stay available after Android drops its own history. Days before Vayana first saved them start from what Android still held.</string>
     <plurals name="data_usage_sync_today">
         <item quantity="one">Today: %1$d sync · %2$s Wi-Fi · %3$s mobile</item>
         <item quantity="other">Today: %1$d syncs · %2$s Wi-Fi · %3$s mobile</item>

@@ -34,6 +34,7 @@ class VayanaApp : Application() {
     @Inject lateinit var homeLibrarySync: HomeLibrarySync
     @Inject lateinit var readingTimeWidgetUpdater: ReadingTimeWidgetUpdater
     @Inject lateinit var physicalReadingTimerNotification: PhysicalReadingTimerNotification
+    @Inject lateinit var appDataUsageHistory: com.vayana.feature.settings.AppDataUsageHistory
     @Inject @ApplicationScope lateinit var applicationScope: CoroutineScope
 
     override fun attachBaseContext(base: Context) {
@@ -56,6 +57,11 @@ class VayanaApp : Application() {
         applicationScope.launch {
             delay(StorageMaintenanceDelayMillis)
             runCatchingCancellable { storageMaintenance.runIfDue() }
+        }
+        // Saves the app's daily Wi-Fi and mobile use on this device before Android ages its own history out.
+        applicationScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            delay(StorageMaintenanceDelayMillis)
+            runCatchingCancellable { appDataUsageHistory.update() }
         }
     }
 }

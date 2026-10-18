@@ -1,10 +1,7 @@
 package com.vayana.feature.settings
 
-import android.app.usage.NetworkStats
-import android.app.usage.NetworkStatsManager
 import android.content.Context
 import android.net.ConnectivityManager
-import android.os.Process
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.vayana.core.common.DispatcherProvider
@@ -37,12 +34,13 @@ internal data class SyncUsageSummary(
     val recent: List<SyncDataUsageEntry>,
 )
 
-internal data class DataUsageState(val app: List<AppPeriodUsage>, val sync: SyncUsageSummary)
+internal data class DataUsageState(val app: List<AppPeriodUsage>, val sync: SyncUsageSummary, val history: List<DayUsage>)
 
 @HiltViewModel
 internal class DataUsageViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val syncDataUsageLog: SyncDataUsageLog,
+    private val appDataUsageHistory: AppDataUsageHistory,
     private val dispatchers: DispatcherProvider,
 ) : ViewModel() {
     private val _state = MutableStateFlow<DataUsageState?>(null)
@@ -65,6 +63,7 @@ internal class DataUsageViewModel @Inject constructor(
                         context.appDataUsage(start, System.currentTimeMillis() + CurrentBucketMillis, period)
                     },
                     sync = syncDataUsageLog.readAll().summary(today, zone),
+                    history = appDataUsageHistory.run { update(); read() },
                 )
             }
         }
@@ -82,22 +81,9 @@ internal fun List<SyncDataUsageEntry>.summary(today: LocalDate, zone: ZoneId): S
     )
 }
 
-/** The app's own traffic needs no permission to read; mobile without a subscriber id fails before Android 10. */
 private fun Context.appDataUsage(start: Long, end: Long, period: UsagePeriod): AppPeriodUsage {
-    val manager = getSystemService(NetworkStatsManager::class.java)
-    fun total(networkType: Int): Long? = runCatching {
-        manager.queryDetailsForUid(networkType, null, start, end, Process.myUid()).use { stats ->
-            val bucket = NetworkStats.Bucket()
-            var bytes = 0L
-            while (stats.hasNextBucket()) {
-                stats.getNextBucket(bucket)
-                bytes += bucket.rxBytes + bucket.txBytes
-            }
-            bytes
-        }
-    }.getOrNull()
     @Suppress("DEPRECATION") // NetworkStatsManager still takes the ConnectivityManager network types.
-    return AppPeriodUsage(period, total(ConnectivityManager.TYPE_WIFI), total(ConnectivityManager.TYPE_MOBILE))
+    return AppPeriodUsage(period, appBytes(start, end, ConnectivityManager.TYPE_WIFI), appBytes(start, end, ConnectivityManager.TYPE_MOBILE))
 }
 
 private const val ChartDays = 14

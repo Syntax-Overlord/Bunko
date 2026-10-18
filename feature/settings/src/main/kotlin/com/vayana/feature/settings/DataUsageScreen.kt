@@ -29,6 +29,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -97,6 +98,7 @@ private fun DataUsageScreen(state: DataUsageState?, onBack: () -> Unit, modifier
             verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             item { SettingsContentContainer { AppDataCard(state.app) } }
+            item { SettingsContentContainer { AppHistoryCard(state.history) } }
             item { SettingsContentContainer { SyncSummaryCard(state.sync) } }
             item {
                 SettingsContentContainer {
@@ -173,6 +175,31 @@ private fun UsageTableRow(label: String, wifi: String, mobile: String, total: St
 }
 
 @Composable
+private fun AppHistoryCard(history: List<DayUsage>) {
+    UsageCard(stringResource(R.string.data_usage_history_section)) {
+        val days = history.lastDays(30, java.time.LocalDate.now())
+        val total = days.sumOf { it.split.totalBytes }
+        val mobile = days.sumOf { it.split.mobileBytes }
+        Text(stringResource(R.string.data_usage_history_chart), style = MaterialTheme.typography.labelLarge)
+        SyncDaysChart(days, stringResource(R.string.data_usage_history_chart_description, bytes(total), bytes(mobile)))
+        Row(horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
+            LegendDot(MaterialTheme.colorScheme.primary, stringResource(R.string.data_usage_wifi))
+            LegendDot(MaterialTheme.colorScheme.tertiary, stringResource(R.string.data_usage_mobile))
+        }
+        UsageTableRow(
+            "", stringResource(R.string.data_usage_wifi), stringResource(R.string.data_usage_mobile),
+            stringResource(R.string.data_usage_total), header = true,
+        )
+        val locale = androidx.compose.ui.platform.LocalLocale.current.platformLocale
+        val monthFormat = remember(locale) { java.time.format.DateTimeFormatter.ofPattern("MMM yyyy", locale) }
+        history.monthlyTotals().forEach { (month, split) ->
+            UsageTableRow(month.format(monthFormat), bytes(split.wifiBytes), bytes(split.mobileBytes), bytes(split.totalBytes))
+        }
+        Text(stringResource(R.string.data_usage_history_note), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
 private fun SyncSummaryCard(sync: SyncUsageSummary) {
     UsageCard(stringResource(R.string.data_usage_sync_section)) {
         Text(
@@ -220,10 +247,11 @@ private fun SyncDaysChart(days: List<DayUsage>, description: String) {
             drawLine(baseline, Offset(0f, size.height), Offset(size.width, size.height), strokeWidth = 1.dp.toPx())
         }
         Row(Modifier.fillMaxWidth()) {
+            // About seven labels whatever the span, so two-digit dates never collide on a phone.
+            val every = (days.size + 6) / 7
             days.forEachIndexed { index, day ->
-                // Every other day labelled, so two-digit dates never collide on a phone.
                 Text(
-                    if (index % 2 == days.lastIndex % 2) "${day.date.dayOfMonth}" else "",
+                    if ((days.lastIndex - index) % every == 0) "${day.date.dayOfMonth}" else "",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
