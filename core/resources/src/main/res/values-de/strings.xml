@@ -1700,4 +1700,314 @@
     <string name="home_library_detail_publisher">Verlag</string>
     <string name="home_library_detail_isbn">ISBN</string>
     <string name="home_library_detail_location">Standort im Regal</string>
+    <string name="statistics_reading_records">Leseprotokolle</string>
+    <string name="statistics_reading_records_all">Alle Leseprotokolle ansehen</string>
+    <string name="statistics_record_dates">Begonnen: %1$s · Beendet: %2$s</string>
+    <string name="statistics_record_missing_date">Nicht erfasst</string>
+    <string name="statistics_record_seconds">Erfasste Lesezeit: %1$d Sekunden</string>
+    <string name="statistics_record_time">Erfasste Lesezeit: %1$s</string>
+    <string name="today_watch_connected">Uhr verbunden</string>
+    <string name="today_watch_disconnected">Uhr getrennt</string>
+    <string name="about_link_source">Quellcode</string>
+    <string name="about_link_guide">Anleitung</string>
+    <string name="about_link_releases">Versionen</string>
+    <string name="share_card_image_options_book_title_hint">Nur für dieses Bild. Gib den Titel in beliebiger Schrift ein; leer lassen, um das Original zu verwenden.</string>
+    <string name="home_library_browse_search">Titel, Autoren, Genres oder Regalplätze suchen</string>
+    <string name="home_library_browse_shelves">Aus meinen Regalen lesen</string>
+    <string name="home_library_browse_shelves_hint">Eigene Home-Library-Bücher, die in Vayana noch nicht begonnen wurden.</string>
+    <string name="home_library_browse_all_languages">Alle Sprachen</string>
+    <string name="home_library_browse_all_genres">Alle Genres</string>
+    <string name="home_library_browse_empty">Keine passenden Bücher. Leere die Suche oder die Filter.</string>
+    <string name="home_library_detail_language">Sprache</string>
+    <string name="home_library_detail_genre">Genre</string>
+    <string name="home_library_original_script_title">Originalschrift</string>
+    <string name="home_library_catalog_title">Katalogtitel</string>
+    <string name="physical_timer_title">Lese-Timer</string>
+    <string name="physical_timer_start">Starten</string>
+    <string name="physical_timer_pause">Pausieren</string>
+    <string name="physical_timer_resume">Fortsetzen</string>
+    <string name="physical_timer_stop">Stoppen</string>
+    <string name="physical_timer_ready">Miss deine Lesezeit und erfasse deine Seiten.</string>
+    <string name="physical_timer_running">Lesen · läuft weiter, wenn das Handy gesperrt ist</string>
+    <string name="physical_timer_paused">Pausiert · Pausen werden nicht mitgezählt</string>
+    <string name="physical_timer_stopped">Gestoppt · erfasse diese Sitzung zu Ende</string>
+    <string name="physical_timer_finish_log">Sitzung erfassen</string>
+    <string name="physical_timer_log_title">Wo hast du aufgehört?</string>
+    <string name="physical_timer_log_hint">Gib deine aktuelle Seite ein, um die Lesezeit zu speichern und deinen Fortschritt zu aktualisieren.</string>
+    <string name="physical_timer_start_hint">Bestätige deine Startseite, damit dein Lesetempo stimmt. Die Gesamtseitenzahl ist optional.</string>
+    <string name="physical_timer_discard">Verwerfen</string>
+    <string name="physical_timer_discard_active">Laufenden Timer verwerfen</string>
+    <string name="physical_manual_add">Sitzung manuell hinzufügen</string>
+    <string name="physical_manual_hint">Gib die Lesezeit ohne Pausen ein. Schalte „Aktuelle Seite aktualisieren“ aus, um eine ältere Sitzung hinzuzufügen, ohne deinen Fortschritt zu ändern.</string>
+    <string name="physical_manual_start_time">Beginn: %1$s</string>
+    <string name="physical_manual_time_title">Beginn der Sitzung</string>
+    <string name="physical_manual_duration">Lesedauer</string>
+    <string name="physical_manual_hours">Stunden</string>
+    <string name="physical_manual_minutes">Minuten</string>
+    <string name="physical_manual_start_page">Startseite</string>
+    <string name="physical_manual_update_progress">Aktuelle Seite aktualisieren</string>
+    <string name="physical_manual_progress_updated">Beim Speichern wird deine aktuelle Seite auf %1$d gesetzt.</string>
+    <string name="physical_manual_progress_kept">Nur erfassen: Deine aktuelle Seite bleibt bei %1$d.</string>
+    <string name="physical_manual_progress_needs_total">Gib die Gesamtseitenzahl ein, um die aktuelle Seite deines Buchs zu aktualisieren.</string>
+    <string name="physical_manual_invalid">Verwende eine positive Dauer, gültige Seitenzahlen und eine bereits beendete Sitzung. Minuten müssen zwischen 0 und 59 liegen.</string>
+    <string name="physical_timer_other_book">Für %1$s läuft ein Timer. Kehre zu diesem Buch zurück, um ihn zu pausieren, zu stoppen oder zu erfassen.</string>
+    <string name="physical_timer_failed">Timer oder Sitzung konnte nicht gespeichert werden. Bitte versuche es erneut.</string>
+    <string name="physical_timer_notification_channel">Lese-Timer für gedruckte Bücher</string>
+    <string name="physical_timer_notification_channel_description">Steuere eine laufende Lesesitzung mit einem gedruckten Buch über die Benachrichtigung oder den Sperrbildschirm.</string>
+    <string name="physical_timer_notification_running">Lesen ab Seite %1$d</string>
+    <string name="physical_timer_notification_paused">Pausiert · %1$s vergangen</string>
+    <string name="physical_timer_total_time">Gelesen: %1$s</string>
+    <string name="physical_timer_speed">%1$s Seiten pro Stunde</string>
+    <string name="physical_mark_reading">Als „Lese ich“ markieren</string>
+    <string name="physical_read_today">Heute lesen</string>
+    <string name="physical_home_reading">Lese ich gerade · Gedruckte Bücher</string>
+    <string name="physical_home_page">Seite %1$d von %2$d</string>
+    <string name="physical_home_current_page">Seite %1$d</string>
+    <string name="physical_home_session_recorded">Neue Sitzung erfasst: %1$s in %2$s.</string>
+    <plurals name="physical_home_session_pages">
+        <item quantity="one">%1$d Seite</item>
+        <item quantity="other">%1$d Seiten</item>
+    </plurals>
+    <plurals name="physical_home_session_minutes">
+        <item quantity="one">%1$d Minute</item>
+        <item quantity="other">%1$d Minuten</item>
+    </plurals>
+    <string name="physical_timer_pace_basis">Basierend auf %1$d Seiten in deinen letzten %2$d gemessenen Sitzungen</string>
+    <string name="physical_timer_average_session">Durchschnittliche Sitzung: %1$s</string>
+    <string name="physical_timer_history">Sitzungsverlauf</string>
+    <string name="physical_timer_reading_log">Leseprotokoll</string>
+    <string name="physical_timer_log_button">Leseprotokoll (%1$d)</string>
+    <string name="physical_timer_history_pages">Seiten %1$d → %2$d</string>
+    <string name="physical_timer_edit_pages">Seiten bearbeiten</string>
+    <string name="physical_timer_delete_session">Diese Sitzung löschen?</string>
+    <string name="physical_timer_delete_session_body">Dadurch wird %1$s von deiner Lesezeit abgezogen und die Sitzungsstatistik aktualisiert. Deine aktuelle Seite und deine Lesedaten bleiben gleich. Dies kann nicht rückgängig gemacht werden.</string>
+    <string name="physical_timer_delete_session_failed">Die Sitzung konnte nicht gelöscht werden. Bitte versuche es erneut.</string>
+    <string name="physical_timer_history_empty">Keine Lesesitzungen erfasst.</string>
+    <string name="physical_timer_edit_pages_hint">Nur der Seitenbereich dieses Eintrags ändert sich. Datum, Lesezeit und aktueller Buchfortschritt bleiben gleich.</string>
+    <string name="physical_timer_end_page">Endseite</string>
+    <string name="physical_timer_edit_pages_invalid">Gib null oder eine positive Seitenzahl ein.</string>
+    <string name="physical_timer_edit_pages_invalid_with_total">Verwende Seitenzahlen von 0 bis %1$d.</string>
+    <string name="physical_timer_start_page_too_high">Die Gesamtseitenzahl muss deine Startseite (%1$d) einschließen.</string>
+    <string name="physical_timer_remaining">Geschätzte verbleibende Lesezeit: %1$s</string>
+    <string name="physical_timer_estimate_hint">Erfasse eine Sitzung mit Seitenfortschritt und lege die Gesamtseitenzahl fest, um die verbleibende Lesezeit zu schätzen.</string>
+    <string name="physical_timer_session_count">%1$d Lesesitzungen erfasst</string>
+    <string name="physical_timer_recent_session">%1$s · %2$s · Seiten %3$d–%4$d</string>
+    <string name="help_documentation_title">Vollständiges Benutzerhandbuch</string>
+    <string name="help_documentation_description">Öffne die bebilderte Vayana-Dokumentation auf GitHub.</string>
+    <string name="help_section_expand_content_description">Tipps für %1$s anzeigen</string>
+    <string name="help_section_collapse_content_description">Tipps für %1$s ausblenden</string>
+    <string name="help_section_discover_title">Bücher hinzufügen &amp; entdecken</string>
+    <string name="help_section_offline_title">Offline- &amp; geliehene Bücher</string>
+    <string name="help_section_reading_tools_title">Wörterbuch, Übersetzung &amp; Vorlesen</string>
+    <string name="help_section_widgets_title">Widgets &amp; Verknüpfungen</string>
+    <string name="help_section_accessibility_title">E-Ink &amp; Barrierefreiheit</string>
+    <string name="help_section_diagnostics_title">Diagnose &amp; Support</string>
+    <string name="privacy_title">Datenschutz &amp; Daten</string>
+    <string name="privacy_open_subtitle">Wo deine Daten gespeichert werden, was dieses Handy verlässt und was verschlüsselt ist.</string>
+    <string name="privacy_status_section">Gerade auf diesem Handy</string>
+    <string name="privacy_device_encryption">Gerätespeicher</string>
+    <string name="privacy_device_encrypted">Von Android verschlüsselt und mit deiner Displaysperre geschützt.</string>
+    <string name="privacy_device_encrypted_without_lock">Verschlüsselt, aber nicht an eine Displaysperre gebunden: Wer das entsperrte Handy hat, kann die Daten lesen.</string>
+    <string name="privacy_device_not_encrypted">Nicht verschlüsselt. Jeder mit dem Handy könnte Vayanas Dateien lesen.</string>
+    <string name="privacy_device_unknown">Android hat den Verschlüsselungsstatus nicht gemeldet.</string>
+    <string name="privacy_screen_lock">Displaysperre</string>
+    <string name="privacy_screen_lock_on">An. Vayanas Daten sind nur lesbar, wenn das Handy entsperrt ist.</string>
+    <string name="privacy_screen_lock_off">Aus. Lege eine PIN, ein Muster oder ein Passwort fest, um deine Bibliothek zu schützen, falls das Handy verloren geht.</string>
+    <string name="privacy_book_files">Buchdateien und Cover</string>
+    <string name="privacy_book_files_private">Andere Apps können sie nicht lesen (Android 11 und neuer).</string>
+    <string name="privacy_book_files_shared">Unter Android 10 und älter können Apps mit Speicherzugriff sie lesen.</string>
+    <string name="privacy_sync">GitHub-Synchronisierung</string>
+    <string name="privacy_sync_off">Aus. Für die Synchronisierung verlässt nichts über dein Lesen dieses Handy.</string>
+    <string name="privacy_sync_on">An, mit deinem Repository %1$s.</string>
+    <string name="privacy_repository">Sync-Repository</string>
+    <string name="privacy_repository_private">Privat. Nur du und Personen, die du auf GitHub hinzufügst, können es lesen.</string>
+    <string name="privacy_repository_public">ÖFFENTLICH. Jeder kann deine Notizen, Markierungen und deinen Leseverlauf darin lesen. Stelle das Repository auf GitHub auf privat.</string>
+    <string name="privacy_repository_unknown">Konnte gerade nicht geprüft werden (offline oder GitHub hat nicht geantwortet).</string>
+    <string name="privacy_stored_section">Auf diesem Handy gespeichert</string>
+    <string name="privacy_stored_library">Bibliothek, Notizen, Markierungen, Lesefortschritt, Sitzungen und Wörter</string>
+    <string name="privacy_stored_library_detail">Vayanas private Datenbank. Nur Vayana kann sie öffnen; geschützt durch Androids App-Sandbox und die Geräteverschlüsselung, nicht separat verschlüsselt.</string>
+    <string name="privacy_stored_books">Buchdateien, Cover und importierte Schriftarten</string>
+    <string name="privacy_stored_books_detail">Vayanas Ordner in Android/data. Auch per USB von einem Computer aus erreichbar.</string>
+    <string name="privacy_stored_secrets">GitHub-Token und Sync-Passphrase</string>
+    <string name="privacy_stored_secrets_detail">Vayanas private Einstellungen, auf dem Bildschirm verborgen und nie in Backups, Exporten oder der Synchronisierung enthalten. Nicht separat verschlüsselt.</string>
+    <string name="privacy_stored_logs">Diagnose- und Datennutzungsprotokolle</string>
+    <string name="privacy_stored_logs_detail">Vayanas privater Speicher. Sie bleiben auf diesem Handy, sofern du keinen Diagnosebericht teilst.</string>
+    <string name="privacy_stored_backups">Backups und Notizbuch-Exporte</string>
+    <string name="privacy_stored_backups_detail">Der von dir gewählte Ordner, als gewöhnliche, unverschlüsselte Dateien. Alles mit Zugriff auf diesen Ordner kann sie lesen.</string>
+    <string name="privacy_leaves_section">Was dieses Handy verlässt und an wen</string>
+    <string name="privacy_leaves_github">GitHub, wenn die Synchronisierung an ist</string>
+    <string name="privacy_leaves_github_detail">Lesefortschritt, Notizen, Markierungen, Sitzungen, Regale und Buchdetails gehen als lesbare Dateien in dein Repository. Buchdateien und Cover werden vorher verschlüsselt (AES-256-GCM, Schlüssel aus deiner Passphrase), sodass GitHub sie nicht lesen kann.</string>
+    <string name="privacy_leaves_goodreads">Goodreads</string>
+    <string name="privacy_leaves_goodreads_detail">Nur wenn du ein Buch abrufst oder importierst: Titel und Autor oder die Seiten, die du öffnest.</string>
+    <string name="privacy_leaves_wikimedia">Wikipedia und Wiktionary</string>
+    <string name="privacy_leaves_wikimedia_detail">Nur Wörter, die du online nachschlägst. Nachschlagen im Offline-Wörterbuch bleibt auf dem Handy.</string>
+    <string name="privacy_leaves_catalogs">Project Gutenberg und Online-Kataloge</string>
+    <string name="privacy_leaves_catalogs_detail">Katalogsuche und Downloads von Gutenberg und den Katalogservern, die du hinzufügst. Lokale Server nutzen eventuell unverschlüsseltes HTTP.</string>
+    <string name="privacy_leaves_apps">Andere Apps und deine Uhr</string>
+    <string name="privacy_leaves_apps_detail">Text, den du übersetzt oder teilst, geht an die App, die du auswählst. Das Lesen gedruckter Bücher geht an deine gekoppelte Wear-OS-Uhr. Home Library wird nur gelesen.</string>
+    <string name="privacy_never_section">Nie erfasst</string>
+    <string name="privacy_never_detail">Kein Vayana-Konto, keine Werbung, keine Analysen oder Tracking. Absturzberichte bleiben auf diesem Handy und verlassen es nur, wenn du sie teilst.</string>
+    <string name="settings_open_data_usage_title">Datennutzung</string>
+    <string name="settings_open_data_usage_subtitle">WLAN- und Mobilfunkdaten, die Vayana und jede Synchronisierung verbrauchen.</string>
+    <string name="data_usage_title">Datennutzung</string>
+    <string name="data_usage_app_section">App-Daten</string>
+    <string name="data_usage_app_note">Alles, was Vayana sendet und empfängt, wie Android es zählt. Der heutige Wert kann bis zu zwei Stunden hinterherhinken.</string>
+    <string name="data_usage_period_today">Heute</string>
+    <string name="data_usage_period_week">Letzte 7 Tage</string>
+    <string name="data_usage_period_month">Letzte 30 Tage</string>
+    <string name="data_usage_wifi">WLAN</string>
+    <string name="data_usage_mobile">Mobil</string>
+    <string name="data_usage_total">Gesamt</string>
+    <string name="data_usage_not_available">k. A.</string>
+    <string name="data_usage_not_available_note">k. A.: Diese Android-Version teilt Mobilfunkdaten nur mit Apps, die den Telefonstatus lesen dürfen.</string>
+    <string name="data_usage_sync_section">Synchronisierung</string>
+    <string name="data_usage_history_section">Verlauf der App-Daten</string>
+    <string name="data_usage_history_chart">Letzte 30 Tage</string>
+    <string name="data_usage_history_chart_description">App-Daten pro Tag in den letzten 30 Tagen: insgesamt %1$s, davon %2$s mobil.</string>
+    <string name="data_usage_history_note">Einmal täglich nur auf diesem Gerät gespeichert, nie synchronisiert, damit Monate verfügbar bleiben, nachdem Android seinen eigenen Verlauf verwirft. Tage, bevor Vayana sie erstmals gespeichert hat, beginnen mit dem, was Android noch hatte.</string>
+    <plurals name="data_usage_sync_today">
+        <item quantity="one">Heute: %1$d Synchronisierung · %2$s WLAN · %3$s mobil</item>
+        <item quantity="other">Heute: %1$d Synchronisierungen · %2$s WLAN · %3$s mobil</item>
+    </plurals>
+    <string name="data_usage_sync_month">Letzte 30 Tage: %1$s, davon %2$s mobil</string>
+    <string name="data_usage_sync_chart_title">Sync-Daten, letzte 14 Tage</string>
+    <string name="data_usage_sync_chart_description">Sync-Daten pro Tag in den letzten 14 Tagen: insgesamt %1$s, davon %2$s mobil.</string>
+    <string name="data_usage_sync_recent">Letzte Synchronisierungen</string>
+    <string name="data_usage_sync_empty">Noch keine Synchronisierungen erfasst. Vayana zählt ab dieser Version jede Synchronisierung.</string>
+    <string name="data_usage_kind_full">Vollständige Synchronisierung</string>
+    <string name="data_usage_kind_background">Hintergrund-Synchronisierung</string>
+    <string name="data_usage_kind_launch_check">Prüfung beim Start</string>
+    <string name="data_usage_network_other">Anderes Netzwerk</string>
+    <string name="data_usage_network_none">Kein Netzwerk</string>
+    <string name="data_usage_sync_row">%1$s · %2$s · ↑ %3$s ↓ %4$s</string>
+    <string name="about_feature_summary">Ein privater EPUB- und PDF-Reader mit Bücherentdeckung, Anmerkungen, Sprachwerkzeugen, Lese-Einblicken, Widgets, Erfassung deiner Offline-Sammlung, Backup und verschlüsselter GitHub-Synchronisierung.</string>
+    <string name="about_documentation">Benutzerhandbuch lesen</string>
+    <string name="settings_eink_palette_title">E-Ink-Palette</string>
+    <string name="settings_eink_palette_subtitle">„Farbe“ nutzt Material-3-Farben, einschließlich Hintergrundfarben, sofern aktiviert. Das E-Ink-Aktualisierungsverhalten bleibt aktiv.</string>
+    <string name="settings_eink_palette_monochrome">Monochrom</string>
+    <string name="settings_eink_palette_color">Farbe</string>
+    <string name="settings_reader_text_align_center">Zentriert</string>
+    <string name="settings_reader_text_align_right">Rechts</string>
+    <string name="help_section_discover_description">Bring deine eigenen Dateien mit oder finde kostenlose Bücher direkt in Vayana.</string>
+    <string-array name="help_section_discover_tips">
+        <item>Importiere EPUB- und PDF-Dateien über die Dateiauswahl, einen überwachten Ordner oder Androids „Öffnen mit“.</item>
+        <item>Durchsuche und lade gemeinfreie Bücher von Project Gutenberg herunter.</item>
+        <item>Füge OPDS-Kataloge hinzu, um weitere kompatible Buchsammlungen zu erkunden.</item>
+        <item>Prüfe Buchdetails und Speicheroptionen, bevor du einen Titel zu deiner Bibliothek hinzufügst.</item>
+    </string-array>
+    <string name="help_section_offline_description">Erfasse eigene Bücher, geliehene Exemplare und Titel, die nicht als Lesedateien gespeichert sind.</string>
+    <string-array name="help_section_offline_tips">
+        <item>Füge gedruckte und geliehene Bücher mit Besitz-, Verleiher-, Fälligkeits- und Rückgabeangaben hinzu.</item>
+        <item>Nutze den Home-Library-Modus, um deine persönlichen Regale getrennt von digitalen Büchern zu durchsuchen.</item>
+        <item>Erfasse Fortschritt und Lesestatus auch, wenn ein Buch keine EPUB- oder PDF-Datei hat.</item>
+    </string-array>
+    <string name="help_section_reading_tools_description">Verstehe unbekannten Text und höre zu, ohne dein Buch zu verlassen.</string>
+    <string-array name="help_section_reading_tools_tips">
+        <item>Wähle ein Wort für das Wörterbuch, Wikipedia, Wiktionary oder die Übersetzungswerkzeuge aus.</item>
+        <item>Speichere nützliche Wörter in deiner Vokabelliste, um sie später zu wiederholen.</item>
+        <item>Nutze „Vorlesen“ für die Sprachausgabe und passe Stimme, Tempo und Tonhöhe in den Einstellungen an.</item>
+        <item>Wähle die Buchsprache, damit Nachschlage- und Sprachwerkzeuge die richtige Sprache verwenden.</item>
+    </string-array>
+    <string name="help_section_widgets_description">Lies weiter und sieh deinen Fortschritt direkt auf dem Startbildschirm.</string>
+    <string-array name="help_section_widgets_tips">
+        <item>Füge Vayana-Widgets über die Widget-Auswahl deines Android-Launchers hinzu.</item>
+        <item>Nutze „Weiterlesen“, um das aktuelle Buch mit einem Tippen wieder zu öffnen.</item>
+        <item>Nutze Widgets für Lesefortschritt und Ziele, um deine Aktivität im Blick zu behalten.</item>
+        <item>App-Verknüpfungen bieten schnellen Zugriff auf häufige Ziele, sofern dein Launcher sie unterstützt.</item>
+    </string-array>
+    <string name="help_section_accessibility_description">Stelle Vayana auf klareres Lesen, ruhigere Bewegungen und E-Ink-Displays ein.</string>
+    <string-array name="help_section_accessibility_tips">
+        <item>Wähle das E-Ink-Displayprofil für hohen Kontrast und weniger visuelle Effekte.</item>
+        <item>Passe fetteren Text, Ränder, Ausrichtung, Silbentrennung und zweispaltiges Querformat an.</item>
+        <item>Reduziere Bewegungen, blättere mit den Lautstärketasten, halte den Bildschirm an oder nutze den Vollbildmodus.</item>
+        <item>Steuere Helligkeit und warmes Licht im Reader, optional auch mit Wischgesten am Rand.</item>
+    </string-array>
+    <string name="help_section_diagnostics_description">Erfasse nützliche Absturz- und Synchronisierungsinformationen, wenn etwas schiefgeht.</string>
+    <string-array name="help_section_diagnostics_tips">
+        <item>Öffne nach einem Absturz oder einer fehlgeschlagenen Synchronisierung Einstellungen → Hilfe und Info → Diagnose.</item>
+        <item>Prüfe die erfassten App-, Geräte-, Absturz- und Synchronisierungsdetails, bevor du sie teilst.</item>
+        <item>Nutze „Mit Entwickler teilen“, um den Bericht mit den Schritten zum Reproduzieren des Problems zu senden.</item>
+        <item>Diagnosedaten werden auf diesem Gerät gespeichert und können auf demselben Bildschirm gelöscht werden.</item>
+    </string-array>
+    <string name="today_title">Heute</string>
+    <string name="today_title_with_goal">Heute · Ziel %1$d Min.</string>
+    <string name="today_options">Optionen der Heute-Karte</string>
+    <string name="today_minutes_read">%1$d Min. gelesen</string>
+    <string name="today_goal_reached">Ziel erreicht</string>
+    <string name="today_goal_remaining">Noch %1$d Min.</string>
+    <string name="today_continue_book">Weiterlesen · %1$s</string>
+    <string name="today_caught_up">Für heute hast du alles erledigt.</string>
+    <plurals name="today_words_due">
+        <item quantity="one">%d Wort fällig</item>
+        <item quantity="other">%d Wörter fällig</item>
+    </plurals>
+    <plurals name="today_highlights_due">
+        <item quantity="one">%d Markierung fällig</item>
+        <item quantity="other">%d Markierungen fällig</item>
+    </plurals>
+    <string name="today_hide">Heute-Karte ausblenden</string>
+    <string name="today_show">Heute-Karte anzeigen</string>
+    <string name="today_plan_minutes">%1$s: %2$d Minuten pro Tag</string>
+    <string name="today_plan_pages">%1$s: %2$d Seiten pro Tag</string>
+    <string name="today_plan_percent">%1$s: %2$d %% pro Tag</string>
+    <string name="today_plan_overdue">%1$s: Zieldatum verstrichen</string>
+    <string name="today_plan_minutes_compact">Heute %1$d Minuten · %2$s</string>
+    <string name="today_plan_pages_compact">Heute %1$d Seiten · %2$s</string>
+    <string name="today_plan_percent_compact">Heute %1$d %% · %2$s</string>
+    <string name="today_plan_overdue_compact">Zieldatum verstrichen · %1$s</string>
+    <string name="queue_manage">„Als Nächstes“ verwalten</string>
+    <string name="queue_capacity">Größe der Warteschlange</string>
+    <string name="queue_full">„Als Nächstes“ ist voll. Entferne ein Buch oder erhöhe die Größe.</string>
+    <string name="queue_move_up">Nach oben</string>
+    <string name="queue_move_down">Nach unten</string>
+    <string name="queue_pin">Als nächstes Buch anheften</string>
+    <string name="queue_unpin">Loslösen</string>
+    <string name="queue_remove">Aus Warteschlange entfernen</string>
+    <string name="queue_empty">Deine Warteschlange ist leer. Füge Bücher über ihre Details hinzu.</string>
+    <string name="queue_capacity_hint">%1$d in der Warteschlange · Größe %2$d. Beim Verkleinern bleiben vorhandene Bücher erhalten.</string>
+    <string name="reading_disposition">Lesestatus</string>
+    <string name="disposition_active">Aktiv</string>
+    <string name="disposition_paused">Pausiert</string>
+    <string name="disposition_dnf">Abgebrochen</string>
+    <string name="disposition_reason">Grund (optional)</string>
+    <string name="disposition_save">Status speichern</string>
+    <string name="disposition_resume">Weiterlesen</string>
+    <string name="disposition_hint">Deine Position, Markierungen und dein Leseverlauf bleiben erhalten.</string>
+    <string name="flashcard_create">Lernfrage erstellen</string>
+    <string name="flashcard_edit">Lernfrage bearbeiten</string>
+    <string name="flashcard_question">Frage</string>
+    <string name="flashcard_answer">Antwort</string>
+    <string name="flashcard_reveal">Antwort zeigen</string>
+    <string name="flashcard_save">Frage speichern</string>
+    <string name="flashcard_remove">Frage entfernen</string>
+    <string name="flashcard_hint">Die markierte Passage ist die Antwort. Sie bleibt verborgen, bis du sie aufdeckst.</string>
+    <string name="notebook_auto_export">Automatischer Notizbuch-Export</string>
+    <string name="notebook_choose_folder">Exportordner wählen</string>
+    <string name="notebook_disable">Automatischen Export ausschalten</string>
+    <string name="notebook_export_now">Jetzt exportieren</string>
+    <string name="notebook_export_hint">Vayana schreibt erzeugte Notizbücher in einen Vayana-Unterordner. Bewahre handschriftliche Notizen in separaten Dateien auf. Passagen-Links öffnen diese App.</string>
+    <string name="notebook_export_off">Automatischer Export ist aus</string>
+    <string name="notebook_export_ready">Automatischer Export ist aktiviert</string>
+    <string name="notebook_export_done">Notizbücher exportiert</string>
+    <string name="notebook_export_failed">Notizbücher konnten nicht exportiert werden. Prüfe den Ordnerzugriff oder wähle den Ordner erneut aus.</string>
+    <string name="notebook_passage_link">Passage öffnen</string>
+    <string name="photo_highlight">Markierung aus Foto hinzufügen</string>
+    <string name="photo_choose">Seitenfoto wählen</string>
+    <string name="photo_book">Buch</string>
+    <string name="photo_page">Seitenzahl (optional)</string>
+    <string name="photo_text">Erkannte Passage</string>
+    <string name="photo_hint">Wähle ein Seitenfoto, behalte die gewünschte Passage und korrigiere den Text vor dem Speichern. Die Texterkennung unterstützt in dieser Version lateinische Schrift.</string>
+    <string name="photo_recognizing">Text wird aus dem Foto gelesen…</string>
+    <string name="photo_failed">Dieses Foto konnte nicht gelesen werden. Wähle ein deutliches Seitenbild oder gib die Passage ein.</string>
+    <string name="photo_saved">Markierung gespeichert</string>
+    <string name="photo_save">Markierung speichern</string>
+    <string name="photo_no_books">Füge ein gedrucktes Buch hinzu, bevor du eine Foto-Markierung speicherst.</string>
+    <string name="photo_page_title">Seite %1$d</string>
+    <string name="search_contents">Buchinhalte</string>
+    <string name="search_indexing">EPUB-Inhalte werden indexiert… %1$d von %2$d</string>
+    <string name="search_index_errors">%1$d EPUB-Dateien konnten nicht indexiert werden.</string>
+    <string name="search_index_retry">Indexierung wiederholen</string>
+    <string name="search_contents_empty">Keine indexierten Passagen passen zu dieser Suche.</string>
+    <string name="search_index_hint">Inhalte werden lokal aus heruntergeladenen EPUBs indexiert.</string>
+    <string name="feature_action_failed">Diese Änderung konnte nicht gespeichert werden. Bitte versuche es erneut.</string>
 </resources>

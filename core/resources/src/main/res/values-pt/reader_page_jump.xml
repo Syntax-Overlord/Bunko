@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_go_to_page_title">Ir para a página</string>
+    <string name="reader_go_to_page_label">Número da página</string>
+    <string name="reader_go_to_page_range">Digite uma página de 1 a %1$d</string>
+    <string name="reader_go_to_page_cancel">Cancelar</string>
+</resources>

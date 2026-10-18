@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_go_to_page_title">Перейти на страницу</string>
+    <string name="reader_go_to_page_label">Номер страницы</string>
+    <string name="reader_go_to_page_range">Введите страницу от 1 до %1$d</string>
+    <string name="reader_go_to_page_cancel">Отмена</string>
+</resources>

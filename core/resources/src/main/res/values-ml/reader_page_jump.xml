@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reader_go_to_page_title">പേജിലേക്ക് പോകുക</string>
+    <string name="reader_go_to_page_label">പേജ് നമ്പർ</string>
+    <string name="reader_go_to_page_range">1 മുതൽ %1$d വരെയുള്ള ഒരു പേജ് നൽകുക</string>
+    <string name="reader_go_to_page_cancel">റദ്ദാക്കുക</string>
+</resources>

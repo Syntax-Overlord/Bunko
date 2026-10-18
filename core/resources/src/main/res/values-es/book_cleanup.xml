@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="library_clean_up">Limpiar</string>
+    <string name="library_clean_up_body">Elimina los restos reconocidos de Project Gutenberg y corrige errores claros en la prosa: espacios accidentales, caracteres invisibles dentro de palabras y palabras partidas en guiones suaves. Se conservan la poesía, las cartas, las ilustraciones y los guiones impresos normales. Se conservan el tiempo de lectura y las notas. Tu posición se recupera a partir del texto cercano cuando es posible; si no, se borra. Los enlaces de las notas pueden desplazarse. El archivo original se conserva en este dispositivo. Usa la sincronización completa para compartir la copia limpia.</string>
+    <string name="library_cleaned">Restos de Gutenberg eliminados. Usa la sincronización completa para actualizar la copia en la nube.</string>
+    <string name="library_nothing_to_clean">No se encontraron restos reconocidos de Gutenberg. El libro no ha cambiado.</string>
+    <string name="library_clean_up_preparing">Preparando la limpieza…</string>
+    <string name="library_clean_up_processing">Limpiando el libro…</string>
+    <string name="library_clean_up_finishing">Guardando el libro limpio…</string>
+    <string name="library_clean_up_percent">%1$d %%</string>
+    <string name="library_clean_up_hide">Ocultar</string>
+</resources>

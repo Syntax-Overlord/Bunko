@@ -1734,4 +1734,324 @@
     <string name="home_library_detail_publisher">Издательство</string>
     <string name="home_library_detail_isbn">ISBN</string>
     <string name="home_library_detail_location">Место на полке</string>
+    <string name="statistics_reading_records">Записи о чтении</string>
+    <string name="statistics_reading_records_all">Все записи о чтении</string>
+    <string name="statistics_record_dates">Начато: %1$s · Прочитано: %2$s</string>
+    <string name="statistics_record_missing_date">Не записано</string>
+    <string name="statistics_record_seconds">Записанное время чтения: %1$d с</string>
+    <string name="statistics_record_time">Записанное время чтения: %1$s</string>
+    <string name="today_watch_connected">Часы подключены</string>
+    <string name="today_watch_disconnected">Часы отключены</string>
+    <string name="about_link_source">Исходный код</string>
+    <string name="about_link_guide">Руководство</string>
+    <string name="about_link_releases">Выпуски</string>
+    <string name="share_card_image_options_book_title_hint">Только для этого изображения. Введите название любым письмом; оставьте пустым, чтобы использовать оригинал.</string>
+    <string name="home_library_browse_search">Искать названия, авторов, жанры или места на полках</string>
+    <string name="home_library_browse_shelves">Читать с моих полок</string>
+    <string name="home_library_browse_shelves_hint">Свои книги из Home Library, которые вы ещё не начали в Vayana.</string>
+    <string name="home_library_browse_all_languages">Все языки</string>
+    <string name="home_library_browse_all_genres">Все жанры</string>
+    <string name="home_library_browse_empty">Подходящих книг нет. Попробуйте очистить поиск или фильтры.</string>
+    <string name="home_library_detail_language">Язык</string>
+    <string name="home_library_detail_genre">Жанр</string>
+    <string name="home_library_original_script_title">Исходное письмо</string>
+    <string name="home_library_catalog_title">Название в каталоге</string>
+    <string name="physical_timer_title">Таймер чтения</string>
+    <string name="physical_timer_start">Старт</string>
+    <string name="physical_timer_pause">Пауза</string>
+    <string name="physical_timer_resume">Продолжить</string>
+    <string name="physical_timer_stop">Стоп</string>
+    <string name="physical_timer_ready">Засекайте время чтения и отмечайте страницы.</string>
+    <string name="physical_timer_running">Чтение · продолжается при заблокированном телефоне</string>
+    <string name="physical_timer_paused">Пауза · перерывы не учитываются</string>
+    <string name="physical_timer_stopped">Остановлено · завершите запись этой сессии</string>
+    <string name="physical_timer_finish_log">Записать сессию</string>
+    <string name="physical_timer_log_title">Где вы остановились?</string>
+    <string name="physical_timer_log_hint">Введите текущую страницу, чтобы сохранить время чтения и обновить прогресс.</string>
+    <string name="physical_timer_start_hint">Подтвердите начальную страницу, чтобы темп чтения был точным. Общее число страниц указывать необязательно.</string>
+    <string name="physical_timer_discard">Сбросить</string>
+    <string name="physical_timer_discard_active">Сбросить активный таймер</string>
+    <string name="physical_manual_add">Добавить сессию вручную</string>
+    <string name="physical_manual_hint">Укажите время чтения без перерывов. Выключите «Обновить текущую страницу», чтобы добавить старую сессию, не меняя прогресс.</string>
+    <string name="physical_manual_start_time">Начало: %1$s</string>
+    <string name="physical_manual_time_title">Время начала сессии</string>
+    <string name="physical_manual_duration">Время чтения</string>
+    <string name="physical_manual_hours">Часы</string>
+    <string name="physical_manual_minutes">Минуты</string>
+    <string name="physical_manual_start_page">Начальная страница</string>
+    <string name="physical_manual_update_progress">Обновить текущую страницу</string>
+    <string name="physical_manual_progress_updated">После сохранения текущей станет страница %1$d.</string>
+    <string name="physical_manual_progress_kept">Только запись: текущей останется страница %1$d.</string>
+    <string name="physical_manual_progress_needs_total">Укажите общее число страниц, чтобы обновить текущую страницу книги.</string>
+    <string name="physical_manual_invalid">Укажите положительную длительность, правильные номера страниц и уже завершённую сессию. Минуты — от 0 до 59.</string>
+    <string name="physical_timer_other_book">Таймер запущен для книги %1$s. Вернитесь к ней, чтобы поставить его на паузу, остановить или записать.</string>
+    <string name="physical_timer_failed">Не удалось сохранить таймер или сессию. Попробуйте ещё раз.</string>
+    <string name="physical_timer_notification_channel">Таймер чтения бумажных книг</string>
+    <string name="physical_timer_notification_channel_description">Управляйте сессией чтения бумажной книги из уведомления или на экране блокировки.</string>
+    <string name="physical_timer_notification_running">Чтение со страницы %1$d</string>
+    <string name="physical_timer_notification_paused">Пауза · прошло %1$s</string>
+    <string name="physical_timer_total_time">Время чтения: %1$s</string>
+    <string name="physical_timer_speed">Страниц в час: %1$s</string>
+    <string name="physical_mark_reading">Отметить как «Читаю»</string>
+    <string name="physical_read_today">Читать сегодня</string>
+    <string name="physical_home_reading">Сейчас читаю · Бумажные книги</string>
+    <string name="physical_home_page">Страница %1$d из %2$d</string>
+    <string name="physical_home_current_page">Страница %1$d</string>
+    <string name="physical_home_session_recorded">Записана новая сессия: %1$s за %2$s.</string>
+    <plurals name="physical_home_session_pages">
+        <item quantity="one">%1$d страница</item>
+        <item quantity="few">%1$d страницы</item>
+        <item quantity="many">%1$d страниц</item>
+        <item quantity="other">%1$d страницы</item>
+    </plurals>
+    <plurals name="physical_home_session_minutes">
+        <item quantity="one">%1$d минуту</item>
+        <item quantity="few">%1$d минуты</item>
+        <item quantity="many">%1$d минут</item>
+        <item quantity="other">%1$d минуты</item>
+    </plurals>
+    <string name="physical_timer_pace_basis">По %1$d стр. за последние засечённые сессии (%2$d)</string>
+    <string name="physical_timer_average_session">Средняя сессия: %1$s</string>
+    <string name="physical_timer_history">История сессий</string>
+    <string name="physical_timer_reading_log">Журнал чтения</string>
+    <string name="physical_timer_log_button">Журнал чтения (%1$d)</string>
+    <string name="physical_timer_history_pages">Страницы %1$d → %2$d</string>
+    <string name="physical_timer_edit_pages">Изменить страницы</string>
+    <string name="physical_timer_delete_session">Удалить эту сессию?</string>
+    <string name="physical_timer_delete_session_body">Из времени чтения будет вычтено %1$s, а статистика сессий обновится. Текущая страница и даты чтения не изменятся. Это действие нельзя отменить.</string>
+    <string name="physical_timer_delete_session_failed">Не удалось удалить сессию. Попробуйте ещё раз.</string>
+    <string name="physical_timer_history_empty">Сессий чтения пока нет.</string>
+    <string name="physical_timer_edit_pages_hint">Изменится только диапазон страниц этой записи. Дата, время чтения и текущий прогресс книги останутся прежними.</string>
+    <string name="physical_timer_end_page">Конечная страница</string>
+    <string name="physical_timer_edit_pages_invalid">Введите ноль или положительный номер страницы.</string>
+    <string name="physical_timer_edit_pages_invalid_with_total">Используйте номера страниц от 0 до %1$d.</string>
+    <string name="physical_timer_start_page_too_high">Общее число страниц должно включать начальную страницу (%1$d).</string>
+    <string name="physical_timer_remaining">Оставшееся время чтения (оценка): %1$s</string>
+    <string name="physical_timer_estimate_hint">Запишите сессию с продвижением по страницам и укажите общее число страниц, чтобы оценить оставшееся время чтения.</string>
+    <string name="physical_timer_session_count">Записано сессий чтения: %1$d</string>
+    <string name="physical_timer_recent_session">%1$s · %2$s · стр. %3$d–%4$d</string>
+    <string name="help_documentation_title">Полное руководство пользователя</string>
+    <string name="help_documentation_description">Открыть иллюстрированную документацию Vayana на GitHub.</string>
+    <string name="help_section_expand_content_description">Показать советы: %1$s</string>
+    <string name="help_section_collapse_content_description">Скрыть советы: %1$s</string>
+    <string name="help_section_discover_title">Добавление и поиск книг</string>
+    <string name="help_section_offline_title">Офлайн-книги и взятые почитать</string>
+    <string name="help_section_reading_tools_title">Словарь, перевод и чтение вслух</string>
+    <string name="help_section_widgets_title">Виджеты и ярлыки</string>
+    <string name="help_section_accessibility_title">E-ink и специальные возможности</string>
+    <string name="help_section_diagnostics_title">Диагностика и поддержка</string>
+    <string name="privacy_title">Конфиденциальность и данные</string>
+    <string name="privacy_open_subtitle">Где хранятся ваши данные, что покидает телефон и что зашифровано.</string>
+    <string name="privacy_status_section">На этом телефоне сейчас</string>
+    <string name="privacy_device_encryption">Память устройства</string>
+    <string name="privacy_device_encrypted">Зашифрована Android и защищена блокировкой экрана.</string>
+    <string name="privacy_device_encrypted_without_lock">Зашифрована, но не связана с блокировкой экрана: любой, у кого разблокированный телефон, может её прочитать.</string>
+    <string name="privacy_device_not_encrypted">Не зашифрована. Любой, у кого телефон, может прочитать файлы Vayana.</string>
+    <string name="privacy_device_unknown">Android не сообщил состояние шифрования.</string>
+    <string name="privacy_screen_lock">Блокировка экрана</string>
+    <string name="privacy_screen_lock_on">Включена. Данные Vayana доступны только на разблокированном телефоне.</string>
+    <string name="privacy_screen_lock_off">Выключена. Задайте PIN-код, графический ключ или пароль, чтобы защитить библиотеку при потере телефона.</string>
+    <string name="privacy_book_files">Файлы книг и обложки</string>
+    <string name="privacy_book_files_private">Другие приложения не могут их прочитать (Android 11 и новее).</string>
+    <string name="privacy_book_files_shared">В Android 10 и старше их могут прочитать приложения с доступом к памяти.</string>
+    <string name="privacy_sync">Синхронизация с GitHub</string>
+    <string name="privacy_sync_off">Выключена. Никакие данные о чтении не покидают телефон для синхронизации.</string>
+    <string name="privacy_sync_on">Включена, с вашим репозиторием %1$s.</string>
+    <string name="privacy_repository">Репозиторий синхронизации</string>
+    <string name="privacy_repository_private">Закрытый. Его можете читать только вы и люди, которых вы добавили на GitHub.</string>
+    <string name="privacy_repository_public">ПУБЛИЧНЫЙ. Любой может прочитать в нём ваши заметки, выделения и историю чтения. Сделайте репозиторий закрытым на GitHub.</string>
+    <string name="privacy_repository_unknown">Сейчас не удалось проверить (нет сети или GitHub не ответил).</string>
+    <string name="privacy_stored_section">Хранится на этом телефоне</string>
+    <string name="privacy_stored_library">Библиотека, заметки, выделения, прогресс чтения, сессии и слова</string>
+    <string name="privacy_stored_library_detail">Закрытая база данных Vayana. Открыть её может только Vayana; защищена песочницей приложений Android и шифрованием устройства, отдельно не шифруется.</string>
+    <string name="privacy_stored_books">Файлы книг, обложки и импортированные шрифты</string>
+    <string name="privacy_stored_books_detail">Папка Vayana в Android/data. Доступна и с компьютера по USB.</string>
+    <string name="privacy_stored_secrets">Токен GitHub и кодовая фраза синхронизации</string>
+    <string name="privacy_stored_secrets_detail">Закрытые настройки Vayana: скрыты на экране и никогда не попадают в резервные копии, экспорт или синхронизацию. Отдельно не шифруются.</string>
+    <string name="privacy_stored_logs">Диагностика и записи об использовании данных</string>
+    <string name="privacy_stored_logs_detail">Закрытое хранилище Vayana. Остаются на этом телефоне, если вы не поделитесь отчётом диагностики.</string>
+    <string name="privacy_stored_backups">Резервные копии и экспорт блокнотов</string>
+    <string name="privacy_stored_backups_detail">Выбранная вами папка, в виде обычных незашифрованных файлов. Их может прочитать всё, что имеет доступ к этой папке.</string>
+    <string name="privacy_leaves_section">Что покидает телефон и куда</string>
+    <string name="privacy_leaves_github">GitHub, если включена синхронизация</string>
+    <string name="privacy_leaves_github_detail">Прогресс чтения, заметки, выделения, сессии, полки и сведения о книгах отправляются в ваш репозиторий в виде читаемых файлов. Файлы книг и обложки сначала шифруются (AES-256-GCM, ключ из вашей кодовой фразы), поэтому GitHub не может их прочитать.</string>
+    <string name="privacy_leaves_goodreads">Goodreads</string>
+    <string name="privacy_leaves_goodreads_detail">Только когда вы загружаете или импортируете книгу: её название и автор либо открываемые вами страницы.</string>
+    <string name="privacy_leaves_wikimedia">Википедия и Викисловарь</string>
+    <string name="privacy_leaves_wikimedia_detail">Только слова, которые вы ищете онлайн. Поиск в офлайн-словаре остаётся на телефоне.</string>
+    <string name="privacy_leaves_catalogs">Project Gutenberg и онлайн-каталоги</string>
+    <string name="privacy_leaves_catalogs_detail">Просмотр каталогов и загрузки из Gutenberg и добавленных вами серверов каталогов. Локальные серверы могут использовать обычный HTTP.</string>
+    <string name="privacy_leaves_apps">Другие приложения и ваши часы</string>
+    <string name="privacy_leaves_apps_detail">Текст, который вы переводите или которым делитесь, уходит в выбранное приложение. Чтение бумажных книг передаётся на подключённые часы Wear OS. Из Home Library данные только читаются.</string>
+    <string name="privacy_never_section">Никогда не собирается</string>
+    <string name="privacy_never_detail">Нет аккаунта Vayana, рекламы, аналитики или отслеживания. Отчёты о сбоях хранятся на этом телефоне и покидают его, только если вы ими поделитесь.</string>
+    <string name="settings_open_data_usage_title">Использование данных</string>
+    <string name="settings_open_data_usage_subtitle">Wi-Fi и мобильный трафик Vayana и каждой синхронизации.</string>
+    <string name="data_usage_title">Использование данных</string>
+    <string name="data_usage_app_section">Трафик приложения</string>
+    <string name="data_usage_app_note">Всё, что Vayana отправляет и получает, по подсчёту Android. Данные за сегодня могут отставать до двух часов.</string>
+    <string name="data_usage_period_today">Сегодня</string>
+    <string name="data_usage_period_week">Последние 7 дней</string>
+    <string name="data_usage_period_month">Последние 30 дней</string>
+    <string name="data_usage_wifi">Wi-Fi</string>
+    <string name="data_usage_mobile">Мобильная сеть</string>
+    <string name="data_usage_total">Всего</string>
+    <string name="data_usage_not_available">н/д</string>
+    <string name="data_usage_not_available_note">н/д: эта версия Android сообщает мобильный трафик только приложениям с доступом к состоянию телефона.</string>
+    <string name="data_usage_sync_section">Синхронизация</string>
+    <string name="data_usage_history_section">История трафика приложения</string>
+    <string name="data_usage_history_chart">Последние 30 дней</string>
+    <string name="data_usage_history_chart_description">Трафик приложения по дням за последние 30 дней: всего %1$s, из них %2$s через мобильную сеть.</string>
+    <string name="data_usage_history_note">Сохраняется раз в день только на этом устройстве и никогда не синхронизируется, чтобы данные за месяцы оставались доступными после того, как Android удалит свою историю. Дни до первого сохранения в Vayana начинаются с того, что ещё хранил Android.</string>
+    <plurals name="data_usage_sync_today">
+        <item quantity="one">Сегодня: %1$d синхронизация · %2$s Wi-Fi · %3$s моб.</item>
+        <item quantity="few">Сегодня: %1$d синхронизации · %2$s Wi-Fi · %3$s моб.</item>
+        <item quantity="many">Сегодня: %1$d синхронизаций · %2$s Wi-Fi · %3$s моб.</item>
+        <item quantity="other">Сегодня: %1$d синхронизации · %2$s Wi-Fi · %3$s моб.</item>
+    </plurals>
+    <string name="data_usage_sync_month">Последние 30 дней: %1$s, из них %2$s через мобильную сеть</string>
+    <string name="data_usage_sync_chart_title">Трафик синхронизации за 14 дней</string>
+    <string name="data_usage_sync_chart_description">Трафик синхронизации по дням за последние 14 дней: всего %1$s, из них %2$s через мобильную сеть.</string>
+    <string name="data_usage_sync_recent">Недавние синхронизации</string>
+    <string name="data_usage_sync_empty">Синхронизаций пока нет. Vayana учитывает каждую синхронизацию начиная с этой версии.</string>
+    <string name="data_usage_kind_full">Полная синхронизация</string>
+    <string name="data_usage_kind_background">Фоновая синхронизация</string>
+    <string name="data_usage_kind_launch_check">Проверка при запуске</string>
+    <string name="data_usage_network_other">Другая сеть</string>
+    <string name="data_usage_network_none">Нет сети</string>
+    <string name="data_usage_sync_row">%1$s · %2$s · ↑ %3$s ↓ %4$s</string>
+    <string name="about_feature_summary">Приватная читалка EPUB и PDF с поиском книг, заметками, языковыми инструментами, статистикой чтения, виджетами, учётом офлайн-коллекции, резервным копированием и зашифрованной синхронизацией через GitHub.</string>
+    <string name="about_documentation">Прочитать руководство</string>
+    <string name="settings_eink_palette_title">Палитра E-ink</string>
+    <string name="settings_eink_palette_subtitle">«Цвет» использует цвета Material 3, включая цвета обоев, если они включены. Режим обновления E-ink остаётся активным.</string>
+    <string name="settings_eink_palette_monochrome">Монохромная</string>
+    <string name="settings_eink_palette_color">Цвет</string>
+    <string name="settings_reader_text_align_center">По центру</string>
+    <string name="settings_reader_text_align_right">По правому краю</string>
+    <string name="help_section_discover_description">Добавляйте свои файлы или находите бесплатные книги прямо в Vayana.</string>
+    <string-array name="help_section_discover_tips">
+        <item>Импортируйте файлы EPUB и PDF через выбор файлов, отслеживаемую папку или действие Android «Открыть с помощью».</item>
+        <item>Просматривайте и скачивайте общедоступные книги из Project Gutenberg.</item>
+        <item>Добавляйте каталоги OPDS, чтобы открывать другие совместимые коллекции книг.</item>
+        <item>Проверьте сведения о книге и параметры хранения, прежде чем добавить её в библиотеку.</item>
+    </string-array>
+    <string name="help_section_offline_description">Учитывайте свои книги, взятые почитать экземпляры и издания, которых нет в виде файлов.</string>
+    <string-array name="help_section_offline_tips">
+        <item>Добавляйте бумажные и взятые почитать книги с данными о владельце, у кого взяли, сроке и возврате.</item>
+        <item>Используйте режим Home Library, чтобы просматривать личные полки отдельно от электронных книг.</item>
+        <item>Отмечайте прогресс и статус чтения, даже если у книги нет файла EPUB или PDF.</item>
+    </string-array>
+    <string name="help_section_reading_tools_description">Разбирайтесь в незнакомом тексте и слушайте, не выходя из книги.</string>
+    <string-array name="help_section_reading_tools_tips">
+        <item>Выделите слово, чтобы открыть словарь, Википедию, Викисловарь или инструменты перевода.</item>
+        <item>Сохраняйте полезные слова в список для последующего повторения.</item>
+        <item>Используйте «Читать вслух» для синтеза речи, а голос, скорость и тон настройте в настройках.</item>
+        <item>Укажите язык книги, чтобы поиск и синтез речи использовали правильный язык.</item>
+    </string-array>
+    <string name="help_section_widgets_description">Продолжайте чтение и следите за прогрессом прямо с главного экрана.</string>
+    <string-array name="help_section_widgets_tips">
+        <item>Добавляйте виджеты Vayana через меню виджетов лаунчера Android.</item>
+        <item>Используйте «Продолжить чтение», чтобы открыть текущую книгу одним нажатием.</item>
+        <item>Используйте виджеты прогресса и целей, чтобы ваша активность была на виду.</item>
+        <item>Ярлыки приложения дают быстрый доступ к частым разделам, если лаунчер их поддерживает.</item>
+    </string-array>
+    <string name="help_section_accessibility_description">Настройте Vayana для более чёткого чтения, спокойной анимации и экранов E-ink.</string>
+    <string-array name="help_section_accessibility_tips">
+        <item>Выберите профиль экрана E-ink для высокого контраста и меньшего числа визуальных эффектов.</item>
+        <item>Настройте более жирный текст, поля, выравнивание, переносы и двухколоночную альбомную раскладку.</item>
+        <item>Уменьшите анимацию, листайте кнопками громкости, не давайте экрану гаснуть или включите полноэкранный режим.</item>
+        <item>Управляйте яркостью и тёплым светом в читалке, в том числе жестами от края экрана.</item>
+    </string-array>
+    <string name="help_section_diagnostics_description">Собирайте полезные сведения о сбоях и синхронизации, когда что-то идёт не так.</string>
+    <string-array name="help_section_diagnostics_tips">
+        <item>После сбоя или неудачной синхронизации откройте Настройки → Справка и о приложении → Диагностика.</item>
+        <item>Проверьте собранные сведения о приложении, устройстве, сбое и синхронизации, прежде чем делиться ими.</item>
+        <item>Нажмите «Отправить разработчику», чтобы отправить отчёт вместе с шагами для воспроизведения проблемы.</item>
+        <item>Диагностика хранится на этом устройстве, и её можно очистить на том же экране.</item>
+    </string-array>
+    <string name="today_title">Сегодня</string>
+    <string name="today_title_with_goal">Сегодня · цель %1$d мин</string>
+    <string name="today_options">Параметры карточки «Сегодня»</string>
+    <string name="today_minutes_read">Прочитано %1$d мин</string>
+    <string name="today_goal_reached">Цель достигнута</string>
+    <string name="today_goal_remaining">Осталось %1$d мин</string>
+    <string name="today_continue_book">Продолжить · %1$s</string>
+    <string name="today_caught_up">На сегодня всё сделано.</string>
+    <plurals name="today_words_due">
+        <item quantity="one">%d слово к повторению</item>
+        <item quantity="few">%d слова к повторению</item>
+        <item quantity="many">%d слов к повторению</item>
+        <item quantity="other">%d слова к повторению</item>
+    </plurals>
+    <plurals name="today_highlights_due">
+        <item quantity="one">%d выделение к повторению</item>
+        <item quantity="few">%d выделения к повторению</item>
+        <item quantity="many">%d выделений к повторению</item>
+        <item quantity="other">%d выделения к повторению</item>
+    </plurals>
+    <string name="today_hide">Скрыть карточку «Сегодня»</string>
+    <string name="today_show">Показать карточку «Сегодня»</string>
+    <string name="today_plan_minutes">%1$s: %2$d мин в день</string>
+    <string name="today_plan_pages">%1$s: %2$d стр. в день</string>
+    <string name="today_plan_percent">%1$s: %2$d %% в день</string>
+    <string name="today_plan_overdue">%1$s: срок окончания прошёл</string>
+    <string name="today_plan_minutes_compact">%1$d мин сегодня · %2$s</string>
+    <string name="today_plan_pages_compact">%1$d стр. сегодня · %2$s</string>
+    <string name="today_plan_percent_compact">%1$d %% сегодня · %2$s</string>
+    <string name="today_plan_overdue_compact">Срок окончания прошёл · %1$s</string>
+    <string name="queue_manage">Управление «Читать далее»</string>
+    <string name="queue_capacity">Размер очереди</string>
+    <string name="queue_full">Очередь «Читать далее» заполнена. Удалите книгу или увеличьте размер.</string>
+    <string name="queue_move_up">Выше</string>
+    <string name="queue_move_down">Ниже</string>
+    <string name="queue_pin">Закрепить как следующую</string>
+    <string name="queue_unpin">Открепить</string>
+    <string name="queue_remove">Убрать из очереди</string>
+    <string name="queue_empty">Очередь пуста. Добавляйте книги со страницы сведений о них.</string>
+    <string name="queue_capacity_hint">В очереди: %1$d · размер: %2$d. При уменьшении размера книги в очереди сохраняются.</string>
+    <string name="reading_disposition">Статус чтения</string>
+    <string name="disposition_active">Активно</string>
+    <string name="disposition_paused">Отложено</string>
+    <string name="disposition_dnf">Брошено</string>
+    <string name="disposition_reason">Причина (необязательно)</string>
+    <string name="disposition_save">Сохранить статус</string>
+    <string name="disposition_resume">Продолжить чтение</string>
+    <string name="disposition_hint">Ваша позиция, выделения и история чтения сохраняются.</string>
+    <string name="flashcard_create">Создать вопрос для повторения</string>
+    <string name="flashcard_edit">Изменить вопрос для повторения</string>
+    <string name="flashcard_question">Вопрос</string>
+    <string name="flashcard_answer">Ответ</string>
+    <string name="flashcard_reveal">Показать ответ</string>
+    <string name="flashcard_save">Сохранить вопрос</string>
+    <string name="flashcard_remove">Удалить вопрос</string>
+    <string name="flashcard_hint">Выделенный фрагмент — это ответ. Он скрыт, пока вы его не откроете.</string>
+    <string name="notebook_auto_export">Автоэкспорт блокнотов</string>
+    <string name="notebook_choose_folder">Выбрать папку для экспорта</string>
+    <string name="notebook_disable">Выключить автоэкспорт</string>
+    <string name="notebook_export_now">Экспортировать сейчас</string>
+    <string name="notebook_export_hint">Vayana записывает созданные блокноты в подпапку Vayana. Рукописные заметки храните в отдельных файлах. Ссылки на фрагменты открывают это приложение.</string>
+    <string name="notebook_export_off">Автоэкспорт выключен</string>
+    <string name="notebook_export_ready">Автоэкспорт включён</string>
+    <string name="notebook_export_done">Блокноты экспортированы</string>
+    <string name="notebook_export_failed">Не удалось экспортировать блокноты. Проверьте доступ к папке или выберите её заново.</string>
+    <string name="notebook_passage_link">Открыть фрагмент</string>
+    <string name="photo_highlight">Добавить выделение с фото</string>
+    <string name="photo_choose">Выбрать фото страницы</string>
+    <string name="photo_book">Книга</string>
+    <string name="photo_page">Номер страницы (необязательно)</string>
+    <string name="photo_text">Распознанный фрагмент</string>
+    <string name="photo_hint">Выберите фото страницы, оставьте нужный фрагмент и исправьте текст перед сохранением. В этой версии распознаётся только латиница.</string>
+    <string name="photo_recognizing">Распознавание текста на фото…</string>
+    <string name="photo_failed">Не удалось распознать фото. Выберите чёткое изображение страницы или введите фрагмент вручную.</string>
+    <string name="photo_saved">Выделение сохранено</string>
+    <string name="photo_save">Сохранить выделение</string>
+    <string name="photo_no_books">Добавьте бумажную книгу, прежде чем сохранять выделение с фото.</string>
+    <string name="photo_page_title">Страница %1$d</string>
+    <string name="search_contents">Содержимое книг</string>
+    <string name="search_indexing">Индексация содержимого EPUB… %1$d из %2$d</string>
+    <string name="search_index_errors">Не удалось проиндексировать файлы EPUB: %1$d.</string>
+    <string name="search_index_retry">Повторить индексацию</string>
+    <string name="search_contents_empty">Нет проиндексированных фрагментов по этому запросу.</string>
+    <string name="search_index_hint">Содержимое индексируется локально из скачанных EPUB.</string>
+    <string name="feature_action_failed">Не удалось сохранить изменение. Попробуйте ещё раз.</string>
 </resources>

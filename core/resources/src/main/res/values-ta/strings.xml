@@ -1700,4 +1700,314 @@
     <string name="home_library_detail_publisher">பதிப்பகம்</string>
     <string name="home_library_detail_isbn">ISBN</string>
     <string name="home_library_detail_location">அலமாரியில் இடம்</string>
+    <string name="statistics_reading_records">வாசிப்புப் பதிவுகள்</string>
+    <string name="statistics_reading_records_all">எல்லா வாசிப்புப் பதிவுகளையும் காண்க</string>
+    <string name="statistics_record_dates">தொடங்கியது: %1$s · முடித்தது: %2$s</string>
+    <string name="statistics_record_missing_date">பதிவாகவில்லை</string>
+    <string name="statistics_record_seconds">பதிவான வாசிப்பு நேரம்: %1$d வினாடிகள்</string>
+    <string name="statistics_record_time">பதிவான வாசிப்பு நேரம்: %1$s</string>
+    <string name="today_watch_connected">கடிகாரம் இணைக்கப்பட்டது</string>
+    <string name="today_watch_disconnected">கடிகாரம் துண்டிக்கப்பட்டது</string>
+    <string name="about_link_source">மூலக் குறியீடு</string>
+    <string name="about_link_guide">வழிகாட்டி</string>
+    <string name="about_link_releases">பதிப்புகள்</string>
+    <string name="share_card_image_options_book_title_hint">இந்தப் படத்துக்கு மட்டும். எந்த எழுத்துமுறையிலும் தலைப்பை உள்ளிடலாம்; மூலத் தலைப்பைப் பயன்படுத்தக் காலியாக விடுங்கள்.</string>
+    <string name="home_library_browse_search">தலைப்புகள், ஆசிரியர்கள், வகைகள் அல்லது அடுக்கு இடங்களைத் தேடுக</string>
+    <string name="home_library_browse_shelves">என் அடுக்குகளிலிருந்து வாசி</string>
+    <string name="home_library_browse_shelves_hint">Vayana-வில் இன்னும் தொடங்காத, சொந்தமான Home Library நூல்கள்.</string>
+    <string name="home_library_browse_all_languages">எல்லா மொழிகளும்</string>
+    <string name="home_library_browse_all_genres">எல்லா வகைகளும்</string>
+    <string name="home_library_browse_empty">பொருந்தும் நூல்கள் இல்லை. தேடலையோ வடிகட்டிகளையோ அழித்துப் பாருங்கள்.</string>
+    <string name="home_library_detail_language">மொழி</string>
+    <string name="home_library_detail_genre">வகை</string>
+    <string name="home_library_original_script_title">மூல எழுத்துமுறை</string>
+    <string name="home_library_catalog_title">அட்டவணைத் தலைப்பு</string>
+    <string name="physical_timer_title">வாசிப்பு நேரங்காட்டி</string>
+    <string name="physical_timer_start">தொடங்கு</string>
+    <string name="physical_timer_pause">இடைநிறுத்து</string>
+    <string name="physical_timer_resume">தொடர்</string>
+    <string name="physical_timer_stop">நிறுத்து</string>
+    <string name="physical_timer_ready">வாசிப்பு நேரத்தை அளந்து பக்கங்களைப் பதிவுசெய்யுங்கள்.</string>
+    <string name="physical_timer_running">வாசிக்கிறது · தொலைபேசி பூட்டப்பட்டாலும் தொடரும்</string>
+    <string name="physical_timer_paused">இடைநிறுத்தப்பட்டது · இடைவேளை கணக்கில் சேராது</string>
+    <string name="physical_timer_stopped">நிறுத்தப்பட்டது · இந்த அமர்வைப் பதிவுசெய்து முடியுங்கள்</string>
+    <string name="physical_timer_finish_log">அமர்வைப் பதிவுசெய்</string>
+    <string name="physical_timer_log_title">எங்கே நிறுத்தினீர்கள்?</string>
+    <string name="physical_timer_log_hint">வாசிப்பு நேரத்தைச் சேமித்து முன்னேற்றத்தைப் புதுப்பிக்க உங்கள் தற்போதைய பக்கத்தை உள்ளிடுங்கள்.</string>
+    <string name="physical_timer_start_hint">வாசிப்பு வேகம் சரியாக இருக்க தொடக்கப் பக்கத்தை உறுதிசெய்யுங்கள். மொத்தப் பக்கங்கள் விருப்பத்தேர்வு.</string>
+    <string name="physical_timer_discard">கைவிடு</string>
+    <string name="physical_timer_discard_active">இயங்கும் நேரங்காட்டியைக் கைவிடு</string>
+    <string name="physical_manual_add">அமர்வைக் கைமுறையாகச் சேர்</string>
+    <string name="physical_manual_hint">இடைவேளைகள் நீங்கலான வாசிப்பு நேரத்தை உள்ளிடுங்கள். முன்னேற்றத்தை மாற்றாமல் பழைய அமர்வைச் சேர்க்க “தற்போதைய பக்கத்தைப் புதுப்பி” என்பதை அணையுங்கள்.</string>
+    <string name="physical_manual_start_time">தொடக்கம்: %1$s</string>
+    <string name="physical_manual_time_title">அமர்வு தொடங்கிய நேரம்</string>
+    <string name="physical_manual_duration">வாசித்த நேரம்</string>
+    <string name="physical_manual_hours">மணிநேரம்</string>
+    <string name="physical_manual_minutes">நிமிடங்கள்</string>
+    <string name="physical_manual_start_page">தொடக்கப் பக்கம்</string>
+    <string name="physical_manual_update_progress">தற்போதைய பக்கத்தைப் புதுப்பி</string>
+    <string name="physical_manual_progress_updated">சேமித்தால் உங்கள் தற்போதைய பக்கம் %1$d ஆக அமையும்.</string>
+    <string name="physical_manual_progress_kept">பதிவு மட்டும்: உங்கள் தற்போதைய பக்கம் %1$d ஆகவே இருக்கும்.</string>
+    <string name="physical_manual_progress_needs_total">நூலின் தற்போதைய பக்கத்தைப் புதுப்பிக்க மொத்தப் பக்கங்களை உள்ளிடுங்கள்.</string>
+    <string name="physical_manual_invalid">நேர்மறை நேரம், சரியான பக்க எண்கள், ஏற்கனவே முடிந்த அமர்வு ஆகியவற்றைப் பயன்படுத்துங்கள். நிமிடங்கள் 0–59 இருக்க வேண்டும்.</string>
+    <string name="physical_timer_other_book">%1$s நூலுக்கு ஒரு நேரங்காட்டி இயங்குகிறது. அதை இடைநிறுத்த, நிறுத்த அல்லது பதிவுசெய்ய அந்த நூலுக்குத் திரும்புங்கள்.</string>
+    <string name="physical_timer_failed">நேரங்காட்டியையோ அமர்வையோ சேமிக்க முடியவில்லை. மீண்டும் முயலுங்கள்.</string>
+    <string name="physical_timer_notification_channel">அச்சு நூல் வாசிப்பு நேரங்காட்டி</string>
+    <string name="physical_timer_notification_channel_description">அறிவிப்பிலிருந்தோ பூட்டுத் திரையிலிருந்தோ அச்சு நூல் வாசிப்பு அமர்வைக் கட்டுப்படுத்துங்கள்.</string>
+    <string name="physical_timer_notification_running">பக்கம் %1$d முதல் வாசிக்கிறது</string>
+    <string name="physical_timer_notification_paused">இடைநிறுத்தப்பட்டது · %1$s கடந்தது</string>
+    <string name="physical_timer_total_time">வாசித்த நேரம்: %1$s</string>
+    <string name="physical_timer_speed">மணிக்கு %1$s பக்கங்கள்</string>
+    <string name="physical_mark_reading">வாசிப்பதாகக் குறி</string>
+    <string name="physical_read_today">இன்று வாசி</string>
+    <string name="physical_home_reading">இப்போது வாசிப்பவை · அச்சு நூல்கள்</string>
+    <string name="physical_home_page">பக்கம் %1$d / %2$d</string>
+    <string name="physical_home_current_page">பக்கம் %1$d</string>
+    <string name="physical_home_session_recorded">புதிய அமர்வு பதிவானது: %2$s-இல் %1$s.</string>
+    <plurals name="physical_home_session_pages">
+        <item quantity="one">%1$d பக்கம்</item>
+        <item quantity="other">%1$d பக்கங்கள்</item>
+    </plurals>
+    <plurals name="physical_home_session_minutes">
+        <item quantity="one">%1$d நிமிடம்</item>
+        <item quantity="other">%1$d நிமிடங்கள்</item>
+    </plurals>
+    <string name="physical_timer_pace_basis">நேரம் அளந்த கடைசி %2$d அமர்வுகளின் %1$d பக்கங்களின் அடிப்படையில்</string>
+    <string name="physical_timer_average_session">சராசரி அமர்வு: %1$s</string>
+    <string name="physical_timer_history">அமர்வு வரலாறு</string>
+    <string name="physical_timer_reading_log">வாசிப்புப் பதிவேடு</string>
+    <string name="physical_timer_log_button">வாசிப்புப் பதிவேடு (%1$d)</string>
+    <string name="physical_timer_history_pages">பக்கங்கள் %1$d → %2$d</string>
+    <string name="physical_timer_edit_pages">பக்கங்களைத் திருத்து</string>
+    <string name="physical_timer_delete_session">இந்த அமர்வை நீக்கவா?</string>
+    <string name="physical_timer_delete_session_body">இது உங்கள் வாசிப்பு நேரத்திலிருந்து %1$s-ஐ நீக்கி அமர்வுப் புள்ளிவிவரங்களைப் புதுப்பிக்கும். தற்போதைய பக்கமும் வாசிப்புத் தேதிகளும் மாறாது. இதைச் செயல்தவிர்க்க முடியாது.</string>
+    <string name="physical_timer_delete_session_failed">அமர்வை நீக்க முடியவில்லை. மீண்டும் முயலுங்கள்.</string>
+    <string name="physical_timer_history_empty">வாசிப்பு அமர்வுகள் எதுவும் பதிவாகவில்லை.</string>
+    <string name="physical_timer_edit_pages_hint">இந்தப் பதிவின் பக்க வரம்பு மட்டுமே மாறும். அதன் தேதி, வாசிப்பு நேரம், நூலின் தற்போதைய முன்னேற்றம் மாறாது.</string>
+    <string name="physical_timer_end_page">இறுதிப் பக்கம்</string>
+    <string name="physical_timer_edit_pages_invalid">பூஜ்ஜியம் அல்லது நேர்மறைப் பக்க எண்ணை உள்ளிடுங்கள்.</string>
+    <string name="physical_timer_edit_pages_invalid_with_total">0 முதல் %1$d வரையிலான பக்க எண்களைப் பயன்படுத்துங்கள்.</string>
+    <string name="physical_timer_start_page_too_high">மொத்தப் பக்கங்கள் உங்கள் தொடக்கப் பக்கத்தை (%1$d) உள்ளடக்க வேண்டும்.</string>
+    <string name="physical_timer_remaining">மீதமுள்ள வாசிப்பு நேரம் (மதிப்பீடு): %1$s</string>
+    <string name="physical_timer_estimate_hint">மீதமுள்ள வாசிப்பு நேரத்தை மதிப்பிட, பக்கங்கள் முன்னேறிய ஓர் அமர்வைப் பதிவுசெய்து மொத்தப் பக்கங்களை அமையுங்கள்.</string>
+    <string name="physical_timer_session_count">%1$d வாசிப்பு அமர்வுகள் பதிவாகியுள்ளன</string>
+    <string name="physical_timer_recent_session">%1$s · %2$s · பக்கங்கள் %3$d–%4$d</string>
+    <string name="help_documentation_title">முழுமையான பயனர் வழிகாட்டி</string>
+    <string name="help_documentation_description">படங்களுடன் கூடிய Vayana ஆவணங்களை GitHub-இல் திறக்கவும்.</string>
+    <string name="help_section_expand_content_description">%1$s பற்றிய குறிப்புகளைக் காட்டு</string>
+    <string name="help_section_collapse_content_description">%1$s பற்றிய குறிப்புகளை மறை</string>
+    <string name="help_section_discover_title">நூல்களைச் சேர்த்தல் &amp; கண்டறிதல்</string>
+    <string name="help_section_offline_title">ஆஃப்லைன் &amp; இரவல் நூல்கள்</string>
+    <string name="help_section_reading_tools_title">அகராதி, மொழிபெயர்ப்பு &amp; உரக்க வாசித்தல்</string>
+    <string name="help_section_widgets_title">விட்ஜெட்டுகள் &amp; குறுக்குவழிகள்</string>
+    <string name="help_section_accessibility_title">இ-இங்க் &amp; அணுகல்தன்மை</string>
+    <string name="help_section_diagnostics_title">சிக்கல் கண்டறிதல் &amp; ஆதரவு</string>
+    <string name="privacy_title">தனியுரிமை &amp; தரவு</string>
+    <string name="privacy_open_subtitle">உங்கள் தரவு எங்கே சேமிக்கப்படுகிறது, இந்தத் தொலைபேசியிலிருந்து என்ன வெளியேறுகிறது, எது மறையாக்கப்பட்டுள்ளது.</string>
+    <string name="privacy_status_section">இப்போது இந்தத் தொலைபேசியில்</string>
+    <string name="privacy_device_encryption">சாதனச் சேமிப்பகம்</string>
+    <string name="privacy_device_encrypted">Android-ஆல் மறையாக்கப்பட்டு உங்கள் திரைப் பூட்டால் பாதுகாக்கப்படுகிறது.</string>
+    <string name="privacy_device_encrypted_without_lock">மறையாக்கப்பட்டது, ஆனால் திரைப் பூட்டுடன் இணைக்கப்படவில்லை: திறந்த நிலையில் தொலைபேசியை வைத்திருக்கும் எவரும் படிக்கலாம்.</string>
+    <string name="privacy_device_not_encrypted">மறையாக்கப்படவில்லை. தொலைபேசி கையில் உள்ள எவரும் Vayana-வின் கோப்புகளைப் படிக்கலாம்.</string>
+    <string name="privacy_device_unknown">Android மறையாக்க நிலையைத் தெரிவிக்கவில்லை.</string>
+    <string name="privacy_screen_lock">திரைப் பூட்டு</string>
+    <string name="privacy_screen_lock_on">இயக்கத்தில் உள்ளது. தொலைபேசி திறக்கப்பட்ட பின்னரே Vayana-வின் தரவைப் படிக்க முடியும்.</string>
+    <string name="privacy_screen_lock_off">அணைக்கப்பட்டுள்ளது. தொலைபேசி தொலைந்தால் உங்கள் நூலகத்தைப் பாதுகாக்க PIN, வடிவம் அல்லது கடவுச்சொல்லை அமையுங்கள்.</string>
+    <string name="privacy_book_files">நூல் கோப்புகளும் அட்டைகளும்</string>
+    <string name="privacy_book_files_private">பிற ஆப்கள் இவற்றைப் படிக்க முடியாது (Android 11 மற்றும் புதியவை).</string>
+    <string name="privacy_book_files_shared">Android 10 மற்றும் பழையவற்றில், சேமிப்பகத்தைப் படிக்க அனுமதி உள்ள ஆப்கள் இவற்றைப் படிக்கலாம்.</string>
+    <string name="privacy_sync">GitHub ஒத்திசைவு</string>
+    <string name="privacy_sync_off">அணைக்கப்பட்டுள்ளது. ஒத்திசைவுக்காக உங்கள் வாசிப்பு பற்றி எதுவும் இந்தத் தொலைபேசியை விட்டு வெளியேறாது.</string>
+    <string name="privacy_sync_on">இயக்கத்தில், உங்கள் %1$s களஞ்சியத்துடன்.</string>
+    <string name="privacy_repository">ஒத்திசைவுக் களஞ்சியம்</string>
+    <string name="privacy_repository_private">தனிப்பட்டது. நீங்களும் GitHub-இல் நீங்கள் சேர்ப்பவர்களும் மட்டுமே படிக்க முடியும்.</string>
+    <string name="privacy_repository_public">பொதுவானது. அதில் உள்ள உங்கள் குறிப்புகள், குறியிட்டவை, வாசிப்பு வரலாற்றை எவரும் படிக்கலாம். GitHub-இல் களஞ்சியத்தைத் தனிப்பட்டதாக்குங்கள்.</string>
+    <string name="privacy_repository_unknown">இப்போது சரிபார்க்க முடியவில்லை (ஆஃப்லைன் அல்லது GitHub பதிலளிக்கவில்லை).</string>
+    <string name="privacy_stored_section">இந்தத் தொலைபேசியில் சேமிக்கப்பட்டவை</string>
+    <string name="privacy_stored_library">நூலகம், குறிப்புகள், குறியிட்டவை, வாசிப்பு முன்னேற்றம், அமர்வுகள், சொற்கள்</string>
+    <string name="privacy_stored_library_detail">Vayana-வின் தனிப்பட்ட தரவுத்தளம். Vayana மட்டுமே திறக்க முடியும்; Android ஆப் சாண்ட்பாக்ஸும் சாதன மறையாக்கமும் பாதுகாக்கின்றன, தனியாக மறையாக்கப்படவில்லை.</string>
+    <string name="privacy_stored_books">நூல் கோப்புகள், அட்டைகள், இறக்கிய எழுத்துருக்கள்</string>
+    <string name="privacy_stored_books_detail">Android/data-வில் உள்ள Vayana கோப்புறை. USB வழியாகக் கணினியிலிருந்தும் அணுகலாம்.</string>
+    <string name="privacy_stored_secrets">GitHub டோக்கனும் ஒத்திசைவுக் கடவுச்சொற்றொடரும்</string>
+    <string name="privacy_stored_secrets_detail">Vayana-வின் தனிப்பட்ட அமைப்புகள்; திரையில் மறைக்கப்பட்டவை, காப்புப்பிரதிகள், ஏற்றுமதிகள், ஒத்திசைவு எதிலும் சேர்க்கப்படுவதில்லை. தனியாக மறையாக்கப்படவில்லை.</string>
+    <string name="privacy_stored_logs">சிக்கல் கண்டறிதல், தரவுப் பயன்பாட்டுப் பதிவுகள்</string>
+    <string name="privacy_stored_logs_detail">Vayana-வின் தனிப்பட்ட சேமிப்பகம். சிக்கல் அறிக்கையை நீங்கள் பகிராத வரை இவை இந்தத் தொலைபேசியிலேயே இருக்கும்.</string>
+    <string name="privacy_stored_backups">காப்புப்பிரதிகளும் குறிப்பேடு ஏற்றுமதிகளும்</string>
+    <string name="privacy_stored_backups_detail">நீங்கள் தேர்ந்தெடுக்கும் கோப்புறை, மறையாக்கப்படாத சாதாரணக் கோப்புகளாக. அந்தக் கோப்புறையை அணுகக்கூடிய எதுவும் இவற்றைப் படிக்கலாம்.</string>
+    <string name="privacy_leaves_section">இந்தத் தொலைபேசியிலிருந்து எது, யாருக்குச் செல்கிறது</string>
+    <string name="privacy_leaves_github">GitHub, ஒத்திசைவு இயக்கத்தில் இருக்கும்போது</string>
+    <string name="privacy_leaves_github_detail">வாசிப்பு முன்னேற்றம், குறிப்புகள், குறியிட்டவை, அமர்வுகள், அடுக்குகள், நூல் விவரங்கள் படிக்கக்கூடிய கோப்புகளாக உங்கள் களஞ்சியத்துக்குச் செல்கின்றன. நூல் கோப்புகளும் அட்டைகளும் முதலில் மறையாக்கப்படுகின்றன (AES-256-GCM, உங்கள் கடவுச்சொற்றொடரிலிருந்து பெறப்பட்ட சாவி), எனவே GitHub அவற்றைப் படிக்க முடியாது.</string>
+    <string name="privacy_leaves_goodreads">Goodreads</string>
+    <string name="privacy_leaves_goodreads_detail">நீங்கள் ஒரு நூலைப் பெறும்போது அல்லது இறக்கும்போது மட்டும்: அதன் தலைப்பும் ஆசிரியரும், அல்லது நீங்கள் திறக்கும் பக்கங்கள்.</string>
+    <string name="privacy_leaves_wikimedia">விக்கிப்பீடியாவும் விக்சனரியும்</string>
+    <string name="privacy_leaves_wikimedia_detail">நீங்கள் ஆன்லைனில் தேடும் சொற்கள் மட்டும். ஆஃப்லைன் அகராதித் தேடல்கள் தொலைபேசியிலேயே இருக்கும்.</string>
+    <string name="privacy_leaves_catalogs">Project Gutenberg மற்றும் ஆன்லைன் அட்டவணைகள்</string>
+    <string name="privacy_leaves_catalogs_detail">Gutenberg மற்றும் நீங்கள் சேர்க்கும் அட்டவணைச் சேவையகங்களிலிருந்து உலாவலும் பதிவிறக்கங்களும். உள்ளூர் சேவையகங்கள் மறையாக்கமற்ற HTTP-ஐப் பயன்படுத்தலாம்.</string>
+    <string name="privacy_leaves_apps">பிற ஆப்களும் உங்கள் கடிகாரமும்</string>
+    <string name="privacy_leaves_apps_detail">நீங்கள் மொழிபெயர்க்கும் அல்லது பகிரும் உரை நீங்கள் தேர்ந்தெடுக்கும் ஆப்புக்குச் செல்லும். அச்சு நூல் வாசிப்பு இணைக்கப்பட்ட Wear OS கடிகாரத்துக்குச் செல்லும். Home Library-இலிருந்து படிக்க மட்டுமே செய்யப்படும்.</string>
+    <string name="privacy_never_section">ஒருபோதும் சேகரிக்கப்படாதவை</string>
+    <string name="privacy_never_detail">Vayana கணக்கு இல்லை, விளம்பரங்கள் இல்லை, பகுப்பாய்வோ கண்காணிப்போ இல்லை. செயலிழப்பு அறிக்கைகள் இந்தத் தொலைபேசியில் வைக்கப்படும்; நீங்கள் பகிர்ந்தால் மட்டுமே வெளியேறும்.</string>
+    <string name="settings_open_data_usage_title">தரவுப் பயன்பாடு</string>
+    <string name="settings_open_data_usage_subtitle">Vayana-வும் ஒவ்வொரு ஒத்திசைவும் பயன்படுத்திய Wi-Fi, மொபைல் தரவு.</string>
+    <string name="data_usage_title">தரவுப் பயன்பாடு</string>
+    <string name="data_usage_app_section">ஆப் தரவு</string>
+    <string name="data_usage_app_note">Android கணக்கிடும்படி Vayana அனுப்பும், பெறும் அனைத்தும். இன்றைய எண்ணிக்கை இரண்டு மணிநேரம் வரை பின்தங்கலாம்.</string>
+    <string name="data_usage_period_today">இன்று</string>
+    <string name="data_usage_period_week">கடந்த 7 நாட்கள்</string>
+    <string name="data_usage_period_month">கடந்த 30 நாட்கள்</string>
+    <string name="data_usage_wifi">Wi-Fi</string>
+    <string name="data_usage_mobile">மொபைல்</string>
+    <string name="data_usage_total">மொத்தம்</string>
+    <string name="data_usage_not_available">கிடைக்கவில்லை</string>
+    <string name="data_usage_not_available_note">கிடைக்கவில்லை: தொலைபேசி நிலையைப் படிக்க அனுமதி உள்ள ஆப்களுடன் மட்டுமே இந்த Android பதிப்பு மொபைல் தரவைப் பகிர்கிறது.</string>
+    <string name="data_usage_sync_section">ஒத்திசைவு</string>
+    <string name="data_usage_history_section">ஆப் தரவு வரலாறு</string>
+    <string name="data_usage_history_chart">கடந்த 30 நாட்கள்</string>
+    <string name="data_usage_history_chart_description">கடந்த 30 நாட்களில் நாள்தோறும் ஆப் தரவு: மொத்தம் %1$s, மொபைலில் %2$s.</string>
+    <string name="data_usage_history_note">நாளுக்கு ஒருமுறை இந்தச் சாதனத்தில் மட்டும் சேமிக்கப்படுகிறது, ஒருபோதும் ஒத்திசைக்கப்படாது; Android தன் வரலாற்றை நீக்கிய பிறகும் மாதக் கணக்கு கிடைக்கும். Vayana முதலில் சேமிப்பதற்கு முந்தைய நாட்கள் Android அப்போதும் வைத்திருந்தவற்றிலிருந்து தொடங்கும்.</string>
+    <plurals name="data_usage_sync_today">
+        <item quantity="one">இன்று: %1$d ஒத்திசைவு · %2$s Wi-Fi · %3$s மொபைல்</item>
+        <item quantity="other">இன்று: %1$d ஒத்திசைவுகள் · %2$s Wi-Fi · %3$s மொபைல்</item>
+    </plurals>
+    <string name="data_usage_sync_month">கடந்த 30 நாட்கள்: %1$s, அதில் %2$s மொபைலில்</string>
+    <string name="data_usage_sync_chart_title">ஒத்திசைவுத் தரவு, கடந்த 14 நாட்கள்</string>
+    <string name="data_usage_sync_chart_description">கடந்த 14 நாட்களில் நாள்தோறும் ஒத்திசைவுத் தரவு: மொத்தம் %1$s, மொபைலில் %2$s.</string>
+    <string name="data_usage_sync_recent">சமீபத்திய ஒத்திசைவுகள்</string>
+    <string name="data_usage_sync_empty">இன்னும் ஒத்திசைவுகள் பதிவாகவில்லை. இந்தப் பதிப்பு முதல் Vayana ஒவ்வொரு ஒத்திசைவையும் கணக்கிடுகிறது.</string>
+    <string name="data_usage_kind_full">முழு ஒத்திசைவு</string>
+    <string name="data_usage_kind_background">பின்னணி ஒத்திசைவு</string>
+    <string name="data_usage_kind_launch_check">திறக்கும்போது சரிபார்ப்பு</string>
+    <string name="data_usage_network_other">பிற நெட்வொர்க்</string>
+    <string name="data_usage_network_none">நெட்வொர்க் இல்லை</string>
+    <string name="data_usage_sync_row">%1$s · %2$s · ↑ %3$s ↓ %4$s</string>
+    <string name="about_feature_summary">நூல் கண்டறிதல், குறிப்புகள், மொழிக் கருவிகள், வாசிப்புப் பார்வைகள், விட்ஜெட்டுகள், ஆஃப்லைன் சேகரிப்புக் கண்காணிப்பு, காப்புப்பிரதி, மறையாக்கப்பட்ட GitHub ஒத்திசைவு கொண்ட தனிப்பட்ட EPUB, PDF வாசிப்பான்.</string>
+    <string name="about_documentation">பயனர் வழிகாட்டியைப் படிக்கவும்</string>
+    <string name="settings_eink_palette_title">இ-இங்க் வண்ணத்தட்டு</string>
+    <string name="settings_eink_palette_subtitle">“வண்ணம்” Material 3 வண்ணங்களைப் பயன்படுத்தும், இயக்கப்பட்டிருந்தால் வால்பேப்பர் வண்ணங்களையும். இ-இங்க் புதுப்பிப்பு நடத்தை தொடர்ந்து இயங்கும்.</string>
+    <string name="settings_eink_palette_monochrome">ஒற்றை வண்ணம்</string>
+    <string name="settings_eink_palette_color">வண்ணம்</string>
+    <string name="settings_reader_text_align_center">நடுவில்</string>
+    <string name="settings_reader_text_align_right">வலது</string>
+    <string name="help_section_discover_description">உங்கள் சொந்தக் கோப்புகளைக் கொண்டு வாருங்கள் அல்லது Vayana-விலேயே இலவச நூல்களைக் கண்டறியுங்கள்.</string>
+    <string-array name="help_section_discover_tips">
+        <item>கோப்புத் தேர்வி, கண்காணிக்கப்படும் கோப்புறை அல்லது Android-இன் “இதில் திற” செயல் மூலம் EPUB, PDF கோப்புகளை இறக்குங்கள்.</item>
+        <item>Project Gutenberg-இலிருந்து பொதுக்கள நூல்களை உலாவிப் பதிவிறக்குங்கள்.</item>
+        <item>பிற இணக்கமான நூல் தொகுப்புகளை ஆராய OPDS அட்டவணைகளைச் சேருங்கள்.</item>
+        <item>ஒரு நூலை நூலகத்தில் சேர்க்கும் முன் அதன் விவரங்களையும் சேமிப்பு விருப்பங்களையும் பாருங்கள்.</item>
+    </string-array>
+    <string name="help_section_offline_description">சொந்த நூல்கள், இரவல் நகல்கள், வாசிப்புக் கோப்புகளாகச் சேமிக்கப்படாத நூல்களைக் கண்காணியுங்கள்.</string>
+    <string-array name="help_section_offline_tips">
+        <item>உரிமை, இரவல் தந்தவர், திருப்பித் தர வேண்டிய நாள், திருப்பித் தந்த விவரங்களுடன் அச்சு நூல்களையும் இரவல் நூல்களையும் சேருங்கள்.</item>
+        <item>மின்னூல்களிலிருந்து தனியாக உங்கள் சொந்த அடுக்குகளை உலாவ Home Library பயன்முறையைப் பயன்படுத்துங்கள்.</item>
+        <item>EPUB அல்லது PDF கோப்பு இல்லாத நூலுக்கும் முன்னேற்றத்தையும் வாசிப்பு நிலையையும் குறியுங்கள்.</item>
+    </string-array>
+    <string name="help_section_reading_tools_description">நூலை விட்டு வெளியேறாமல் பழக்கமில்லாத உரையைப் புரிந்துகொண்டு கேளுங்கள்.</string>
+    <string-array name="help_section_reading_tools_tips">
+        <item>அகராதி, விக்கிப்பீடியா, விக்சனரி அல்லது மொழிபெயர்ப்புக் கருவிகளுக்கு ஒரு சொல்லைத் தேர்ந்தெடுங்கள்.</item>
+        <item>பின்னர் மீள்பார்வை செய்ய பயனுள்ள சொற்களை உங்கள் சொல் பட்டியலில் சேமியுங்கள்.</item>
+        <item>உரை-பேச்சுக்கு உரக்க வாசி என்பதைப் பயன்படுத்தி, குரல், வேகம், சுருதியை அமைப்புகளில் மாற்றுங்கள்.</item>
+        <item>தேடல், பேச்சுக் கருவிகள் சரியான மொழியைப் பயன்படுத்த நூலின் மொழியைத் தேர்ந்தெடுங்கள்.</item>
+    </string-array>
+    <string name="help_section_widgets_description">முகப்புத் திரையிலிருந்தே வாசிப்பைத் தொடர்ந்து முன்னேற்றத்தைப் பாருங்கள்.</string>
+    <string-array name="help_section_widgets_tips">
+        <item>உங்கள் Android லாஞ்சரின் விட்ஜெட் தேர்வியிலிருந்து Vayana விட்ஜெட்டுகளைச் சேருங்கள்.</item>
+        <item>தற்போதைய நூலை ஒரே தட்டலில் மீண்டும் திறக்க வாசிப்பைத் தொடர் என்பதைப் பயன்படுத்துங்கள்.</item>
+        <item>உங்கள் செயல்பாட்டைக் கண்முன் வைத்திருக்க வாசிப்பு முன்னேற்ற, இலக்கு விட்ஜெட்டுகளைப் பயன்படுத்துங்கள்.</item>
+        <item>லாஞ்சர் ஆதரித்தால், ஆப் குறுக்குவழிகள் பொதுவான இடங்களுக்கு விரைவு அணுகலைத் தரும்.</item>
+    </string-array>
+    <string name="help_section_accessibility_description">தெளிவான வாசிப்பு, அமைதியான அசைவுகள், இ-இங்க் திரைகளுக்காக Vayana-வைச் சரிசெய்யுங்கள்.</string>
+    <string-array name="help_section_accessibility_tips">
+        <item>அதிக மாறுபாட்டுக்கும் குறைந்த காட்சி விளைவுகளுக்கும் இ-இங்க் திரைச் சுயவிவரத்தைத் தேர்ந்தெடுங்கள்.</item>
+        <item>தடித்த உரை, ஓரங்கள், சீரமைப்பு, சொற்பிரிப்பு, இரு நெடுவரிசை கிடைமட்டத் தளவமைப்பைச் சரிசெய்யுங்கள்.</item>
+        <item>அசைவைக் குறையுங்கள், ஒலியளவு விசைகளால் பக்கம் புரட்டுங்கள், திரையை விழித்திருக்க வையுங்கள் அல்லது முழுத்திரைக்கு மாறுங்கள்.</item>
+        <item>விருப்பமான ஓர ஸ்வைப் சைகைகள் உட்பட, வாசிப்பானின் ஒளிர்வையும் இதமான ஒளியையும் கட்டுப்படுத்துங்கள்.</item>
+    </string-array>
+    <string name="help_section_diagnostics_description">ஏதேனும் தவறாகும்போது பயனுள்ள செயலிழப்பு, ஒத்திசைவுத் தகவல்களைச் சேகரியுங்கள்.</string>
+    <string-array name="help_section_diagnostics_tips">
+        <item>செயலிழப்பு அல்லது தோல்வியுற்ற ஒத்திசைவுக்குப் பின் அமைப்புகள் → உதவியும் தகவலும் → சிக்கல் கண்டறிதல் என்பதைத் திறங்கள்.</item>
+        <item>பகிரும் முன் சேகரிக்கப்பட்ட ஆப், சாதனம், செயலிழப்பு, ஒத்திசைவு விவரங்களைப் பாருங்கள்.</item>
+        <item>சிக்கலை மீண்டும் உருவாக்கும் படிகளுடன் அறிக்கையை அனுப்ப உருவாக்குநருடன் பகிர் என்பதைப் பயன்படுத்துங்கள்.</item>
+        <item>சிக்கல் கண்டறிதல் தகவல்கள் இந்தச் சாதனத்தில் சேமிக்கப்படுகின்றன; அதே திரையிலிருந்து அழிக்கலாம்.</item>
+    </string-array>
+    <string name="today_title">இன்று</string>
+    <string name="today_title_with_goal">இன்று · இலக்கு %1$d நிமி</string>
+    <string name="today_options">இன்று அட்டை விருப்பங்கள்</string>
+    <string name="today_minutes_read">%1$d நிமி வாசித்தது</string>
+    <string name="today_goal_reached">இலக்கை அடைந்தீர்கள்</string>
+    <string name="today_goal_remaining">இன்னும் %1$d நிமி</string>
+    <string name="today_continue_book">தொடர் · %1$s</string>
+    <string name="today_caught_up">இன்றைக்கானவை அனைத்தையும் முடித்துவிட்டீர்கள்.</string>
+    <plurals name="today_words_due">
+        <item quantity="one">%d சொல் மீள்பார்வைக்கு</item>
+        <item quantity="other">%d சொற்கள் மீள்பார்வைக்கு</item>
+    </plurals>
+    <plurals name="today_highlights_due">
+        <item quantity="one">%d குறியீடு மீள்பார்வைக்கு</item>
+        <item quantity="other">%d குறியீடுகள் மீள்பார்வைக்கு</item>
+    </plurals>
+    <string name="today_hide">இன்று அட்டையை மறை</string>
+    <string name="today_show">இன்று அட்டையைக் காட்டு</string>
+    <string name="today_plan_minutes">%1$s: நாளுக்கு %2$d நிமிடங்கள்</string>
+    <string name="today_plan_pages">%1$s: நாளுக்கு %2$d பக்கங்கள்</string>
+    <string name="today_plan_percent">%1$s: நாளுக்கு %2$d%%</string>
+    <string name="today_plan_overdue">%1$s: முடிக்கும் நாள் கடந்துவிட்டது</string>
+    <string name="today_plan_minutes_compact">இன்று %1$d நிமிடங்கள் · %2$s</string>
+    <string name="today_plan_pages_compact">இன்று %1$d பக்கங்கள் · %2$s</string>
+    <string name="today_plan_percent_compact">இன்று %1$d%% · %2$s</string>
+    <string name="today_plan_overdue_compact">முடிக்கும் நாள் கடந்துவிட்டது · %1$s</string>
+    <string name="queue_manage">அடுத்து வாசிக்க-வை நிர்வகி</string>
+    <string name="queue_capacity">வரிசையின் அளவு</string>
+    <string name="queue_full">அடுத்து வாசிக்க நிரம்பிவிட்டது. ஒரு நூலை நீக்குங்கள் அல்லது அளவைக் கூட்டுங்கள்.</string>
+    <string name="queue_move_up">மேலே நகர்த்து</string>
+    <string name="queue_move_down">கீழே நகர்த்து</string>
+    <string name="queue_pin">அடுத்த வாசிப்பாகப் பின் செய்</string>
+    <string name="queue_unpin">பின்னை நீக்கு</string>
+    <string name="queue_remove">வரிசையிலிருந்து நீக்கு</string>
+    <string name="queue_empty">வரிசை காலியாக உள்ளது. நூல்களின் விவரங்களிலிருந்து அவற்றைச் சேருங்கள்.</string>
+    <string name="queue_capacity_hint">வரிசையில் %1$d · அளவு %2$d. அளவைக் குறைத்தாலும் உள்ள நூல்கள் அப்படியே இருக்கும்.</string>
+    <string name="reading_disposition">வாசிப்பு நிலை</string>
+    <string name="disposition_active">செயலில்</string>
+    <string name="disposition_paused">இடைநிறுத்தப்பட்டது</string>
+    <string name="disposition_dnf">முடிக்கவில்லை</string>
+    <string name="disposition_reason">காரணம் (விருப்பத்தேர்வு)</string>
+    <string name="disposition_save">நிலையைச் சேமி</string>
+    <string name="disposition_resume">வாசிப்பைத் தொடர்</string>
+    <string name="disposition_hint">உங்கள் இடம், குறியிட்டவை, வாசிப்பு வரலாறு அப்படியே இருக்கும்.</string>
+    <string name="flashcard_create">மீள்பார்வைக் கேள்வியை உருவாக்கு</string>
+    <string name="flashcard_edit">மீள்பார்வைக் கேள்வியைத் திருத்து</string>
+    <string name="flashcard_question">கேள்வி</string>
+    <string name="flashcard_answer">பதில்</string>
+    <string name="flashcard_reveal">பதிலைக் காட்டு</string>
+    <string name="flashcard_save">கேள்வியைச் சேமி</string>
+    <string name="flashcard_remove">கேள்வியை நீக்கு</string>
+    <string name="flashcard_hint">குறியிட்ட பகுதியே பதில். நீங்கள் வெளிப்படுத்தும் வரை அது மறைந்திருக்கும்.</string>
+    <string name="notebook_auto_export">குறிப்பேடுகளின் தானியங்கி ஏற்றுமதி</string>
+    <string name="notebook_choose_folder">ஏற்றுமதிக் கோப்புறையைத் தேர்ந்தெடு</string>
+    <string name="notebook_disable">தானியங்கி ஏற்றுமதியை அணை</string>
+    <string name="notebook_export_now">இப்போது ஏற்றுமதி செய்</string>
+    <string name="notebook_export_hint">Vayana உருவாக்கிய குறிப்பேடுகளை ஒரு Vayana துணைக் கோப்புறையில் எழுதுகிறது. கையால் எழுதிய குறிப்புகளைத் தனிக் கோப்புகளில் வையுங்கள். பகுதி இணைப்புகள் இந்த ஆப்பைத் திறக்கும்.</string>
+    <string name="notebook_export_off">தானியங்கி ஏற்றுமதி அணைக்கப்பட்டுள்ளது</string>
+    <string name="notebook_export_ready">தானியங்கி ஏற்றுமதி இயக்கத்தில் உள்ளது</string>
+    <string name="notebook_export_done">குறிப்பேடுகள் ஏற்றுமதி செய்யப்பட்டன</string>
+    <string name="notebook_export_failed">குறிப்பேடுகளை ஏற்றுமதி செய்ய முடியவில்லை. கோப்புறை அணுகலைச் சரிபாருங்கள் அல்லது கோப்புறையை மீண்டும் தேர்ந்தெடுங்கள்.</string>
+    <string name="notebook_passage_link">பகுதியைத் திற</string>
+    <string name="photo_highlight">புகைப்படத்திலிருந்து குறியீடு சேர்</string>
+    <string name="photo_choose">பக்கப் புகைப்படத்தைத் தேர்ந்தெடு</string>
+    <string name="photo_book">நூல்</string>
+    <string name="photo_page">பக்க எண் (விருப்பத்தேர்வு)</string>
+    <string name="photo_text">அடையாளம் காணப்பட்ட பகுதி</string>
+    <string name="photo_hint">பக்கப் புகைப்படத்தைத் தேர்ந்தெடுத்து, வேண்டிய பகுதியை வைத்து, சேமிக்கும் முன் உரையைத் திருத்துங்கள். இந்தப் பதிப்பில் லத்தீன் எழுத்துமுறை மட்டுமே அடையாளம் காணப்படும்.</string>
+    <string name="photo_recognizing">புகைப்படத்திலிருந்து உரையைப் படிக்கிறது…</string>
+    <string name="photo_failed">இந்தப் புகைப்படத்தைப் படிக்க முடியவில்லை. தெளிவான பக்கப் படத்தைத் தேர்ந்தெடுங்கள் அல்லது பகுதியைத் தட்டச்சு செய்யுங்கள்.</string>
+    <string name="photo_saved">குறியீடு சேமிக்கப்பட்டது</string>
+    <string name="photo_save">குறியீட்டைச் சேமி</string>
+    <string name="photo_no_books">புகைப்படக் குறியீட்டைச் சேமிக்கும் முன் ஓர் அச்சு நூலைச் சேருங்கள்.</string>
+    <string name="photo_page_title">பக்கம் %1$d</string>
+    <string name="search_contents">நூல் உள்ளடக்கம்</string>
+    <string name="search_indexing">EPUB உள்ளடக்கத்தை அட்டவணைப்படுத்துகிறது… %2$d-இல் %1$d</string>
+    <string name="search_index_errors">%1$d EPUB கோப்புகளை அட்டவணைப்படுத்த முடியவில்லை.</string>
+    <string name="search_index_retry">அட்டவணைப்படுத்தலை மீண்டும் முயல்</string>
+    <string name="search_contents_empty">இந்தத் தேடலுக்குப் பொருந்தும் அட்டவணைப்படுத்திய பகுதிகள் இல்லை.</string>
+    <string name="search_index_hint">பதிவிறக்கிய EPUB-களிலிருந்து உள்ளடக்கம் சாதனத்திலேயே அட்டவணைப்படுத்தப்படுகிறது.</string>
+    <string name="feature_action_failed">இந்த மாற்றத்தைச் சேமிக்க முடியவில்லை. மீண்டும் முயலுங்கள்.</string>
 </resources>
