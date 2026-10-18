@@ -74,6 +74,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.core.content.FileProvider
 import com.vayana.core.designsystem.theme.PagedLazyColumn
 import com.vayana.core.designsystem.theme.LocalFloatingNavigationInset
@@ -454,37 +455,37 @@ private fun OtherAppsCard() {
                             shape = RoundedCornerShape(Radii.large),
                             color = tint.copy(alpha = 0.12f),
                         ) {
-                            Column(
-                                modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.md),
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(Spacing.sm),
+                            Row(
+                                modifier = Modifier.padding(Spacing.sm),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                             ) {
                                 Surface(
                                     modifier = Modifier.size(Sizes.badge),
-                                    shape = CircleShape,
+                                    shape = RoundedCornerShape(Radii.medium),
                                     color = tint.copy(alpha = 0.2f),
                                     contentColor = tint,
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
-                                        Icon(
-                                            imageVector = app.icon,
-                                            contentDescription = null,
-                                            modifier = Modifier.size(Sizes.iconSmall),
-                                        )
+                                        Icon(imageVector = app.icon, contentDescription = null, modifier = Modifier.size(Sizes.iconSmall))
                                     }
                                 }
-                                Text(
-                                    text = stringResource(app.nameRes),
-                                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    textAlign = TextAlign.Center,
-                                )
-                                Text(
-                                    text = stringResource(app.taglineRes),
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    textAlign = TextAlign.Center,
-                                )
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = stringResource(app.nameRes),
+                                        style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.Bold),
+                                        color = MaterialTheme.colorScheme.onSurface,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                    Text(
+                                        text = stringResource(app.taglineRes),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
                             }
                         }
                     }
