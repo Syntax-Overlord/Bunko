@@ -280,3 +280,13 @@ Use [GitHub Issues](https://github.com/rjwarrier/Vayana/issues) for reproducible
 If Vayana is useful to you, you can support development:
 
 <a href="https://www.buymeacoffee.com/ranjithj"><img alt="Buy me a coffee" src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=ranjithj&button_colour=FFDD00&font_colour=000000&font_family=Bree&outline_colour=000000&coffee_colour=ffffff" height="44"></a>
+
+## License
+
+Copyright (C) 2026 Ranjith Jayadevan
+
+Vayana is free software: you can redistribute it and/or modify it under the terms of the [GNU General Public License](LICENSE) as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.
+
+Vayana is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the [LICENSE](LICENSE) file for details.
+
+In short: you're free to use, study, modify and share Vayana. If you distribute a modified version, it must also be released under the GPL with its source code available.

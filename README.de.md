@@ -309,3 +309,7 @@ Nutze [GitHub Issues](https://github.com/rjwarrier/Vayana/issues) für reproduzi
 Wenn Vayana dir hilft, kannst du die Entwicklung unterstützen:
 
 <a href="https://www.buymeacoffee.com/ranjithj"><img alt="Spendiere mir einen Kaffee" src="https://img.buymeacoffee.com/button-api/?text=Buy%20me%20a%20coffee&emoji=&slug=ranjithj&button_colour=FFDD00&font_colour=000000&font_family=Bree&outline_colour=000000&coffee_colour=ffffff" height="44"></a>
+
+## Lizenz
+
+Vayana ist freie Software unter der [GNU General Public License, Version 3 oder neuer](LICENSE). Du darfst Vayana nutzen, verändern und weitergeben; veränderte Versionen müssen ebenfalls unter der GPL mit Quellcode veröffentlicht werden.
