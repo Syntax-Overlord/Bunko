@@ -40,11 +40,11 @@ internal fun YearInBooksCard(year: YearInBooks, onOpenReview: (() -> Unit)? = nu
     val maxMonth = year.monthlyFinishes.maxOrNull()?.coerceAtLeast(1) ?: 1
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radii.medium),
+        shape = StatsCardShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(modifier = Modifier.padding(Paddings.card), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            Text(stringResource(R.string.statistics_year_books_title), style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.padding(StatsCardPadding), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Text(stringResource(R.string.statistics_year_books_title), style = statsCardTitle)
             Text(
                 stringResource(R.string.statistics_year_books_finished, year.finishedCount, year.year),
                 style = MaterialTheme.typography.headlineSmall,

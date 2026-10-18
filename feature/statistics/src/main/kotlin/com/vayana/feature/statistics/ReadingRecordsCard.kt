@@ -29,9 +29,9 @@ import java.io.File
 @Composable
 internal fun ReadingRecordsCard(books: List<Book>, onOpenBook: (Long) -> Unit) {
     var showAll by remember { mutableStateOf(false) }
-    Surface(shape = RoundedCornerShape(Radii.medium), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
-        Column(Modifier.fillMaxWidth().padding(Paddings.card), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            Text(stringResource(R.string.statistics_reading_records), style = MaterialTheme.typography.titleMedium)
+    Surface(shape = StatsCardShape, color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+        Column(Modifier.fillMaxWidth().padding(StatsCardPadding), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+            Text(stringResource(R.string.statistics_reading_records), style = statsCardTitle)
             books.take(3).forEach { ReadingRecordRow(it, onOpenBook) }
             if (books.size > 3) TextButton(onClick = { showAll = true }) {
                 Text(stringResource(R.string.statistics_reading_records_all))

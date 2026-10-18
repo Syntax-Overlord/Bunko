@@ -1,5 +1,8 @@
 package com.vayana.feature.statistics
 
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle as ComposeTextStyle
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -272,9 +275,9 @@ private fun StatisticsDashboard(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(Radii.medium))
+                        .clip(StatsCardShape)
                         .clickable(onClick = onReviewVocabulary),
-                    shape = RoundedCornerShape(Radii.medium),
+                    shape = StatsCardShape,
                     color = MaterialTheme.colorScheme.primaryContainer,
                     contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 ) {
@@ -285,7 +288,7 @@ private fun StatisticsDashboard(
                     ) {
                         Icon(imageVector = Icons.Outlined.Style, contentDescription = null)
                         Column(modifier = Modifier.weight(1f)) {
-                            Text(text = stringResource(R.string.statistics_review_vocabulary_title), style = MaterialTheme.typography.titleMedium)
+                            Text(text = stringResource(R.string.statistics_review_vocabulary_title), style = statsCardTitle)
                             Text(
                                 text = if (vocabularyDueCount > 0) {
                                     stringResource(R.string.statistics_review_vocabulary_support, vocabularyDueCount, vocabularyCardCount)
@@ -306,16 +309,16 @@ private fun StatisticsDashboard(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(Radii.medium))
+                        .clip(StatsCardShape)
                         .clickable(onClick = onReviewHighlights),
-                    shape = RoundedCornerShape(Radii.medium),
+                    shape = StatsCardShape,
                     color = MaterialTheme.colorScheme.tertiaryContainer,
                     contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
                 ) {
                     Column(modifier = Modifier.padding(Spacing.lg)) {
                         Text(
                             text = stringResource(R.string.statistics_highlight_revisit_title),
-                            style = MaterialTheme.typography.titleMedium,
+                            style = statsCardTitle,
                         )
                         Text(
                             text = highlight.selectedText,
@@ -348,22 +351,28 @@ private fun StatisticsDashboard(
     }
 }
 
+/** Material 3 Expressive card style shared by every statistics card: extra-large corners, roomy padding, bold titles. */
+internal val StatsCardShape = RoundedCornerShape(Radii.extraLargeIncreased)
+internal val StatsCardPadding = Spacing.xl
+internal val statsCardTitle: ComposeTextStyle
+    @Composable get() = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+
 @Composable
 private fun StatisticTile(icon: ImageVector, title: String, value: String, supportingText: String) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radii.medium),
+        shape = StatsCardShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(Paddings.card),
+                .padding(StatsCardPadding),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             Surface(
-                shape = RoundedCornerShape(Radii.small),
+                shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             ) {
@@ -371,19 +380,19 @@ private fun StatisticTile(icon: ImageVector, title: String, value: String, suppo
                     imageVector = icon,
                     contentDescription = null,
                     modifier = Modifier
-                        .padding(Spacing.sm)
+                        .padding(Spacing.md)
                         .size(Sizes.icon),
                 )
             }
             Column(modifier = Modifier.weight(1f)) {
-                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(title, style = statsCardTitle)
                 Text(
                     text = supportingText,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(text = value, style = MaterialTheme.typography.headlineSmall)
+            Text(text = value, style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold))
         }
     }
 }
@@ -396,20 +405,21 @@ private fun StatisticsOverviewCard(summary: StatisticsSummary) {
         else stringResource(R.string.reader_duration_minutes, 0)) to stringResource(R.string.statistics_overview_total_time),
         summary.currentStreakDays.toString() to stringResource(R.string.statistics_overview_streak),
     )
+    // The hero: the three figures most visits are for, large, on the primary container.
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radii.medium),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = StatsCardShape,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
     ) {
-        Column(modifier = Modifier.padding(Paddings.card), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
-            Text(stringResource(R.string.statistics_overview_title), style = MaterialTheme.typography.titleMedium)
-            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        Column(modifier = Modifier.padding(StatsCardPadding), verticalArrangement = Arrangement.spacedBy(Spacing.lg)) {
+            Text(stringResource(R.string.statistics_overview_title), style = statsCardTitle)
+            Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 metrics.forEach { (value, label) ->
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(value, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.primary,
+                        Text(value, style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.Bold),
                             maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        Text(label, style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+                        Text(label, style = MaterialTheme.typography.labelMedium, maxLines = 2)
                     }
                 }
             }
@@ -428,10 +438,10 @@ private fun StorageCard(device: DeviceStorage?, books: LibraryStorage?) {
     val size = remember(context) { { bytes: Long -> Formatter.formatShortFileSize(context, bytes) } }
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radii.medium),
+        shape = StatsCardShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(modifier = Modifier.padding(Paddings.card)) {
+        Column(modifier = Modifier.padding(StatsCardPadding)) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 Icon(
                     imageVector = Icons.Outlined.Storage,
@@ -439,7 +449,7 @@ private fun StorageCard(device: DeviceStorage?, books: LibraryStorage?) {
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.size(Sizes.iconSmall),
                 )
-                Text(text = stringResource(R.string.statistics_storage_title), style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.statistics_storage_title), style = statsCardTitle)
             }
             device?.let { storage ->
                 Text(
@@ -613,11 +623,11 @@ private fun formatSessionDuration(seconds: Long): String {
 private fun GoalsCard(summary: StatisticsSummary) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radii.medium),
+        shape = StatsCardShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(modifier = Modifier.padding(Paddings.card)) {
-            Text(text = stringResource(R.string.statistics_goals_title), style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.padding(StatsCardPadding)) {
+            Text(text = stringResource(R.string.statistics_goals_title), style = statsCardTitle)
             if (summary.dailyGoalMinutes > 0) {
                 GoalRow(
                     modifier = Modifier.padding(top = Spacing.md),
@@ -655,11 +665,11 @@ private fun ReadingHabitsCard(habits: ReadingHabits) {
     val locale = LocalLocale.current.platformLocale
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radii.medium),
+        shape = StatsCardShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(modifier = Modifier.padding(Paddings.card)) {
-            Text(text = stringResource(R.string.statistics_habits_title), style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.padding(StatsCardPadding)) {
+            Text(text = stringResource(R.string.statistics_habits_title), style = statsCardTitle)
             habits.busiestDayOfWeek?.let { day ->
                 HabitFactRow(
                     stringResource(
@@ -704,11 +714,11 @@ private fun HabitFactRow(text: String) {
 private fun AuthorSeriesCard(uniqueAuthorCount: Int, topAuthor: AuthorStat?, topSeries: SeriesProgress?) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radii.medium),
+        shape = StatsCardShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(modifier = Modifier.padding(Paddings.card)) {
-            Text(text = stringResource(R.string.statistics_authors_title), style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.padding(StatsCardPadding)) {
+            Text(text = stringResource(R.string.statistics_authors_title), style = statsCardTitle)
             if (uniqueAuthorCount > 0) {
                 HabitFactRow(stringResource(R.string.statistics_authors_unique_count, uniqueAuthorCount))
             }
@@ -740,11 +750,11 @@ private fun GenreBreakdownCard(genres: List<GenreStat>) {
     val maxSeconds = genres.maxOfOrNull { it.totalSeconds }?.coerceAtLeast(1L) ?: 1L
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radii.medium),
+        shape = StatsCardShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(modifier = Modifier.padding(Paddings.card)) {
-            Text(text = stringResource(R.string.statistics_genres_title), style = MaterialTheme.typography.titleMedium)
+        Column(modifier = Modifier.padding(StatsCardPadding)) {
+            Text(text = stringResource(R.string.statistics_genres_title), style = statsCardTitle)
             Text(
                 text = stringResource(R.string.statistics_genres_support),
                 style = MaterialTheme.typography.bodySmall,
@@ -761,7 +771,7 @@ private fun GenreBreakdownCard(genres: List<GenreStat>) {
 private fun GenreRow(genre: GenreStat, maxSeconds: Long, modifier: Modifier = Modifier) {
     Column(modifier = modifier) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(text = genre.name, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(text = genre.name, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
             Text(
                 text = stringResource(R.string.statistics_genres_row_value, genre.bookCount, formatSessionDuration(genre.totalSeconds)),
                 style = MaterialTheme.typography.bodySmall,
@@ -772,7 +782,7 @@ private fun GenreRow(genre: GenreStat, maxSeconds: Long, modifier: Modifier = Mo
             modifier = Modifier
                 .padding(top = Spacing.xs)
                 .fillMaxWidth()
-                .height(Sizes.iconSmall / 4)
+                .height(10.dp)
                 .clip(RoundedCornerShape(Radii.full))
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         ) {
@@ -792,16 +802,16 @@ private fun VocabularyGrowthCard(growth: VocabularyGrowth) {
     val maxCount = growth.weeklyNewCards.maxOrNull()?.coerceAtLeast(1) ?: 1
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radii.medium),
+        shape = StatsCardShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(modifier = Modifier.padding(Paddings.card)) {
+        Column(modifier = Modifier.padding(StatsCardPadding)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(text = stringResource(R.string.statistics_vocabulary_growth_title), style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.statistics_vocabulary_growth_title), style = statsCardTitle)
                 Text(
                     text = stringResource(R.string.statistics_vocabulary_growth_mastered, (growth.masteredFraction * 100).roundToInt()),
                     style = MaterialTheme.typography.labelLarge,
@@ -850,12 +860,12 @@ private fun TopWordsCard(words: List<WordLookupStat>, onOpenLearnWords: () -> Un
     Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(Radii.medium))
+            .clip(StatsCardShape)
             .clickable(onClick = onOpenLearnWords),
-        shape = RoundedCornerShape(Radii.medium),
+        shape = StatsCardShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(modifier = Modifier.padding(Paddings.card)) {
+        Column(modifier = Modifier.padding(StatsCardPadding)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -864,7 +874,7 @@ private fun TopWordsCard(words: List<WordLookupStat>, onOpenLearnWords: () -> Un
                 Icon(imageVector = Icons.AutoMirrored.Outlined.MenuBook, contentDescription = null, modifier = Modifier.size(Sizes.icon))
                 Text(
                     text = stringResource(R.string.statistics_vocabulary_title),
-                    style = MaterialTheme.typography.titleMedium,
+                    style = statsCardTitle,
                     modifier = Modifier.weight(1f),
                 )
                 Text(
@@ -924,17 +934,17 @@ private fun ReadingActivityCard(dailyMinutes: List<DailyReadingMinutes>, recentW
         modifier = Modifier
             .fillMaxWidth()
             .vayanaAnimateContentSize(),
-        shape = RoundedCornerShape(Radii.medium),
+        shape = StatsCardShape,
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
-        Column(modifier = Modifier.padding(Paddings.card)) {
+        Column(modifier = Modifier.padding(StatsCardPadding)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Column {
-                    Text(text = stringResource(R.string.statistics_activity_title), style = MaterialTheme.typography.titleMedium)
+                    Text(text = stringResource(R.string.statistics_activity_title), style = statsCardTitle)
                     Text(
                         text = selectedDay?.let { day ->
                             stringResource(R.string.statistics_activity_day_detail, day.date.asAppDate(), day.minutes)
@@ -1096,18 +1106,18 @@ private val HeatmapTodayBorderWidth = Strokes.emphasis
 private fun ReadingPaceCard(pace: ReadingPaceEstimate) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(Radii.medium),
+        shape = StatsCardShape,
         color = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
     ) {
         Row(
-            modifier = Modifier.padding(Paddings.card),
+            modifier = Modifier.padding(StatsCardPadding),
             horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Icon(imageVector = Icons.AutoMirrored.Outlined.TrendingUp, contentDescription = null)
             Column {
-                Text(text = stringResource(R.string.statistics_pace_title), style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.statistics_pace_title), style = statsCardTitle)
                 Text(
                     text = stringResource(R.string.statistics_pace_body, pace.bookTitle, pace.estimatedDaysRemaining),
                     style = MaterialTheme.typography.bodyMedium,
