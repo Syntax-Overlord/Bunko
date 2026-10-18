@@ -60,7 +60,9 @@ internal class DataUsageViewModel @Inject constructor(
                 DataUsageState(
                     app = UsagePeriod.entries.map { period ->
                         val start = today.minusDays(period.days - 1).atStartOfDay(zone).toInstant().toEpochMilli()
-                        context.appDataUsage(start, System.currentTimeMillis(), period)
+                        // Android only returns whole 2-hour buckets inside the range, so end past now to include the
+                        // bucket still filling up; otherwise today reads 0 B for up to two hours after a sync.
+                        context.appDataUsage(start, System.currentTimeMillis() + CurrentBucketMillis, period)
                     },
                     sync = syncDataUsageLog.readAll().summary(today, zone),
                 )
@@ -99,4 +101,5 @@ private fun Context.appDataUsage(start: Long, end: Long, period: UsagePeriod): A
 }
 
 private const val ChartDays = 14
+private const val CurrentBucketMillis = 2L * 60 * 60 * 1000
 private const val RecentSyncs = 50

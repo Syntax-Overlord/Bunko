@@ -60,8 +60,11 @@ class GitHubContentsAssetStore(
         // longer the commit commitSyncDocuments could build on.
         if (request.method == "PUT" || request.method == "DELETE") LastSyncCommits.remove(cacheScope)
         requestCount.incrementAndGet()
-        bytesUp.addAndGet(request.body?.size?.toLong() ?: request.streamingBody?.contentLength ?: 0L)
-        return client.execute(request).also { bytesDown.addAndGet(it.body.size.toLong()) }
+        val payloadUp = request.body?.size?.toLong() ?: request.streamingBody?.contentLength ?: 0L
+        return client.execute(request).also { response ->
+            bytesUp.addAndGet(response.wireUpBytes ?: payloadUp)
+            bytesDown.addAndGet(response.wireDownBytes ?: response.body.size.toLong())
+        }
     }
 
     override suspend fun put(path: String, bytes: ByteArray): Unit = withContext(dispatcher) {
@@ -677,6 +680,9 @@ data class GitHubHttpResponse(
     val body: ByteArray,
     /** Response headers keyed by lower-cased name. */
     val headers: Map<String, String> = emptyMap(),
+    /** Bytes sent and received on the wire (compressed body and headers, not encryption); null when unknown. */
+    val wireUpBytes: Long? = null,
+    val wireDownBytes: Long? = null,
 ) {
     fun header(name: String): String? = headers[name.lowercase()]
 
@@ -705,6 +711,8 @@ private class UrlConnectionGitHubHttpClient : GitHubHttpClient {
             connection.connectTimeout = NetworkTimeoutMillis
             connection.readTimeout = NetworkTimeoutMillis
             request.headers.forEach { (name, value) -> connection.setRequestProperty(name, value) }
+            // Asked for explicitly, the response stays compressed until read here, so its real size can be counted.
+            connection.setRequestProperty("Accept-Encoding", "gzip")
             check(request.body == null || request.streamingBody == null) { "Only one request body is allowed" }
             val streamingBody = request.streamingBody
             if (streamingBody != null) {
@@ -721,12 +729,24 @@ private class UrlConnectionGitHubHttpClient : GitHubHttpClient {
             } else {
                 connection.inputStream
             }
-            val bytes = stream?.use { it.readBytesLimited(request.maxResponseBytes) } ?: ByteArray(0)
+            val gzip = connection.contentEncoding.equals("gzip", ignoreCase = true)
+            val (bytes, bodyWireBytes) = stream?.use { readResponseBody(it, gzip, request.maxResponseBytes) } ?: (ByteArray(0) to 0L)
             val headers = connection.headerFields
                 .filterKeys { it != null }
                 .mapNotNull { (name, values) -> values.firstOrNull()?.let { name.lowercase() to it } }
                 .toMap()
-            return GitHubHttpResponse(status, bytes, headers)
+            val requestHeaderBytes = request.method.length + request.url.length + RequestLineOverhead +
+                request.headers.entries.sumOf { (name, value) -> name.length + value.length + HeaderLineOverhead }
+            val responseHeaderBytes = connection.headerFields.entries.sumOf { (name, values) ->
+                values.sumOf { (name?.length ?: 0) + it.length + HeaderLineOverhead }
+            }
+            return GitHubHttpResponse(
+                statusCode = status,
+                body = bytes,
+                headers = headers,
+                wireUpBytes = requestHeaderBytes + (request.body?.size?.toLong() ?: streamingBody?.contentLength ?: 0L),
+                wireDownBytes = responseHeaderBytes + bodyWireBytes,
+            )
         } finally {
             connection.disconnect()
         }
@@ -820,6 +840,30 @@ private fun String.topLevelJsonObjects(): List<String> {
  * whole sync) for many minutes. Past a grace period it must average [MinDownloadBytesPerSecond]; a slower one
  * fails, and reads retry on a fresh connection.
  */
+/**
+ * Reads a response body, un-gzipping it when [gzip], and returns it with the bytes that came off the network. An
+ * empty body is fine even when marked gzip (some 204s and 304s are).
+ */
+internal fun readResponseBody(stream: java.io.InputStream, gzip: Boolean, maxBytes: Int): Pair<ByteArray, Long> {
+    val counted = CountingInputStream(stream)
+    if (!gzip) return counted.readBytesLimited(maxBytes) to counted.count
+    val peek = java.io.PushbackInputStream(counted, 1)
+    val first = peek.read()
+    if (first == -1) return ByteArray(0) to counted.count
+    peek.unread(first)
+    return java.util.zip.GZIPInputStream(peek).readBytesLimited(maxBytes) to counted.count
+}
+
+private class CountingInputStream(input: java.io.InputStream) : java.io.FilterInputStream(input) {
+    var count = 0L
+        private set
+
+    override fun read(): Int = super.read().also { if (it >= 0) count++ }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int =
+        super.read(buffer, offset, length).also { if (it > 0) count += it }
+}
+
 private fun java.io.InputStream.readBytesLimited(maxBytes: Int): ByteArray {
     val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
     val output = java.io.ByteArrayOutputStream()
@@ -994,6 +1038,9 @@ private fun readRetryDelayMillis(attempt: Int): Long = InitialReadRetryDelayMill
 private val GitHubNameRegex = Regex("^[A-Za-z0-9_.-]{1,100}$")
 private val GitHubBranchRegex = Regex("^[A-Za-z0-9._/-]{1,255}$")
 private val GitHubObjectShaRegex = Regex("^[a-f0-9]{40,64}$")
+// "GET <url> HTTP/1.1\r\n" around the method and URL, and ": " plus "\r\n" on every header line.
+private const val RequestLineOverhead = 12
+private const val HeaderLineOverhead = 4
 private val SyncDocumentPathRegex = Regex("^[A-Za-z0-9._/-]{1,240}$")
 // Any slice may be zipped (the compact snapshot format); which names are slices is checked when a manifest is read.
 private val CompressedSlicePathRegex = Regex("^vayana/snapshot-slices/[1-9][0-9]*/[a-z-]+\\.zip$")
