@@ -50,9 +50,15 @@ class GitHubContentsAssetStoreTest {
     @Test
     fun compactPublishZipsEverySliceAndMovesBooksOutOfTheManifest() = runBlocking {
         PortableSnapshotFormat.compact = true
+        // One blob per distinct zipped slice (zips are reproducible, so the two empty annotation slices share one),
+        // plus the manifest, which is written to both the latest pointer and this device's snapshot.
+        val distinctZips = emptySnapshot(2000).toSlicedJsonDocuments()
+            .filter { it.sliceKey != null }
+            .map { com.vayana.core.sync.snapshot.zipSnapshotJson(it.jsonText).toList() }
+            .distinct().size
         val client = RecordingGitHubHttpClient(
             GitHubHttpResponse(200, "[]".toByteArray()), // prune: no slices folder yet
-            *singleCommitResponses(blobs = 10),
+            *singleCommitResponses(blobs = distinctZips + 1),
         )
 
         testStore(client).putPortableSnapshotDocuments(emptySnapshot(2000), "vayana/snapshots/phone.json", ExistingSha)

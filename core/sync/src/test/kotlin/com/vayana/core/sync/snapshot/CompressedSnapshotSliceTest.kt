@@ -57,6 +57,14 @@ class CompressedSnapshotSliceTest {
     }
 
     @Test
+    fun theSameRecordsAlwaysZipToTheSameBytes() {
+        val json = """{"readingSessions":[{"syncId":"s1"}]}"""
+        val first = zipSnapshotJson(json)
+        Thread.sleep(2_100) // past a zip timestamp's 2-second resolution
+        assertContentEquals(first, zipSnapshotJson(json))
+    }
+
+    @Test
     fun refusesToCompressASliceTheReaderCannotExpand() {
         val json = "x".repeat(16 * 1024 * 1024 + 1)
         assertFailsWith<IllegalArgumentException> { zipSnapshotJson(json) }

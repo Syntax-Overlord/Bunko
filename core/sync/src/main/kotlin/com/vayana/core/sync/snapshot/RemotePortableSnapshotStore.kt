@@ -213,7 +213,9 @@ internal fun zipSnapshotJson(json: String): ByteArray {
     require(bytes.size <= MaxUncompressedSliceBytes) { "Snapshot slice exceeds the 16 MiB uncompressed limit" }
     val output = ByteArrayOutputStream(json.length.coerceAtMost(MaxInitialZipBufferBytes))
     ZipOutputStream(output).use { zip ->
-        zip.putNextEntry(ZipEntry(AnnotationsZipEntryName))
+        // A fixed timestamp makes the same records zip to the same bytes, so identical slices share one blob and a
+        // republished slice is recognisably unchanged; the clock would make every zip unique.
+        zip.putNextEntry(ZipEntry(AnnotationsZipEntryName).apply { time = FixedZipEntryTime })
         zip.write(bytes)
         zip.closeEntry()
     }
@@ -571,6 +573,7 @@ private fun isZippedSlice(key: String): Boolean = isCompressedPortableSnapshotSl
 private const val SnapshotSlicesRoot = "vayana/snapshot-slices"
 private const val RetainedSnapshotSliceSets = 3
 private const val AnnotationsZipEntryName = "annotations.json"
+private const val FixedZipEntryTime = 315_532_800_000L // 1980-01-01, the earliest time a zip entry can hold
 private const val MaxUncompressedSliceBytes = 16 * 1024 * 1024
 private const val ZipBufferBytes = 16 * 1024
 private const val MaxInitialZipBufferBytes = 256 * 1024
