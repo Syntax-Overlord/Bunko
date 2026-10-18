@@ -11,7 +11,8 @@ import com.vayana.core.filesystem.StorageRoots
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
-import java.util.concurrent.ConcurrentHashMap
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
@@ -29,20 +30,30 @@ import kotlinx.coroutines.withContext
  */
 @Singleton
 class HomeLibraryCovers @Inject constructor(
+    @ApplicationContext context: Context,
     private val source: HomeLibrarySource,
     private val bookDao: BookDao,
     private val storageRoots: StorageRoots,
     private val dispatchers: DispatcherProvider,
     private val logStore: DiagnosticsLogStore,
 ) {
-    /** Books whose cover failed at this `updated_at`: not asked again until Home Library changes the book. */
-    private val failedAt = ConcurrentHashMap<String, Long?>()
+    /**
+     * Books whose cover failed, as "updatedAt:failedAtMillis" by uuid. Kept across app starts: a cover Home Library
+     * refuses is asked for again only once Home Library changes the book, or after [RetryFailedAfterMillis].
+     */
+    private val failedCovers = context.getSharedPreferences("home_library_cover_failures", Context.MODE_PRIVATE)
+
+    private fun failedRecently(uuid: String, updatedAt: Long?): Boolean {
+        val (failedUpdatedAt, failedAt) = failedCovers.getString(uuid, null)?.split(':')?.takeIf { it.size == 2 } ?: return false
+        return failedUpdatedAt == (updatedAt ?: 0L).toString() &&
+            System.currentTimeMillis() - (failedAt.toLongOrNull() ?: 0L) < RetryFailedAfterMillis
+    }
     private val gate = Semaphore(Parallelism)
 
     /**
      * Fetches every missing or outdated cover, a few at a time. A failure on one book never stops the others, and a
-     * book that failed is skipped until its record changes (or the app restarts), so a cover Home Library cannot serve
-     * costs one attempt, not one per sync.
+     * book that failed is skipped until its record changes (or a week passes), so a cover Home Library cannot serve
+     * costs one attempt, not one per app start.
      */
     suspend fun refresh() = withContext(dispatchers.io) {
         val failures = AtomicInteger()
@@ -54,7 +65,7 @@ class HomeLibraryCovers @Inject constructor(
                 continue
             }
             if (book.hasCurrentCover(uuid)) continue
-            if (failedAt.containsKey(uuid) && failedAt[uuid] == book.sourceUpdatedAt) continue
+            if (failedRecently(uuid, book.sourceUpdatedAt)) continue
             pending += book to uuid
         }
         coroutineScope {
@@ -63,10 +74,10 @@ class HomeLibraryCovers @Inject constructor(
                     gate.withPermit {
                         try {
                             fetch(book, uuid)
-                            failedAt.remove(uuid)
+                            failedCovers.edit().remove(uuid).apply()
                         } catch (error: Exception) {
                             if (error is kotlinx.coroutines.CancellationException) throw error
-                            failedAt[uuid] = book.sourceUpdatedAt
+                            failedCovers.edit().putString(uuid, "${book.sourceUpdatedAt ?: 0L}:${System.currentTimeMillis()}").apply()
                             if (failures.getAndIncrement() < MaxLoggedFailures) {
                                 logStore.record(DiagnosticCategory.SYNC, "HomeLibraryCovers", "Cover fetch failed for $uuid", error.stackTraceToString())
                             }
@@ -110,6 +121,7 @@ class HomeLibraryCovers @Inject constructor(
 
     private companion object {
         const val MaxLoggedFailures = 5
+        const val RetryFailedAfterMillis = 7L * 24 * 60 * 60 * 1000
         const val Parallelism = 4
 
         /** Offline-book covers are shown small, so they are stored smaller than the library-wide limit. */
